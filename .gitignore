@@ -1,0 +1,22 @@
+node_modules/
+.env
+.env.local
+*.log
+npm-debug.log*
+
+# Next.js
+frontend/.next/
+frontend/out/
+
+# Backend build
+backend/dist/
+
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+!contracts/broadcast/**/dry-run
+
+# OS
+.DS_Store
+Thumbs.db

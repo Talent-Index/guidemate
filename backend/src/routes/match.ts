@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { matchGuide } from "../match.js";
+import { matchExperience } from "../match.js";
 
 export const matchRouter = Router();
 
@@ -15,10 +15,10 @@ matchRouter.post("/", async (req, res) => {
   }
 
   try {
-    const result = await matchGuide(parsed.data.request);
+    const result = await matchExperience(parsed.data.request);
     res.json(result);
   } catch (err) {
     console.error("[match] failed", err);
-    res.status(500).json({ error: "matching failed" });
+    res.status(500).json({ error: (err as Error).message ?? "matching failed" });
   }
 });

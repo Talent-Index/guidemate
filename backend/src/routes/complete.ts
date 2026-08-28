@@ -2,7 +2,7 @@ import { Router } from "express";
 import { formatUnits } from "ethers";
 import { z } from "zod";
 import { bookingIdToBytes32, requireChain } from "../chain.js";
-import { getBooking, updateBooking } from "../store.js";
+import { getBooking, updateBooking } from "../bookings.js";
 import { verifyBookingToken } from "../qr.js";
 import { simulateMpesaPayout } from "../payout.js";
 
@@ -23,7 +23,7 @@ completeRouter.post("/", async (req, res) => {
     return res.status(400).json({ error: "invalid or tampered QR token" });
   }
 
-  const booking = getBooking(bookingId);
+  const booking = await getBooking(bookingId);
   if (!booking) {
     return res.status(404).json({ error: "booking not found" });
   }
@@ -55,14 +55,14 @@ completeRouter.post("/", async (req, res) => {
       }
     }
 
-    updateBooking(bookingId, {
+    await updateBooking(bookingId, {
       status: "released",
       releaseTxHash: receipt?.hash ?? tx.hash,
       splits,
     });
 
-    const payout = await simulateMpesaPayout(splits.guideAmount, booking.guide.phone);
-    const updated = updateBooking(bookingId, { status: "paid", payout });
+    const payout = await simulateMpesaPayout(splits.guideAmount, booking.guidePhone ?? "");
+    const updated = await updateBooking(bookingId, { status: "paid", payout });
 
     res.json({ booking: updated });
   } catch (err) {

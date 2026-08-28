@@ -1,20 +1,27 @@
 # Guidemate
 
-Instant M-Pesa payouts for local tour guides, secured by an Avalanche Fuji escrow contract with an
-AI-agent-vouched matching engine. Built for the Avalanche Mini Hack - Nights of Code.
+A consumer marketplace connecting anyone with local experiences: a tourist describes what they
+want, an AI agent matches them with a vetted local guide, payment is locked in an on-chain escrow
+on Avalanche Fuji, and the guide is paid out to M-Pesa within seconds of the tour being verified
+complete. Built for the Avalanche Mini Hack - Nights of Code.
 
-> Local guides lose 20-30% of every booking to global OTAs, and get paid on slow biweekly cycles.
-> Guidemate locks a hotel's card payment as stablecoin in an on-chain escrow the moment a tour is
-> booked, then auto-splits it 85% Guide / 10% Hotel / 5% Protocol and pays the guide out in KES to
-> M-Pesa within seconds of a QR-verified tour completion.
+> It's Uber for local experiences: guides list what they offer and their rates, tourists search
+> and book directly, funds sit in escrow until the tour is done and confirmed, and the guide's cut
+> lands in M-Pesa same-day instead of on a biweekly OTA payout cycle. A secondary B2B path lets
+> hotel concierge desks book the same vetted guides on a guest's behalf.
 
 ## Monorepo layout
 
 ```
 contracts/   Foundry project: GuidemateEscrow.sol + MockUSDC.sol, tests, deploy script
-backend/     Node/Express API: AI guide matching, chain orchestration, QR signing, M-Pesa sim
-frontend/    Next.js app: Concierge dashboard, Guide QR view, Verify scanner (white/blue brand)
+backend/     Node/Express API: AI experience matching, chain orchestration, QR signing, M-Pesa sim
+frontend/    Next.js app: auth, guide dashboard, tourist marketplace, wallet connect (white/blue brand)
 ```
+
+Accounts, guide profiles, experience listings and bookings live in Supabase (Postgres + Auth with
+Row Level Security). The backend uses a service-role key to orchestrate on-chain escrow calls and
+write booking records; everything else (sign up, profile edits, experience CRUD, browsing) talks to
+Supabase directly from the frontend under RLS.
 
 ## Prerequisites
 
@@ -23,8 +30,13 @@ frontend/    Next.js app: Concierge dashboard, Guide QR view, Verify scanner (wh
   install inside WSL since `foundryup` does not support PowerShell/cmd
 - A funded Avalanche Fuji testnet wallet - get test AVAX from the
   [Fuji faucet](https://core.app/tools/testnet-faucet/)
-- (Optional) an OpenAI API key for AI-based guide matching - without it, matching falls back to a
-  local keyword scorer so the demo never breaks
+- A Supabase project (free tier is fine) - get the project URL, anon/publishable key, and
+  service_role key from **Project Settings > API** in the dashboard
+- A browser wallet extension (Core Wallet or MetaMask) set to Avalanche Fuji, for the tourist-side
+  wallet-connect + testnet mUSDC faucet flow
+- (Optional) a free Gemini API key ([aistudio.google.com/apikey](https://aistudio.google.com/apikey))
+  for AI-based experience matching - without it, matching falls back to a local keyword scorer so
+  the demo never breaks
 
 ## 1. Install dependencies
 
@@ -32,6 +44,83 @@ frontend/    Next.js app: Concierge dashboard, Guide QR view, Verify scanner (wh
 npm install            # installs backend + frontend workspaces
 cd contracts && forge install   # already run once; re-run if lib/ is missing
 ```
+
+## 2. Set up Supabase
+
+Create `profiles`, `experiences` and `bookings` tables with RLS enabled (see
+`.cursor/plans/guidemate_consumer_marketplace_cd9e8e03.plan.md` for the exact schema), then:
+
+- In **Authentication > Providers > Email**, turn off "Confirm email" so sign-up sessions are
+  usable immediately - important for a smooth demo since there's no custom SMTP configured.
+- Copy the project URL + anon key into `frontend/.env.local` and `frontend/.env.example`.
+- Copy the project URL + **service_role** key into `backend/.env` (never expose the service_role
+  key to the frontend).
+
+## 3. Deploy the contracts (Fuji testnet)
+
+```bash
+cd contracts
+cp .env.example .env    # fill in FUJI_RPC_URL + BACKEND_PRIVATE_KEY
+forge build
+forge test
+forge script script/Deploy.s.sol:Deploy \
+  --rpc-url $FUJI_RPC_URL \
+  --broadcast \
+  --private-key $BACKEND_PRIVATE_KEY
+```
+
+Copy the printed `MockUSDC` and `GuidemateEscrow` addresses into `backend/.env` and
+`frontend/.env.local` (`NEXT_PUBLIC_MOCK_USDC_ADDRESS`).
+
+## 4. Configure and run the backend
+
+```bash
+cd backend
+cp .env.example .env     # fill in BACKEND_PRIVATE_KEY, ESCROW_ADDRESS, MOCK_USDC_ADDRESS,
+                          # SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY
+npm run seed              # tops up MockUSDC balance + escrow approval, so the demo never runs dry
+npm run dev                # http://localhost:4000
+```
+
+## 5. Run the frontend
+
+```bash
+cd frontend
+cp .env.example .env.local   # NEXT_PUBLIC_API_BASE_URL, NEXT_PUBLIC_SUPABASE_URL,
+                              # NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_MOCK_USDC_ADDRESS
+npm run dev                   # http://localhost:3000
+```
+
+## Happy-path demo runbook
+
+1. **Guide onboarding.** Go to `/auth/sign-up`, choose "I'm a guide", sign up with an M-Pesa phone
+   number. Land on `/guide/dashboard`; connect a Fuji wallet (Core/MetaMask) to set the payout
+   wallet address, then publish an experience (title, description, tags, price in USDC, duration,
+   location).
+2. **Tourist search.** In another browser/session, sign up as a tourist and land on `/explore`.
+   Type a request, e.g. *"I want authentic downtown street food this evening,"* and click **Find my
+   guide** - the AI agent matches the best-fit experience with a one-line reason. (Or just browse
+   and pick any card directly.)
+3. **Book & pay.** Click **Book**, connect a wallet (optional - can also get free testnet mUSDC via
+   the faucet button here), then **Confirm & pay** - the backend mints MockUSDC and locks it in
+   `GuidemateEscrow` on Fuji. A Snowtrace link appears, and the booking shows up on `/tourist/bookings`.
+4. **Guide completes the tour.** Back in the guide's session, open `/guide` - the active booking's
+   dynamic QR renders automatically.
+5. **Verify & release.** Open `/verify` (e.g. scan the QR with a phone camera, which opens this URL
+   with the token pre-filled) - this calls `release()` on-chain, splitting funds 85% guide / 10%
+   hotel-or-protocol / 5% protocol.
+6. Back on `/tourist/bookings` and `/guide`, the status flips to **Released** then **Paid**, showing
+   the split amounts and a simulated M-Pesa receipt (`KES ... sent to +254... · Ref MPESA-...`).
+
+If the camera scan isn't convenient on stage, paste the token manually into the `/verify` page's
+text field - it's the same value encoded in the QR.
+
+### Secondary flow: hotel concierge (B2B)
+
+`/concierge` reproduces the original hackathon pitch for a hotel concierge desk booking on a
+guest's behalf, reading from the same Supabase-backed experiences. It doesn't require a tourist
+account and tags the booking with a demo hotel identity so the 85/10/5 split still shows a
+distinct hotel share.
 
 ## Local smoke test (no Fuji wallet needed)
 
@@ -59,66 +148,23 @@ escrow split, payout simulation) works identically to the Fuji path.
 > createBooking) could reuse a stale nonce and fail with `NONCE_EXPIRED`. Fixed by constructing
 > the provider with `{ cacheTimeout: -1 }` in `backend/src/chain.ts`.
 
-## 2. Deploy the contracts (Fuji testnet)
-
-```bash
-cd contracts
-cp .env.example .env    # fill in FUJI_RPC_URL + BACKEND_PRIVATE_KEY
-forge build
-forge test
-forge script script/Deploy.s.sol:Deploy \
-  --rpc-url $FUJI_RPC_URL \
-  --broadcast \
-  --private-key $BACKEND_PRIVATE_KEY
-```
-
-Copy the printed `MockUSDC` and `GuidemateEscrow` addresses into `backend/.env`.
-
-## 3. Configure and run the backend
-
-```bash
-cd backend
-cp .env.example .env     # fill in BACKEND_PRIVATE_KEY, ESCROW_ADDRESS, MOCK_USDC_ADDRESS, OPENAI_API_KEY
-npm run seed              # tops up MockUSDC balance + escrow approval, so the demo never runs dry
-npm run dev                # http://localhost:4000
-```
-
-## 4. Run the frontend
-
-```bash
-cd frontend
-cp .env.example .env.local   # NEXT_PUBLIC_API_BASE_URL=http://localhost:4000
-npm run dev                   # http://localhost:3000
-```
-
-## Happy-path demo runbook
-
-1. Open `http://localhost:3000/concierge`. Type (or click) a guest request, e.g. *"My guest wants
-   authentic downtown street food this evening."*
-2. Click **Find a Guide** - the AI agent returns a matched guide card with reputation + reason.
-3. Click **Book & Lock Escrow** - the backend mints MockUSDC and locks it in `GuidemateEscrow` on
-   Fuji. A Snowtrace link appears; status chip shows **Locked**.
-4. Open `http://localhost:3000/guide` (ideally on a second device/window) - the active booking's
-   dynamic QR renders automatically.
-5. Open `http://localhost:3000/verify` (e.g. scan the QR with a phone camera, which opens this URL
-   with the token pre-filled) - this calls `release()` on-chain, splitting funds 85/10/5.
-6. Back on the Concierge tab, the status chip flips to **Released** then **Paid**, showing the
-   split amounts and a simulated M-Pesa receipt (`KES ... sent to +254... · Ref MPESA-...`).
-
-If the camera scan isn't convenient on stage, paste the token manually into the `/verify` page's
-text field - it's the same value encoded in the QR.
-
 ## Design system
 
 White-and-blue, Booking.com-inspired brand: deep-blue `#003B95` top bar and primary actions, white
 rounded cards on a light `#F5F7FB` background, and a single amber `#FFB700` CTA reserved for the
-key action per screen (Book & Lock Escrow). Tokens live in `frontend/tailwind.config.ts`; shared
+key action per screen (Confirm & Pay). Tokens live in `frontend/tailwind.config.ts`; shared
 primitives are in `frontend/components/ui/`.
 
 ## Notes
 
-- The backend wallet is the trusted signer for all on-chain calls (mint/createBooking/release) -
-  this models "hotel pays by card, Guidemate converts to stablecoin," so concierge/guide/tourist
-  never need their own crypto wallets for the MVP.
-- `MockUSDC` is a testnet-only mintable ERC-20 standing in for real USDC/USDT.
+- The backend wallet is the trusted signer for the escrow lock/release transactions themselves
+  (mint/createBooking/release) - tourist and guide wallets are used for identity, balance display
+  and the testnet mUSDC faucet, not for signing the lock/release transactions directly.
+- `MockUSDC` is a testnet-only mintable ERC-20 standing in for real USDC/USDT; anyone can self-serve
+  a capped amount via its public `faucet()` function.
+- Direct tourist bookings (no real hotel) route the "hotel" 10% share to the protocol treasury
+  address instead of requiring a hotel wallet.
 - M-Pesa payout is simulated (`backend/src/payout.ts`) - no real Daraja/HoneyCoin call is made.
+- Every table (`profiles`, `experiences`, `bookings`) has Row Level Security enabled; the `bookings`
+  table has no client-facing write policies at all - every write goes through the backend's
+  service-role key so escrow state and DB state can never drift apart.

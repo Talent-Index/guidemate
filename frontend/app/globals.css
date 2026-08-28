@@ -6,6 +6,8 @@ html,
 body {
   background-color: #f5f7fb;
   color: #1a1a1a;
+  /* Needed so the full-bleed hero's 100vw trick never introduces a horizontal scrollbar. */
+  overflow-x: hidden;
 }
 
 * {

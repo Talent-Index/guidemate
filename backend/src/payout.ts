@@ -1,4 +1,4 @@
-import type { PayoutInfo } from "./store.js";
+import type { PayoutInfo } from "./bookings.js";
 
 const RATE = Number(process.env.USDC_TO_KES_RATE ?? 145);
 

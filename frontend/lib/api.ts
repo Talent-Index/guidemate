@@ -1,22 +1,29 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
 
-export interface Guide {
+export interface ExperienceGuide {
   id: string;
-  name: string;
-  wallet: string;
-  phone: string;
-  tags: string[];
+  fullName: string;
+  phone: string | null;
+  walletAddress: string | null;
+  bio: string | null;
   languages: string[];
-  reputationScore: number;
-  completedTours: number;
+}
+
+export interface Experience {
+  id: string;
+  title: string;
+  description: string;
+  tags: string[];
   priceUsdc: number;
-  bio: string;
+  durationMinutes: number;
+  location: string | null;
+  guide: ExperienceGuide;
 }
 
 export interface MatchResult {
-  guide: Guide;
+  experience: Experience;
   reason: string;
-  source: "openai" | "local";
+  source: "gemini" | "local";
 }
 
 export type BookingStatus = "locked" | "released" | "paid";
@@ -31,16 +38,23 @@ export interface PayoutInfo {
 
 export interface BookingRecord {
   bookingId: string;
-  guide: Guide;
-  hotel: { name: string; wallet: string };
-  request: string;
-  matchReason: string;
+  touristId: string | null;
+  guideId: string;
+  guideName: string;
+  guideWallet: string;
+  guidePhone: string | null;
+  experienceId: string | null;
+  experienceTitle: string | null;
+  hotelName: string | null;
+  hotelWallet: string | null;
+  request: string | null;
+  matchReason: string | null;
   amountUsdc: number;
   status: BookingStatus;
-  lockTxHash?: string;
-  releaseTxHash?: string;
+  lockTxHash: string | null;
+  releaseTxHash: string | null;
   splits?: { guideAmount: number; hotelAmount: number; protocolAmount: number };
-  payout?: PayoutInfo;
+  payout: PayoutInfo | null;
   createdAt: string;
 }
 
@@ -61,22 +75,30 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-export function matchGuide(text: string) {
+function authHeaders(accessToken?: string): HeadersInit {
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+}
+
+export function matchExperience(text: string) {
   return request<MatchResult>("/api/match", {
     method: "POST",
     body: JSON.stringify({ request: text }),
   });
 }
 
-export function createBooking(input: {
-  request: string;
-  guideId: string;
-  matchReason: string;
-  hotelName?: string;
-  hotelWallet?: string;
-}) {
+export function createBooking(
+  input: {
+    request: string;
+    experienceId: string;
+    matchReason: string;
+    hotelName?: string;
+    hotelWallet?: string;
+  },
+  accessToken?: string
+) {
   return request<{ booking: BookingRecord; qrToken: string }>("/api/book", {
     method: "POST",
+    headers: authHeaders(accessToken),
     body: JSON.stringify(input),
   });
 }
@@ -85,8 +107,11 @@ export function getBooking(bookingId: string) {
   return request<{ booking: BookingRecord }>(`/api/bookings/${bookingId}`);
 }
 
-export function listBookings() {
-  return request<{ bookings: BookingRecord[] }>("/api/bookings");
+/// Returns bookings for the signed-in user (as tourist and/or guide).
+export function listMyBookings(accessToken: string) {
+  return request<{ bookings: BookingRecord[] }>("/api/bookings", {
+    headers: authHeaders(accessToken),
+  });
 }
 
 export function getQrToken(bookingId: string) {

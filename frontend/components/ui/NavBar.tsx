@@ -24,15 +24,13 @@ export function NavBar() {
         </Link>
 
         <nav className="flex items-center gap-6">
-          <Link href="/explore" className="text-sm font-medium text-white/85 transition hover:text-white">
-            Explore
-          </Link>
-          <Link href="/concierge" className="text-sm font-medium text-white/85 transition hover:text-white">
-            Concierge
-          </Link>
-
           {loading ? null : user && profile ? (
             <>
+              {profile.role === "tourist" && (
+                <Link href="/explore" className="text-sm font-medium text-white/85 transition hover:text-white">
+                  Explore
+                </Link>
+              )}
               <Link
                 href={profile.role === "guide" ? "/guide/dashboard" : "/tourist/bookings"}
                 className="text-sm font-medium text-white/85 transition hover:text-white"
@@ -49,6 +47,12 @@ export function NavBar() {
             </>
           ) : (
             <>
+              <Link href="/explore" className="text-sm font-medium text-white/85 transition hover:text-white">
+                Explore
+              </Link>
+              <Link href="/concierge" className="text-sm font-medium text-white/85 transition hover:text-white">
+                Concierge
+              </Link>
               <Link href="/auth/sign-in" className="text-sm font-medium text-white/85 transition hover:text-white">
                 Sign in
               </Link>

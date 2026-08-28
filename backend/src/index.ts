@@ -6,7 +6,6 @@ import { bookRouter } from "./routes/book.js";
 import { completeRouter } from "./routes/complete.js";
 import { bookingsRouter } from "./routes/bookings.js";
 import { payoutRouter } from "./routes/payout.js";
-import { guidesRouter } from "./routes/guides.js";
 
 const app = express();
 app.use(cors());
@@ -14,7 +13,6 @@ app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ ok: true, service: "guidemate-backend" }));
 
-app.use("/api/guides", guidesRouter);
 app.use("/api/match", matchRouter);
 app.use("/api/book", bookRouter);
 app.use("/api/complete", completeRouter);

@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { getBooking } from "../store.js";
+import { getBooking } from "../bookings.js";
 
 export const payoutRouter = Router();
 
-payoutRouter.get("/:id", (req, res) => {
-  const booking = getBooking(req.params.id);
+payoutRouter.get("/:id", async (req, res) => {
+  const booking = await getBooking(req.params.id);
   if (!booking) {
     return res.status(404).json({ error: "booking not found" });
   }

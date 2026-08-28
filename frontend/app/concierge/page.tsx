@@ -7,7 +7,7 @@ import { Chip } from "@/components/ui/Chip";
 import {
   createBooking,
   getBooking,
-  matchGuide,
+  matchExperience,
   SNOWTRACE_TX_BASE,
   type BookingRecord,
   type MatchResult,
@@ -18,6 +18,12 @@ const EXAMPLE_REQUESTS = [
   "The guest is into art, museums and colonial history.",
   "They want a half-day safari at Nairobi National Park.",
 ];
+
+// Demo-only hotel identity for this secondary B2B flow, so the escrow split
+// still shows a distinct hotel share (10%) alongside the guide (85%) and
+// protocol (5%). Direct tourist bookings via /explore skip this entirely.
+const DEMO_HOTEL_NAME = "Villa Rosa Kempinski (demo)";
+const DEMO_HOTEL_WALLET = "0x0900000000000000000000000000000000000009";
 
 export default function ConciergePage() {
   const [requestText, setRequestText] = useState("");
@@ -43,7 +49,7 @@ export default function ConciergePage() {
     setBooking(null);
     setMatching(true);
     try {
-      const result = await matchGuide(requestText);
+      const result = await matchExperience(requestText);
       setMatch(result);
     } catch (err) {
       setMatchError((err as Error).message);
@@ -59,8 +65,10 @@ export default function ConciergePage() {
     try {
       const { booking: created } = await createBooking({
         request: requestText,
-        guideId: match.guide.id,
+        experienceId: match.experience.id,
         matchReason: match.reason,
+        hotelName: DEMO_HOTEL_NAME,
+        hotelWallet: DEMO_HOTEL_WALLET,
       });
       setBooking(created);
       startPolling(created.bookingId);
@@ -92,7 +100,7 @@ export default function ConciergePage() {
         <Card>
           <h1 className="text-xl font-bold text-brand-blueDark">Hotel Concierge Dashboard</h1>
           <p className="mt-1 text-sm text-brand-muted">
-            Describe what your guest wants. Our AI agent matches them with a vetted local guide.
+            Describe what your guest wants. Our AI agent matches them with a vetted local guide experience.
           </p>
 
           <textarea
@@ -132,16 +140,13 @@ export default function ConciergePage() {
           <Card>
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="text-lg font-bold text-brand-blueDark">{match.guide.name}</h2>
-                <p className="text-sm text-brand-muted">{match.guide.bio}</p>
+                <h2 className="text-lg font-bold text-brand-blueDark">{match.experience.title}</h2>
+                <p className="text-sm text-brand-muted">with {match.experience.guide.fullName}</p>
               </div>
-              <span className="whitespace-nowrap rounded-full bg-brand-bg px-3 py-1 text-sm font-semibold text-brand-blueDark">
-                {match.guide.reputationScore.toFixed(1)}★
-              </span>
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">
-              {match.guide.tags.map((tag) => (
+              {match.experience.tags.map((tag) => (
                 <span key={tag} className="rounded-full bg-brand-accent/10 px-3 py-1 text-xs text-brand-accent">
                   {tag}
                 </span>
@@ -149,14 +154,14 @@ export default function ConciergePage() {
             </div>
 
             <p className="mt-3 rounded-lg bg-brand-bg p-3 text-sm text-brand-muted">
-              <span className="font-semibold text-brand-blueDark">Why this guide: </span>
+              <span className="font-semibold text-brand-blueDark">Why this match: </span>
               {match.reason}
             </p>
 
             <div className="mt-4 flex items-center justify-between">
               <div>
                 <p className="text-xs text-brand-muted">Price</p>
-                <p className="text-lg font-bold text-brand-blueDark">{match.guide.priceUsdc} USDC</p>
+                <p className="text-lg font-bold text-brand-blueDark">{match.experience.priceUsdc} USDC</p>
               </div>
               <Button variant="primary" disabled={booking2Loading} onClick={handleBook}>
                 {booking2Loading ? "Locking escrow..." : "Book & Lock Escrow"}
@@ -178,7 +183,7 @@ export default function ConciergePage() {
             </div>
 
             <dl className="mt-4 space-y-2 text-sm">
-              <Row label="Guide" value={booking.guide.name} />
+              <Row label="Guide" value={booking.guideName} />
               <Row label="Amount" value={`${booking.amountUsdc} USDC`} />
               {booking.lockTxHash && (
                 <Row

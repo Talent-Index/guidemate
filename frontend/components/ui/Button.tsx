@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes } from "react";
 
-type Variant = "primary" | "accent" | "secondary";
+type Variant = "primary" | "accent" | "secondary" | "outline";
 
 const variantClasses: Record<Variant, string> = {
   // Amber CTA - reserved for the single key action per screen (Booking.com-style).
@@ -9,6 +9,9 @@ const variantClasses: Record<Variant, string> = {
   accent: "bg-brand-accent text-white hover:bg-brand-blue focus-visible:ring-brand-blue",
   secondary:
     "bg-white text-brand-blue border border-brand-border hover:bg-brand-bg focus-visible:ring-brand-accent",
+  // For use on dark/photo hero backgrounds.
+  outline:
+    "border border-white/60 bg-white/10 text-white backdrop-blur hover:bg-white/20 focus-visible:ring-white",
 };
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

@@ -73,7 +73,7 @@ export default function VerifyPage() {
             </div>
             <p className="text-lg font-bold text-brand-success">Tour Verified</p>
             <p className="text-sm text-brand-muted">
-              {booking.guide.name}&apos;s payout of {booking.splits?.guideAmount.toFixed(2)} USDC is on its way.
+              {booking.guideName}&apos;s payout of {booking.splits?.guideAmount.toFixed(2)} USDC is on its way.
             </p>
             {booking.payout && (
               <p className="text-sm font-medium text-brand-blueDark">

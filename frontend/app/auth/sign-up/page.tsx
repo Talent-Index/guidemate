@@ -1,0 +1,174 @@
+"use client";
+
+import { Suspense, useState, type FormEvent, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { createClient } from "@/lib/supabase/client";
+
+type Role = "tourist" | "guide";
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignUpForm />
+    </Suspense>
+  );
+}
+
+function SignUpForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [role, setRole] = useState<Role>(searchParams.get("role") === "guide" ? "guide" : "tourist");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    const supabase = createClient();
+
+    try {
+      const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
+      if (signUpError) throw signUpError;
+      if (!data.user) throw new Error("sign up did not return a user");
+
+      if (data.session) {
+        const { error: profileError } = await supabase.from("profiles").insert({
+          id: data.user.id,
+          role,
+          full_name: fullName,
+          phone: phone || null,
+        });
+        if (profileError) throw profileError;
+        router.push(role === "guide" ? "/guide/dashboard" : "/explore");
+      } else {
+        // Email confirmation is required - stash the intended profile so
+        // /auth/sign-in can finish creating it once they confirm and log in.
+        localStorage.setItem(
+          `guidemate_pending_profile_${email}`,
+          JSON.stringify({ role, fullName, phone: phone || null })
+        );
+        setNeedsConfirmation(true);
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (needsConfirmation) {
+    return (
+      <div className="mx-auto max-w-md">
+        <Card className="text-center">
+          <h1 className="text-xl font-bold text-brand-blueDark">Check your email</h1>
+          <p className="mt-2 text-sm text-brand-muted">
+            We sent a confirmation link to <strong>{email}</strong>. Click it, then come back and sign in.
+          </p>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-md">
+      <Card>
+        <h1 className="text-xl font-bold text-brand-blueDark">Create your Guidemate account</h1>
+
+        <div className="mt-4 flex rounded-full border border-brand-border p-1">
+          <RoleTab label="I'm a tourist" active={role === "tourist"} onClick={() => setRole("tourist")} />
+          <RoleTab label="I'm a guide" active={role === "guide"} onClick={() => setRole("guide")} />
+        </div>
+
+        <form className="mt-6 flex flex-col gap-3" onSubmit={handleSubmit}>
+          <Field label="Full name">
+            <input
+              required
+              className={inputClass}
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Jane Doe"
+            />
+          </Field>
+          <Field label="Email">
+            <input
+              required
+              type="email"
+              className={inputClass}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+            />
+          </Field>
+          <Field label="Password">
+            <input
+              required
+              type="password"
+              minLength={6}
+              className={inputClass}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 6 characters"
+            />
+          </Field>
+          <Field label={role === "guide" ? "M-Pesa phone number" : "Phone number (optional)"}>
+            <input
+              required={role === "guide"}
+              className={inputClass}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+254712345678"
+            />
+          </Field>
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+
+          <Button variant="primary" type="submit" disabled={loading} className="mt-2 w-full">
+            {loading ? "Creating account..." : "Create account"}
+          </Button>
+        </form>
+
+        <p className="mt-4 text-center text-sm text-brand-muted">
+          Already have an account?{" "}
+          <a href="/auth/sign-in" className="font-semibold text-brand-accent">
+            Sign in
+          </a>
+        </p>
+      </Card>
+    </div>
+  );
+}
+
+const inputClass =
+  "w-full rounded-lg border border-brand-border px-3 py-2 text-sm outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent";
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="flex flex-col gap-1 text-sm">
+      <span className="font-medium text-brand-blueDark">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function RoleTab({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold transition ${
+        active ? "bg-brand-blue text-white" : "text-brand-muted hover:text-brand-blue"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}

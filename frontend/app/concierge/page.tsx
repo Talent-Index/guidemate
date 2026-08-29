@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
+import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
+import { StarRating } from "@/components/ui/StarRating";
 import {
   createBooking,
   getBooking,
@@ -137,37 +139,49 @@ export default function ConciergePage() {
         </Card>
 
         {match && (
-          <Card>
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-brand-blueDark">{match.experience.title}</h2>
-                <p className="text-sm text-brand-muted">with {match.experience.guide.fullName}</p>
+          <Card className="overflow-hidden p-0">
+            <ExperiencePhoto
+              src={match.experience.imageUrl}
+              alt={match.experience.title}
+              className="aspect-[16/9] w-full"
+            />
+            <div className="p-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-brand-blueDark">{match.experience.title}</h2>
+                  <p className="text-sm text-brand-muted">with {match.experience.guide.fullName}</p>
+                  <StarRating
+                    value={match.experience.guide.ratingAvg}
+                    count={match.experience.guide.ratingCount}
+                    className="mt-1"
+                  />
+                </div>
               </div>
-            </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              {match.experience.tags.map((tag) => (
-                <span key={tag} className="rounded-full bg-brand-accent/10 px-3 py-1 text-xs text-brand-accent">
-                  {tag}
-                </span>
-              ))}
-            </div>
-
-            <p className="mt-3 rounded-lg bg-brand-bg p-3 text-sm text-brand-muted">
-              <span className="font-semibold text-brand-blueDark">Why this match: </span>
-              {match.reason}
-            </p>
-
-            <div className="mt-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-brand-muted">Price</p>
-                <p className="text-lg font-bold text-brand-blueDark">{match.experience.priceUsdc} USDC</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {match.experience.tags.map((tag) => (
+                  <span key={tag} className="rounded-full bg-brand-accent/10 px-3 py-1 text-xs text-brand-accent">
+                    {tag}
+                  </span>
+                ))}
               </div>
-              <Button variant="primary" disabled={booking2Loading} onClick={handleBook}>
-                {booking2Loading ? "Locking escrow..." : "Book & Lock Escrow"}
-              </Button>
+
+              <p className="mt-3 rounded-lg bg-brand-bg p-3 text-sm text-brand-muted">
+                <span className="font-semibold text-brand-blueDark">Why this match: </span>
+                {match.reason}
+              </p>
+
+              <div className="mt-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-brand-muted">Price</p>
+                  <p className="text-lg font-bold text-brand-blueDark">{match.experience.priceUsdc} USDC</p>
+                </div>
+                <Button variant="primary" disabled={booking2Loading} onClick={handleBook}>
+                  {booking2Loading ? "Locking escrow..." : "Book & Lock Escrow"}
+                </Button>
+              </div>
+              {booking2Error && <p className="mt-2 text-sm text-red-600">{booking2Error}</p>}
             </div>
-            {booking2Error && <p className="mt-2 text-sm text-red-600">{booking2Error}</p>}
           </Card>
         )}
       </div>

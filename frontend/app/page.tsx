@@ -4,12 +4,6 @@ import type { ReactNode } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
-const STATS = [
-  { icon: "💸", value: "6.5%", label: "Guidemate commission" },
-  { icon: "⚡", value: "Same day", label: "M-Pesa payout" },
-  { icon: "✅", value: "100%", label: "Vetted guides" },
-];
-
 const EXPERIENCES = [
   {
     icon: "🍢",
@@ -228,21 +222,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* Floating stat strip bridging hero into content */}
-      <div className="relative z-10 mx-auto -mt-10 max-w-4xl px-4 sm:-mt-14">
-        <div className="grid gap-4 rounded-card border border-brand-border bg-white p-6 shadow-card sm:grid-cols-3">
-          {STATS.map((stat) => (
-            <div key={stat.label} className="flex items-center justify-center gap-3 text-center sm:text-left">
-              <span className="text-2xl">{stat.icon}</span>
-              <div>
-                <p className="text-lg font-bold text-brand-blueDark">{stat.value}</p>
-                <p className="text-xs font-medium uppercase tracking-wide text-brand-muted">{stat.label}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* What we offer: curated experiences */}
       <Band id="experiences">

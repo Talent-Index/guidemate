@@ -78,7 +78,7 @@ export default function TouristBookingsPage() {
       <div className="flex flex-col gap-4">
         {bookings.map((booking) => (
           <Card key={booking.bookingId}>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="font-semibold text-brand-blueDark">{booking.experienceTitle ?? "Experience"}</p>
                 <p className="text-sm text-brand-muted">with {booking.guideName}</p>

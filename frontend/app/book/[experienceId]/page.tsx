@@ -153,7 +153,7 @@ export default function BookExperiencePage() {
       <Card className="overflow-hidden p-0">
         <ExperiencePhoto src={experience.image_url} alt={experience.title} className="aspect-[16/9] w-full" />
         <div className="p-6">
-          <div className="flex items-start justify-between">
+          <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
               <h1 className="text-xl font-bold text-brand-blueDark">{experience.title}</h1>
               <p className="text-sm text-brand-muted">with {experience.guide?.full_name}</p>
@@ -163,7 +163,7 @@ export default function BookExperiencePage() {
                 className="mt-1"
               />
             </div>
-            <span className="text-xl font-bold text-brand-blueDark">{experience.price_usdc} USDC</span>
+            <span className="whitespace-nowrap text-xl font-bold text-brand-blueDark">{experience.price_usdc} USDC</span>
           </div>
 
           <p className="mt-3 text-sm text-brand-muted">{experience.description}</p>
@@ -189,7 +189,7 @@ export default function BookExperiencePage() {
             )}
           </dl>
 
-          <div className="mt-6 flex items-center justify-between rounded-lg bg-brand-bg p-4">
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-brand-bg p-4">
             <div>
               <p className="text-sm font-semibold text-brand-blueDark">Your wallet</p>
               <p className="text-xs text-brand-muted">

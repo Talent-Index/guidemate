@@ -68,55 +68,56 @@ export default function HomePage() {
           <div className="mt-10 flex flex-wrap items-center gap-3">
             <Link
               href="/explore"
-              className="rounded-full bg-brand-amber px-7 py-3 text-sm font-semibold text-brand-blueDark transition hover:bg-brand-amberDark"
+              className="bg-brand-amber px-7 py-3 text-sm font-semibold text-brand-blueDark transition hover:bg-brand-blue hover:text-white"
             >
               Explore experiences
             </Link>
             <Link
               href="/apply"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-amber text-brand-blueDark transition hover:bg-brand-amberDark"
-              aria-label="Apply as a guide"
+              className="bg-brand-amber px-7 py-3 text-sm font-semibold text-brand-blueDark transition hover:bg-brand-blue hover:text-white"
             >
-              <span aria-hidden>→</span>
+              Apply to be a guide
             </Link>
           </div>
         </div>
       </section>
 
-      <section id="experiences" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-24">
-        <div className="max-w-lg">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-amber">What we offer</p>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Curated local experiences</h2>
-          <p className="mt-4 text-sm leading-relaxed text-white/65">
-            A bench of vetted guides, ready to book - food, wildlife, culture, and whatever else your
-            day in the city should feel like.
-          </p>
-        </div>
+      <section id="experiences" className="bg-white text-brand-blueDark">
+        <div className="mx-auto max-w-6xl scroll-mt-24 px-4 py-24">
+          <div className="max-w-lg">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-accent">What we offer</p>
+            <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Curated local experiences</h2>
+            <p className="mt-4 text-sm leading-relaxed text-brand-muted">
+              A bench of vetted guides, ready to book - food, wildlife, culture, and whatever else your
+              day in the city should feel like.
+            </p>
+          </div>
 
-        <div className="mt-16 flex flex-col gap-20">
-          {OFFERINGS.map((item, idx) => (
-            <Link
-              key={item.title}
-              href={`/explore?category=${encodeURIComponent(item.category)}`}
-              className={`grid items-center gap-10 md:grid-cols-2 ${idx % 2 === 1 ? "md:[&>*:first-child]:order-2" : ""}`}
-            >
-              <div className="relative aspect-[16/10] overflow-hidden border border-white/10">
-                <Image src={item.image} alt={item.imageAlt} fill className="object-cover" sizes="(min-width: 768px) 50vw, 100vw" />
-              </div>
-              <div>
-                <h3 className="text-2xl font-bold">{item.title}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-white/65">{item.body}</p>
-              </div>
-            </Link>
-          ))}
+          <div className="mt-16 flex flex-col gap-20">
+            {OFFERINGS.map((item, idx) => (
+              <Link
+                key={item.title}
+                href={`/explore?category=${encodeURIComponent(item.category)}`}
+                className={`grid items-center gap-10 md:grid-cols-2 ${idx % 2 === 1 ? "md:[&>*:first-child]:order-2" : ""}`}
+              >
+                <div className="relative aspect-[16/10] overflow-hidden">
+                  <Image src={item.image} alt={item.imageAlt} fill className="object-cover" sizes="(min-width: 768px) 50vw, 100vw" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold">{item.title}</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-brand-muted">{item.body}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="border-y border-white/10">
+      <section className="bg-brand-bg text-brand-blueDark">
         <div className="mx-auto grid max-w-6xl gap-16 px-4 py-24 md:grid-cols-[2fr_3fr]">
           <div>
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">The Guidemate advantage</h2>
-            <p className="mt-5 text-sm leading-relaxed text-white/65">
+            <p className="mt-5 text-sm leading-relaxed text-brand-muted">
               Built so travelers stop googling strangers, and guides stop waiting weeks to get paid.
             </p>
           </div>
@@ -124,10 +125,10 @@ export default function HomePage() {
             {ADVANTAGES.map((item, idx) => (
               <li
                 key={item.title}
-                className={`py-8 ${idx < ADVANTAGES.length - 1 ? "border-b border-dotted border-white/20" : ""}`}
+                className={`py-8 ${idx < ADVANTAGES.length - 1 ? "border-b border-dotted border-brand-border" : ""}`}
               >
                 <h3 className="text-lg font-bold">{item.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-white/65">{item.body}</p>
+                <p className="mt-2 text-sm leading-relaxed text-brand-muted">{item.body}</p>
               </li>
             ))}
           </ul>

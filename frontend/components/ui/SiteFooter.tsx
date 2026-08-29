@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 
 export function SiteFooter() {
@@ -6,8 +7,10 @@ export function SiteFooter() {
     <footer className="bg-brand-blueDark text-white">
       <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-12 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-sm font-semibold tracking-wide">Guidemate</p>
-          <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/60">
+          <Link href="/" className="inline-flex items-center bg-white px-3 py-1.5">
+            <Image src="/logo.png" alt="Guidemate" width={1340} height={526} className="h-6 w-auto" />
+          </Link>
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/60">
             Curated local experiences from vetted guides, settled instantly on Avalanche.
           </p>
         </div>

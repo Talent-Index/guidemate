@@ -54,7 +54,7 @@ export function NavBar() {
       }`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-        <Link href="/" className="flex items-center rounded-md bg-white px-3 py-1.5" onClick={() => setMenuOpen(false)}>
+        <Link href="/" className="flex items-center bg-white px-3 py-1.5" onClick={() => setMenuOpen(false)}>
           <Image src="/logo.png" alt="Guidemate" width={1340} height={526} className="h-6 w-auto sm:h-7" priority />
         </Link>
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { ListRowSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import { approveApplication } from "@/lib/api";
@@ -157,7 +158,7 @@ export default function AdminApplicationsPage() {
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
-      {loading && <p className="text-sm text-brand-muted">Loading...</p>}
+      {loading && <ListRowSkeleton count={3} />}
       {!loading && applications.length === 0 && (
         <p className="text-sm text-brand-muted">No applications in this view.</p>
       )}

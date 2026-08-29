@@ -1,9 +1,10 @@
-type ChipTone = "locked" | "released" | "paid" | "neutral" | "error";
+type ChipTone = "locked" | "released" | "paid" | "refunded" | "neutral" | "error";
 
 const toneClasses: Record<ChipTone, string> = {
   locked: "bg-brand-accent/10 text-brand-accent",
   released: "bg-brand-amber/20 text-brand-blueDark",
   paid: "bg-brand-successBg text-brand-success",
+  refunded: "bg-red-50 text-red-600",
   neutral: "bg-brand-bg text-brand-muted",
   error: "bg-red-50 text-red-600",
 };
@@ -12,6 +13,7 @@ const toneLabel: Record<ChipTone, string> = {
   locked: "Locked",
   released: "Released",
   paid: "Paid",
+  refunded: "Refunded (no-show)",
   neutral: "-",
   error: "Error",
 };

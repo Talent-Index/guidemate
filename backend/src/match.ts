@@ -16,8 +16,9 @@ function localKeywordMatch(request: string, experiences: Experience[]): { experi
   for (const exp of experiences) {
     const tagHits = exp.tags.filter((tag) => text.includes(tag.toLowerCase())).length;
     const titleHit = text.includes(exp.title.toLowerCase()) ? 1 : 0;
-    // Weight tag relevance heavily, then break ties with a title match.
-    const score = tagHits * 10 + titleHit;
+    const categoryHit = exp.category && text.includes(exp.category.toLowerCase()) ? 1 : 0;
+    // Weight tag relevance heavily, then break ties with a title/category match.
+    const score = tagHits * 10 + titleHit + categoryHit;
     if (score > bestScore) {
       bestScore = score;
       best = exp;
@@ -55,6 +56,7 @@ export async function matchExperience(request: string): Promise<MatchResult> {
       title: e.title,
       description: e.description,
       tags: e.tags,
+      category: e.category,
       priceUsdc: e.priceUsdc,
       durationMinutes: e.durationMinutes,
       location: e.location,

@@ -93,5 +93,9 @@ async function releaseAndPay(booking: BookingRecord): Promise<BookingRecord> {
   });
 
   const payout = await simulateMpesaPayout(splits.guideAmount, booking.guidePhone ?? "");
-  return updateBooking(booking.bookingId, { status: "paid", payout });
+  const updated = await updateBooking(booking.bookingId, { status: "paid", payout });
+  if (!updated) {
+    throw new Error("booking update failed after payout");
+  }
+  return updated;
 }

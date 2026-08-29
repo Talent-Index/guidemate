@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { NavBar } from "@/components/ui/NavBar";
 import { Providers } from "@/lib/providers";
+import { SiteChrome } from "@/components/ui/SiteChrome";
 
 export const metadata: Metadata = {
   title: "Guidemate",
@@ -13,8 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="min-h-screen bg-brand-bg font-sans text-brand-ink antialiased">
         <Providers>
-          <NavBar />
-          <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
+          <SiteChrome>{children}</SiteChrome>
         </Providers>
       </body>
     </html>

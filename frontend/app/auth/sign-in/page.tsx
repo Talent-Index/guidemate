@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
+import { FormField, FormShell } from "@/components/ui/FormShell";
 import { createClient } from "@/lib/supabase/client";
+import { provisionWallet } from "@/lib/api";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -43,9 +43,18 @@ export default function SignInPage() {
         if (profileError) throw profileError;
         localStorage.removeItem(`guidemate_pending_profile_${email}`);
         profile = created;
+        if (created?.role === "guide") {
+          await provisionWallet(data.session.access_token);
+        }
       }
 
-      router.push(profile?.role === "guide" ? "/guide/dashboard" : "/explore");
+      if (profile?.role === "admin") {
+        router.push("/admin/applications");
+      } else if (profile?.role === "guide") {
+        router.push("/guide/dashboard");
+      } else {
+        router.push("/explore");
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -54,50 +63,42 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md">
-      <Card>
-        <h1 className="text-xl font-bold text-brand-blueDark">Sign in to Guidemate</h1>
-
-        <form className="mt-6 flex flex-col gap-3" onSubmit={handleSubmit}>
-          <Field label="Email">
-            <input required type="email" className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} />
-          </Field>
-          <Field label="Password">
-            <input
-              required
-              type="password"
-              className={inputClass}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </Field>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <Button variant="primary" type="submit" disabled={loading} className="mt-2 w-full">
-            {loading ? "Signing in..." : "Sign in"}
-          </Button>
-        </form>
-
-        <p className="mt-4 text-center text-sm text-brand-muted">
+    <FormShell
+      title="Sign in"
+      subtitle="Welcome back to Guidemate."
+      footer={
+        <>
           Don&apos;t have an account?{" "}
-          <a href="/auth/sign-up" className="font-semibold text-brand-accent">
+          <a href="/auth/sign-up" className="font-semibold text-white underline">
             Create one
           </a>
-        </p>
-      </Card>
-    </div>
-  );
-}
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit}>
+        <FormField label="Email *">
+          <input required type="email" className="form-input-dark" value={email} onChange={(e) => setEmail(e.target.value)} />
+        </FormField>
+        <FormField label="Password *">
+          <input
+            required
+            type="password"
+            className="form-input-dark"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </FormField>
 
-const inputClass =
-  "w-full rounded-lg border border-brand-border px-3 py-2 text-sm outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent";
+        {error && <p className="mb-4 text-sm text-red-300">{error}</p>}
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium text-brand-blueDark">{label}</span>
-      {children}
-    </label>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-brand-indigo py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-white transition hover:bg-indigo-500 disabled:opacity-50"
+        >
+          {loading ? "Signing in..." : "Sign in"}
+        </button>
+      </form>
+    </FormShell>
   );
 }

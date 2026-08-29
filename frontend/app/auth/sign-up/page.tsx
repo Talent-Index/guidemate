@@ -148,7 +148,7 @@ function SignUpForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-brand-indigo py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-white transition hover:bg-indigo-500 disabled:opacity-50"
+          className="w-full bg-brand-amber py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-brand-blueDark transition hover:bg-brand-amberDark disabled:opacity-50"
         >
           {loading ? "Creating account..." : "Create account"}
         </button>
@@ -163,7 +163,7 @@ function RoleTab({ label, active, onClick }: { label: string; active: boolean; o
       type="button"
       onClick={onClick}
       className={`flex-1 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide transition ${
-        active ? "bg-brand-indigo text-white" : "text-white/60 hover:text-white"
+        active ? "bg-brand-accent text-white" : "text-white/60 hover:text-white"
       }`}
     >
       {label}

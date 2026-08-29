@@ -43,7 +43,7 @@ const ADVANTAGES = [
 
 export default function HomePage() {
   return (
-    <div className="bg-brand-navy text-white">
+    <div className="bg-brand-blueDark text-white">
       <section className="relative min-h-[100svh] w-full overflow-hidden">
         <Image
           src="/hero-beach.png"
@@ -53,8 +53,8 @@ export default function HomePage() {
           sizes="100vw"
           className="object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-brand-navy via-brand-navy/75 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-t from-brand-navy via-transparent to-brand-navy/40" />
+        <div className="absolute inset-0 bg-gradient-to-r from-brand-blueDark via-brand-blueDark/75 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-brand-blueDark via-transparent to-brand-blueDark/40" />
         <div className="relative mx-auto flex min-h-[100svh] max-w-6xl flex-col items-start justify-center px-4 pb-20 pt-28">
           <h1 className="max-w-3xl text-4xl font-bold leading-[1.1] tracking-tight sm:text-6xl">
             Local experiences,
@@ -68,13 +68,13 @@ export default function HomePage() {
           <div className="mt-10 flex flex-wrap items-center gap-3">
             <Link
               href="/explore"
-              className="rounded-full bg-white px-7 py-3 text-sm font-semibold text-brand-navy transition hover:bg-white/90"
+              className="rounded-full bg-brand-amber px-7 py-3 text-sm font-semibold text-brand-blueDark transition hover:bg-brand-amberDark"
             >
               Explore experiences
             </Link>
             <Link
               href="/apply"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-brand-navy transition hover:bg-white/90"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-amber text-brand-blueDark transition hover:bg-brand-amberDark"
               aria-label="Apply as a guide"
             >
               <span aria-hidden>→</span>
@@ -85,7 +85,7 @@ export default function HomePage() {
 
       <section id="experiences" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-24">
         <div className="max-w-lg">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-indigo">What we offer</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-amber">What we offer</p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Curated local experiences</h2>
           <p className="mt-4 text-sm leading-relaxed text-white/65">
             A bench of vetted guides, ready to book - food, wildlife, culture, and whatever else your
@@ -142,9 +142,9 @@ export default function HomePage() {
           className="object-cover opacity-40"
           sizes="100vw"
         />
-        <div className="absolute inset-0 bg-brand-navy/80" />
+        <div className="absolute inset-0 bg-brand-blueDark/80" />
         <div className="relative mx-auto max-w-3xl px-4 py-24">
-          <div className="bg-brand-navy/95 px-6 py-14 sm:px-16">
+          <div className="bg-brand-blueDark/95 px-6 py-14 sm:px-16">
             <h2 className="text-center text-3xl font-bold tracking-tight sm:text-4xl">Ready for a local experience?</h2>
             <p className="mx-auto mt-3 max-w-md text-center text-sm text-white/65">
               Tell us what you&apos;re after. We&apos;ll take you to the experiences you can book today.

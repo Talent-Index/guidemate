@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { CurrencySelect } from "@/lib/fx";
+import { homeForRole } from "@/lib/auth/home";
 
 export function NavBar() {
   const router = useRouter();
@@ -55,12 +55,15 @@ export function NavBar() {
       }`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-        <Link href="/" className="flex items-center bg-white px-3 py-1.5" onClick={() => setMenuOpen(false)}>
+        <Link
+          href={profile ? homeForRole(profile.role) : "/"}
+          className="flex items-center bg-white px-3 py-1.5"
+          onClick={() => setMenuOpen(false)}
+        >
           <Image src="/logo.png" alt="Guidemate" width={1340} height={526} className="h-6 w-auto sm:h-7" priority />
         </Link>
 
-        <nav className="hidden items-center gap-4 md:flex">
-          <CurrencySelect />
+        <nav className="hidden items-center md:flex">
           {loading ? null : user && profile ? (
             <div className="flex items-center gap-6 pr-4">
               {profile.role === "tourist" && (
@@ -126,9 +129,6 @@ export function NavBar() {
 
       {menuOpen && (
         <nav className="border-t border-white/10 bg-brand-blueDark px-4 pb-4 pt-2 md:hidden">
-          <div className="mb-2">
-            <CurrencySelect />
-          </div>
           {loading ? null : user && profile ? (
             <div className="flex flex-col gap-1">
               {profile.role === "tourist" && (

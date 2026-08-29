@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
+import { ExperienceGridSkeleton } from "@/components/ui/Skeleton";
 import { StarRating } from "@/components/ui/StarRating";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
@@ -108,7 +109,7 @@ export default function ExplorePage() {
           ))}
         </div>
 
-        {loadingExperiences && <p className="mt-2 text-sm text-brand-muted">Loading...</p>}
+        {loadingExperiences && <ExperienceGridSkeleton />}
         {!loadingExperiences && visibleExperiences.length === 0 && (
           <p className="mt-4 text-sm text-brand-muted">No experiences in this category yet.</p>
         )}

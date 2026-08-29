@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
+import { ExperienceGridSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   listLiveStreams,
@@ -120,16 +121,18 @@ export default function LiveBrowsePage() {
 
       <div>
         <h2 className="text-lg font-bold text-brand-blueDark">Happening now</h2>
-        {loading && <p className="mt-2 text-sm text-brand-muted">Loading...</p>}
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        {loading && <ExperienceGridSkeleton count={2} />}
         {!loading && live.length === 0 && (
           <p className="mt-2 text-sm text-brand-muted">Nobody is live right now. Check back, or be the first.</p>
         )}
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          {live.map((stream) => (
-            <StreamCard key={stream.id} stream={stream} />
-          ))}
-        </div>
+        {!loading && (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {live.map((stream) => (
+              <StreamCard key={stream.id} stream={stream} />
+            ))}
+          </div>
+        )}
       </div>
 
       {recorded.length > 0 && (

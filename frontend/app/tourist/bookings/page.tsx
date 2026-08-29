@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
+import { ListRowSkeleton } from "@/components/ui/Skeleton";
 import { StarRating, StarRatingInput } from "@/components/ui/StarRating";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
@@ -72,7 +73,7 @@ export default function TouristBookingsPage() {
         </p>
       </div>
 
-      {loadingBookings && <p className="text-sm text-brand-muted">Loading...</p>}
+      {loadingBookings && <ListRowSkeleton count={3} />}
       {error && <p className="text-sm text-red-600">{error}</p>}
       {!loadingBookings && bookings.length === 0 && (
         <Card className="text-center text-sm text-brand-muted">

@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
+import { ListRowSkeleton } from "@/components/ui/Skeleton";
 import { StarRating } from "@/components/ui/StarRating";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
@@ -505,7 +506,7 @@ export default function GuideDashboardPage() {
         {photoError && <p className="mt-3 text-sm text-red-600">{photoError}</p>}
 
         <div className="mt-4 flex flex-col gap-3">
-          {loadingExperiences && <p className="text-sm text-brand-muted">Loading...</p>}
+          {loadingExperiences && <ListRowSkeleton count={3} />}
           {!loadingExperiences && experiences.length === 0 && (
             <p className="text-sm text-brand-muted">You haven&apos;t published any experiences yet.</p>
           )}
@@ -579,7 +580,7 @@ export default function GuideDashboardPage() {
         </div>
 
         <div className="mt-4 flex flex-col gap-3">
-          {loadingBookings && <p className="text-sm text-brand-muted">Loading...</p>}
+          {loadingBookings && <ListRowSkeleton count={3} />}
           {bookingsError && <p className="text-sm text-red-600">{bookingsError}</p>}
           {!loadingBookings && !bookingsError && pastBookings.length === 0 && (
             <p className="text-sm text-brand-muted">No completed tours yet - they&apos;ll show up here once a booking is verified.</p>

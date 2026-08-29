@@ -12,6 +12,8 @@ export interface Profile {
   walletAddress: string | null;
   bio: string | null;
   languages: string[];
+  ratingAvg: number;
+  ratingCount: number;
 }
 
 interface AuthContextValue {
@@ -35,6 +37,8 @@ function toProfile(row: any): Profile {
     walletAddress: row.wallet_address,
     bio: row.bio,
     languages: row.languages ?? [],
+    ratingAvg: Number(row.rating_avg ?? 0),
+    ratingCount: row.rating_count ?? 0,
   };
 }
 
@@ -63,12 +67,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      // Without this, pages that gate on `profile` (e.g. the booking flow) can
+      // briefly see a signed-in session with no profile yet - right after
+      // sign-up/sign-in, before this fetch resolves - and incorrectly render
+      // their "please sign in" state even though the user is authenticated.
+      setLoading(true);
       setSession(newSession);
       if (newSession) {
         await loadProfile(newSession.user.id);
       } else {
         setProfile(null);
       }
+      setLoading(false);
     });
 
     return () => {

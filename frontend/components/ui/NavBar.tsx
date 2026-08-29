@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -16,11 +17,8 @@ export function NavBar() {
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-brand-blue/95 shadow-md backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-        <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-tight text-white">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-amber text-sm text-brand-blueDark">
-            🧭
-          </span>
-          Guidemate
+        <Link href="/" className="flex items-center rounded-lg bg-white px-3 py-1.5 shadow-sm">
+          <Image src="/logo.png" alt="Guidemate" width={1340} height={526} className="h-7 w-auto" priority />
         </Link>
 
         <nav className="flex items-center gap-6">

@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "./supabase.js";
 
-export type BookingStatus = "locked" | "released" | "paid";
+export type BookingStatus = "locked" | "released" | "paid" | "refunded";
 
 export interface PayoutInfo {
   reference: string;
@@ -13,6 +13,11 @@ export interface PayoutInfo {
 export interface RatingInfo {
   stars: number;
   comment: string | null;
+}
+
+export interface RefundInfo {
+  feeAmount: number;
+  refundAmount: number;
 }
 
 export interface BookingRecord {
@@ -35,16 +40,18 @@ export interface BookingRecord {
   status: BookingStatus;
   lockTxHash: string | null;
   releaseTxHash: string | null;
+  refundTxHash: string | null;
   splits?: { guideAmount: number; hotelAmount: number; protocolAmount: number };
   payout: PayoutInfo | null;
+  refund: RefundInfo | null;
   rating: RatingInfo | null;
   createdAt: string;
 }
 
 const SELECT = `
   id, tourist_id, guide_id, experience_id, request_text, match_reason, amount_usdc, status,
-  guide_wallet, hotel_name, hotel_wallet, lock_tx_hash, release_tx_hash,
-  guide_split, hotel_split, protocol_split, payout, created_at,
+  guide_wallet, hotel_name, hotel_wallet, lock_tx_hash, release_tx_hash, refund_tx_hash,
+  guide_split, hotel_split, protocol_split, payout, refund, created_at,
   guide:guide_id ( full_name, phone ),
   experience:experience_id ( title, image_url, location, duration_minutes )
 `;
@@ -71,6 +78,7 @@ function toBookingRecord(row: any, rating: RatingInfo | null = null): BookingRec
     status: row.status,
     lockTxHash: row.lock_tx_hash,
     releaseTxHash: row.release_tx_hash,
+    refundTxHash: row.refund_tx_hash ?? null,
     splits:
       row.guide_split != null
         ? {
@@ -80,6 +88,7 @@ function toBookingRecord(row: any, rating: RatingInfo | null = null): BookingRec
           }
         : undefined,
     payout: row.payout ?? null,
+    refund: row.refund ?? null,
     rating,
     createdAt: row.created_at,
   };
@@ -141,20 +150,24 @@ export async function getBooking(bookingId: string): Promise<BookingRecord | und
 export interface UpdateBookingPatch {
   status?: BookingStatus;
   releaseTxHash?: string;
+  refundTxHash?: string;
   splits?: { guideAmount: number; hotelAmount: number; protocolAmount: number };
   payout?: PayoutInfo;
+  refund?: RefundInfo;
 }
 
 export async function updateBooking(bookingId: string, patch: UpdateBookingPatch): Promise<BookingRecord | undefined> {
   const update: Record<string, unknown> = {};
   if (patch.status) update.status = patch.status;
   if (patch.releaseTxHash) update.release_tx_hash = patch.releaseTxHash;
+  if (patch.refundTxHash) update.refund_tx_hash = patch.refundTxHash;
   if (patch.splits) {
     update.guide_split = patch.splits.guideAmount;
     update.hotel_split = patch.splits.hotelAmount;
     update.protocol_split = patch.splits.protocolAmount;
   }
   if (patch.payout) update.payout = patch.payout;
+  if (patch.refund) update.refund = patch.refund;
 
   const { data, error } = await supabaseAdmin.from("bookings").update(update).eq("id", bookingId).select(SELECT).single();
 

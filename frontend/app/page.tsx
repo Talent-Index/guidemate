@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
 
 const OFFERINGS = [
   {
@@ -42,6 +43,7 @@ const ADVANTAGES = [
 
 export default function HomePage() {
   return (
+    <SignedInRedirect>
     <div className="bg-brand-blueDark text-white">
       <section className="relative min-h-[100svh] w-full overflow-hidden">
         <Image
@@ -167,5 +169,6 @@ export default function HomePage() {
         </div>
       </section>
     </div>
+    </SignedInRedirect>
   );
 }

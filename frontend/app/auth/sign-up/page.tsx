@@ -3,7 +3,9 @@
 import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormField, FormShell } from "@/components/ui/FormShell";
+import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
 import { createClient } from "@/lib/supabase/client";
+import { homeForRole } from "@/lib/auth/home";
 import { provisionWallet } from "@/lib/api";
 
 type Role = "tourist" | "guide";
@@ -36,8 +38,18 @@ function SignUpForm() {
     const supabase = createClient();
 
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
-      if (signUpError) throw signUpError;
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { role, full_name: fullName, phone: phone || null } },
+      });
+      if (signUpError) {
+        const message = signUpError.message.toLowerCase();
+        if (message.includes("already") || message.includes("registered")) {
+          throw new Error("This email already has an account. Sign in — the role cannot be changed.");
+        }
+        throw signUpError;
+      }
       if (!data.user) throw new Error("sign up did not return a user");
 
       if (data.session) {
@@ -47,11 +59,22 @@ function SignUpForm() {
           full_name: fullName,
           phone: phone || null,
         });
-        if (profileError) throw profileError;
+        if (profileError) {
+          const { data: existing } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", data.user.id)
+            .maybeSingle();
+          if (existing) {
+            router.push(homeForRole(existing.role as "guide" | "tourist" | "admin"));
+            return;
+          }
+          throw profileError;
+        }
         if (role === "guide") {
           await provisionWallet(data.session.access_token);
         }
-        router.push(role === "guide" ? "/guide/dashboard" : "/explore");
+        router.push(homeForRole(role));
       } else {
         // Email confirmation is required - stash the intended profile so
         // /auth/sign-in can finish creating it once they confirm and log in.
@@ -80,9 +103,10 @@ function SignUpForm() {
   }
 
   return (
+    <SignedInRedirect>
     <FormShell
       title="Create your account"
-      subtitle="Travelers book in minutes. Guides list once and get paid on completion."
+      subtitle="Pick tourist or guide once. That role stays on this email."
       footer={
         <>
           Already have an account?{" "}
@@ -154,6 +178,7 @@ function SignUpForm() {
         </button>
       </form>
     </FormShell>
+    </SignedInRedirect>
   );
 }
 

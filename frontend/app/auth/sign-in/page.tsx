@@ -3,8 +3,17 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { FormField, FormShell } from "@/components/ui/FormShell";
+import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
 import { createClient } from "@/lib/supabase/client";
+import { homeForRole, type AccountRole } from "@/lib/auth/home";
 import { provisionWallet } from "@/lib/api";
+
+function intendedRole(meta: Record<string, unknown> | undefined, pendingRole?: string): "guide" | "tourist" {
+  const fromMeta = meta?.role;
+  if (fromMeta === "guide" || fromMeta === "tourist") return fromMeta;
+  if (pendingRole === "guide" || pendingRole === "tourist") return pendingRole;
+  return "tourist";
+}
 
 export default function SignInPage() {
   const router = useRouter();
@@ -28,33 +37,36 @@ export default function SignInPage() {
       let { data: profile } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
 
       if (!profile) {
-        // First sign-in after confirming email - finish creating the profile
-        // from what was stashed at signup time.
         const pendingRaw = localStorage.getItem(`guidemate_pending_profile_${email}`);
         const pending = pendingRaw
           ? (JSON.parse(pendingRaw) as { role: "guide" | "tourist"; fullName: string; phone: string | null })
-          : { role: "tourist" as const, fullName: email, phone: null };
+          : null;
+        const meta = data.user.user_metadata as Record<string, unknown> | undefined;
+        const role = intendedRole(meta, pending?.role);
+        const fullName =
+          (typeof meta?.full_name === "string" && meta.full_name) || pending?.fullName || email;
+        const phone =
+          (typeof meta?.phone === "string" && meta.phone) || pending?.phone || null;
 
         const { data: created, error: profileError } = await supabase
           .from("profiles")
-          .insert({ id: userId, role: pending.role, full_name: pending.fullName, phone: pending.phone })
+          .insert({ id: userId, role, full_name: fullName, phone })
           .select("role")
           .single();
-        if (profileError) throw profileError;
+        if (profileError) {
+          const { data: existing } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
+          if (!existing) throw profileError;
+          profile = existing;
+        } else {
+          profile = created;
+        }
         localStorage.removeItem(`guidemate_pending_profile_${email}`);
-        profile = created;
-        if (created?.role === "guide") {
+        if (profile?.role === "guide") {
           await provisionWallet(data.session.access_token);
         }
       }
 
-      if (profile?.role === "admin") {
-        router.push("/admin/applications");
-      } else if (profile?.role === "guide") {
-        router.push("/guide/dashboard");
-      } else {
-        router.push("/explore");
-      }
+      router.push(homeForRole((profile?.role ?? "tourist") as AccountRole));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -63,15 +75,19 @@ export default function SignInPage() {
   }
 
   return (
+    <SignedInRedirect>
     <FormShell
       title="Sign in"
-      subtitle="Welcome back to Guidemate."
+      subtitle="Welcome back. You land in the portal for the role this email signed up with."
       footer={
         <>
           Don&apos;t have an account?{" "}
           <a href="/auth/sign-up" className="font-semibold text-white underline">
             Create one
           </a>
+          <br />
+          Admin? Use this same form. Your profile must have role <span className="text-white">admin</span> — there is
+          no separate admin password.
         </>
       }
     >
@@ -100,5 +116,6 @@ export default function SignInPage() {
         </button>
       </form>
     </FormShell>
+    </SignedInRedirect>
   );
 }

@@ -60,8 +60,9 @@ export default function ApplyPage() {
     return (
       <FormShell title="Application received">
         <p className="text-center text-sm text-white/70">
-          Thanks {fullName}. We&apos;ll review your application and email {email} if you&apos;re approved to join as
-          a vetted guide.
+          Thanks {fullName}. Your application is saved on the Guidemate admin dashboard. An admin will review it
+          there — we do not send automated emails yet. If you are approved, they will invite you to sign in as a
+          guide.
         </p>
       </FormShell>
     );

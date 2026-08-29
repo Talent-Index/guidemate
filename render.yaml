@@ -17,7 +17,7 @@ services:
       - key: BACKEND_PRIVATE_KEY
         sync: false # paste from backend/.env in the Render dashboard - never commit this
       - key: ESCROW_ADDRESS
-        value: "0x838a43Fd4F66c231eE7C1407a73D4bfA61821Ab0"
+        value: "0x4837EfB8422143fdaa4f60805fC05a21cc9966C0"
       - key: MOCK_USDC_ADDRESS
         value: "0x76EC76a347115afa9a3490a256bA13447cfBd8c5"
       - key: SUPABASE_URL
@@ -30,8 +30,26 @@ services:
         value: gemini-2.5-flash
       - key: QR_SIGNING_SECRET
         generateValue: true # fresh production secret, independent of local dev value
+      - key: WALLET_ENCRYPTION_KEY
+        sync: false # 32-byte hex - paste from backend/.env; never commit this
       - key: USDC_TO_KES_RATE
         value: "145"
+      - key: LIVEKIT_API_KEY
+        sync: false # paste from backend/.env in the Render dashboard - never commit this
+      - key: LIVEKIT_API_SECRET
+        sync: false # paste from backend/.env in the Render dashboard - never commit this
+      - key: LIVEKIT_URL
+        sync: false # e.g. wss://your-project.livekit.cloud - paste in the Render dashboard
+      - key: SUPABASE_S3_ACCESS_KEY_ID
+        sync: false # Storage > S3 Connection - needed for LiveKit Egress recordings
+      - key: SUPABASE_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: SUPABASE_S3_ENDPOINT
+        value: https://oeyynnedpmuhfqxkecyt.supabase.co/storage/v1/s3
+      - key: SUPABASE_S3_REGION
+        value: us-east-1
+      - key: SUPABASE_S3_BUCKET
+        value: stream-recordings
 
   # Next.js app: auth, guide dashboard, tourist marketplace, wallet connect
   - type: web
@@ -58,3 +76,5 @@ services:
         value: "0x76EC76a347115afa9a3490a256bA13447cfBd8c5"
       - key: NEXT_PUBLIC_FUJI_RPC_URL
         value: https://api.avax-test.network/ext/bc/C/rpc
+      - key: NEXT_PUBLIC_LIVEKIT_URL
+        sync: false # e.g. wss://your-project.livekit.cloud - paste in the Render dashboard

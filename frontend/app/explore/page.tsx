@@ -137,8 +137,8 @@ export default function ExplorePage() {
                     </span>
                   ))}
                 </div>
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="text-lg font-bold text-brand-blueDark">{exp.price_usdc} USDC</span>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                  <span className="whitespace-nowrap text-lg font-bold text-brand-blueDark">{exp.price_usdc} USDC</span>
                   <Link href={`/book/${exp.id}`}>
                     <Button variant="primary">Book</Button>
                   </Link>
@@ -160,13 +160,13 @@ function ExperienceCard({ experience, reason }: { experience: Experience; reason
         alt={experience.title}
         className="aspect-[16/9] w-full rounded-lg"
       />
-      <div className="mt-3 flex items-start justify-between">
+      <div className="mt-3 flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="text-lg font-bold text-brand-blueDark">{experience.title}</h3>
           <p className="text-sm text-brand-muted">with {experience.guide.fullName}</p>
           <StarRating value={experience.guide.ratingAvg} count={experience.guide.ratingCount} className="mt-1" />
         </div>
-        <span className="text-lg font-bold text-brand-blueDark">{experience.priceUsdc} USDC</span>
+        <span className="whitespace-nowrap text-lg font-bold text-brand-blueDark">{experience.priceUsdc} USDC</span>
       </div>
       <p className="mt-2 text-sm text-brand-muted">
         <span className="font-semibold text-brand-blueDark">Why this match: </span>

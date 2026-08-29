@@ -171,7 +171,7 @@ export default function ConciergePage() {
                 {match.reason}
               </p>
 
-              <div className="mt-4 flex items-center justify-between">
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs text-brand-muted">Price</p>
                   <p className="text-lg font-bold text-brand-blueDark">{match.experience.priceUsdc} USDC</p>

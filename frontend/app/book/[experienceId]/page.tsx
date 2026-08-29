@@ -199,6 +199,8 @@ export default function BookExperiencePage() {
             <WalletConnectButton />
           </div>
 
+          <FeeBreakdown priceUsdc={experience.price_usdc} />
+
           {bookingError && <p className="mt-3 text-sm text-red-600">{bookingError}</p>}
 
           <Button variant="primary" className="mt-6 w-full" disabled={bookingLoading} onClick={handleConfirm}>
@@ -206,6 +208,38 @@ export default function BookExperiencePage() {
           </Button>
         </div>
       </Card>
+    </div>
+  );
+}
+
+const GUIDE_BPS = 8500;
+const BPS_DENOMINATOR = 10_000;
+
+/// Direct tourist bookings have no booking partner in the loop, so the escrow's
+/// 10% "hotel" slot routes to the Guidemate treasury alongside the 5% protocol
+/// slice - see GuidemateEscrow.sol's resolvedHotelWallet fallback. That's a
+/// 15% platform take here vs. the 5% Guidemate keeps when a booking partner
+/// (e.g. hotel concierge) is in the loop and earns the other 10% as a referral fee.
+function FeeBreakdown({ priceUsdc }: { priceUsdc: number }) {
+  const guideAmount = (priceUsdc * GUIDE_BPS) / BPS_DENOMINATOR;
+  const platformAmount = priceUsdc - guideAmount;
+
+  return (
+    <div className="mt-4 rounded-lg border border-brand-border p-4 text-sm">
+      <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Where your money goes</p>
+      <div className="mt-2 flex items-center justify-between">
+        <span className="text-brand-muted">Guide receives (85%)</span>
+        <span className="font-medium text-brand-blueDark">{guideAmount.toFixed(2)} USDC</span>
+      </div>
+      <div className="mt-1 flex items-center justify-between">
+        <span className="text-brand-muted">Guidemate platform fee (15%)</span>
+        <span className="font-medium text-brand-blueDark">{platformAmount.toFixed(2)} USDC</span>
+      </div>
+      <p className="mt-2 text-xs text-brand-muted">
+        Guidemate&apos;s core platform fee is a flat 5%. The other 10% here goes to Guidemate too since
+        there&apos;s no booking partner involved - when a partner (e.g. a hotel concierge desk) refers the
+        booking instead, that 10% goes to them as a referral fee.
+      </p>
     </div>
   );
 }

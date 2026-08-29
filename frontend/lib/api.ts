@@ -7,6 +7,8 @@ export interface ExperienceGuide {
   walletAddress: string | null;
   bio: string | null;
   languages: string[];
+  ratingAvg: number;
+  ratingCount: number;
 }
 
 export interface Experience {
@@ -17,6 +19,7 @@ export interface Experience {
   priceUsdc: number;
   durationMinutes: number;
   location: string | null;
+  imageUrl: string | null;
   guide: ExperienceGuide;
 }
 
@@ -34,6 +37,11 @@ export interface PayoutInfo {
   kesAmount: number;
   usdcAmount: number;
   completedAt: string;
+}
+
+export interface RatingInfo {
+  stars: number;
+  comment: string | null;
 }
 
 export interface BookingRecord {
@@ -55,6 +63,7 @@ export interface BookingRecord {
   releaseTxHash: string | null;
   splits?: { guideAmount: number; hotelAmount: number; protocolAmount: number };
   payout: PayoutInfo | null;
+  rating: RatingInfo | null;
   createdAt: string;
 }
 
@@ -130,4 +139,15 @@ export function completeBooking(token: string) {
 export function getVerifyUrl(qrToken: string) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   return `${origin}/verify?token=${encodeURIComponent(qrToken)}`;
+}
+
+export function submitRating(
+  input: { bookingId: string; stars: number; comment?: string },
+  accessToken: string
+) {
+  return request<{ rating: RatingInfo }>("/api/ratings", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
 }

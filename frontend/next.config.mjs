@@ -7,7 +7,7 @@ const nextConfig = {
       { protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/public/**" },
     ],
   },
-  webpack: (config) => {
+  webpack: (config, { dev }) => {
     // wagmi's `wagmi/connectors` barrel pulls in the Coinbase Smart Wallet
     // (baseAccount) connector, which transitively requires @base-org/account
     // -> @coinbase/cdp-sdk -> optional @x402/* packages that aren't
@@ -18,6 +18,18 @@ const nextConfig = {
       "@coinbase/cdp-sdk": false,
       "@base-org/account": false,
     };
+
+    // On this Windows machine, webpack's persistent disk cache under
+    // .next/cache intermittently fails its atomic rename of *.pack.gz_ files
+    // (almost certainly real-time antivirus scanning the file mid-write),
+    // which corrupts the dev build and leaves `next dev` serving 404s/500s
+    // for every route until `.next` is wiped by hand. Disabling the disk
+    // cache in dev trades a bit of rebuild speed for a server that doesn't
+    // randomly break.
+    if (dev) {
+      config.cache = false;
+    }
+
     return config;
   },
 };

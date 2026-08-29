@@ -1,10 +1,10 @@
 "use client";
 
-import { Suspense, useState, type FormEvent, type ReactNode } from "react";
+import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
+import { FormField, FormShell } from "@/components/ui/FormShell";
 import { createClient } from "@/lib/supabase/client";
+import { provisionWallet } from "@/lib/api";
 
 type Role = "tourist" | "guide";
 
@@ -48,6 +48,9 @@ function SignUpForm() {
           phone: phone || null,
         });
         if (profileError) throw profileError;
+        if (role === "guide") {
+          await provisionWallet(data.session.access_token);
+        }
         router.push(role === "guide" ? "/guide/dashboard" : "/explore");
       } else {
         // Email confirmation is required - stash the intended profile so
@@ -67,95 +70,90 @@ function SignUpForm() {
 
   if (needsConfirmation) {
     return (
-      <div className="mx-auto max-w-md">
-        <Card className="text-center">
-          <h1 className="text-xl font-bold text-brand-blueDark">Check your email</h1>
-          <p className="mt-2 text-sm text-brand-muted">
-            We sent a confirmation link to <strong>{email}</strong>. Click it, then come back and sign in.
-          </p>
-        </Card>
-      </div>
+      <FormShell title="Check your email">
+        <p className="text-center text-sm text-white/70">
+          We sent a confirmation link to <strong className="text-white">{email}</strong>. Click it, then come back and
+          sign in.
+        </p>
+      </FormShell>
     );
   }
 
   return (
-    <div className="mx-auto max-w-md">
-      <Card>
-        <h1 className="text-xl font-bold text-brand-blueDark">Create your Guidemate account</h1>
-
-        <div className="mt-4 flex rounded-full border border-brand-border p-1">
-          <RoleTab label="I'm a tourist" active={role === "tourist"} onClick={() => setRole("tourist")} />
-          <RoleTab label="I'm a guide" active={role === "guide"} onClick={() => setRole("guide")} />
-        </div>
-
-        <form className="mt-6 flex flex-col gap-3" onSubmit={handleSubmit}>
-          <Field label="Full name">
-            <input
-              required
-              className={inputClass}
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Jane Doe"
-            />
-          </Field>
-          <Field label="Email">
-            <input
-              required
-              type="email"
-              className={inputClass}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-            />
-          </Field>
-          <Field label="Password">
-            <input
-              required
-              type="password"
-              minLength={6}
-              className={inputClass}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 6 characters"
-            />
-          </Field>
-          <Field label={role === "guide" ? "M-Pesa phone number" : "Phone number (optional)"}>
-            <input
-              required={role === "guide"}
-              className={inputClass}
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+254712345678"
-            />
-          </Field>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <Button variant="primary" type="submit" disabled={loading} className="mt-2 w-full">
-            {loading ? "Creating account..." : "Create account"}
-          </Button>
-        </form>
-
-        <p className="mt-4 text-center text-sm text-brand-muted">
+    <FormShell
+      title="Create your account"
+      subtitle="Travelers book in minutes. Guides list once and get paid on completion."
+      footer={
+        <>
           Already have an account?{" "}
-          <a href="/auth/sign-in" className="font-semibold text-brand-accent">
+          <a href="/auth/sign-in" className="font-semibold text-white underline">
             Sign in
           </a>
-        </p>
-      </Card>
-    </div>
-  );
-}
+          <br />
+          Want to be a vetted guide?{" "}
+          <a href="/apply" className="font-semibold text-white underline">
+            Apply here
+          </a>
+        </>
+      }
+    >
+      <div className="mb-8 flex border border-white/15">
+        <RoleTab label="I'm a tourist" active={role === "tourist"} onClick={() => setRole("tourist")} />
+        <RoleTab label="I'm a guide" active={role === "guide"} onClick={() => setRole("guide")} />
+      </div>
 
-const inputClass =
-  "w-full rounded-lg border border-brand-border px-3 py-2 text-sm outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent";
+      <form onSubmit={handleSubmit}>
+        <FormField label="Full name *">
+          <input
+            required
+            className="form-input-dark"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="Jane Doe"
+          />
+        </FormField>
+        <FormField label="Email *">
+          <input
+            required
+            type="email"
+            className="form-input-dark"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+          />
+        </FormField>
+        <FormField label="Password *">
+          <input
+            required
+            type="password"
+            minLength={6}
+            className="form-input-dark"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="At least 6 characters"
+          />
+        </FormField>
+        <FormField label={role === "guide" ? "M-Pesa phone number *" : "Phone number"}>
+          <input
+            required={role === "guide"}
+            className="form-input-dark"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+254 7XX XXX XXX"
+          />
+        </FormField>
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium text-brand-blueDark">{label}</span>
-      {children}
-    </label>
+        {error && <p className="mb-4 text-sm text-red-300">{error}</p>}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-brand-amber py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-brand-blueDark transition hover:bg-brand-amberDark disabled:opacity-50"
+        >
+          {loading ? "Creating account..." : "Create account"}
+        </button>
+      </form>
+    </FormShell>
   );
 }
 
@@ -164,8 +162,8 @@ function RoleTab({ label, active, onClick }: { label: string; active: boolean; o
     <button
       type="button"
       onClick={onClick}
-      className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold transition ${
-        active ? "bg-brand-blue text-white" : "text-brand-muted hover:text-brand-blue"
+      className={`flex-1 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide transition ${
+        active ? "bg-brand-accent text-white" : "text-white/60 hover:text-white"
       }`}
     >
       {label}

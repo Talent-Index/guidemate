@@ -9,6 +9,7 @@ export interface ExperienceGuide {
   languages: string[];
   ratingAvg: number;
   ratingCount: number;
+  isVetted: boolean;
 }
 
 export interface Experience {
@@ -16,6 +17,7 @@ export interface Experience {
   title: string;
   description: string;
   tags: string[];
+  category: string | null;
   priceUsdc: number;
   durationMinutes: number;
   location: string | null;
@@ -29,7 +31,7 @@ export interface MatchResult {
   source: "gemini" | "local";
 }
 
-export type BookingStatus = "locked" | "released" | "paid";
+export type BookingStatus = "locked" | "released" | "paid" | "refunded";
 
 export interface PayoutInfo {
   reference: string;
@@ -39,9 +41,21 @@ export interface PayoutInfo {
   completedAt: string;
 }
 
+export interface FxSnapshot {
+  base: "USDC";
+  rates: Record<string, number>;
+  asOf: string;
+  source: string;
+}
+
 export interface RatingInfo {
   stars: number;
   comment: string | null;
+}
+
+export interface RefundInfo {
+  feeAmount: number;
+  refundAmount: number;
 }
 
 export interface BookingRecord {
@@ -64,8 +78,10 @@ export interface BookingRecord {
   status: BookingStatus;
   lockTxHash: string | null;
   releaseTxHash: string | null;
+  refundTxHash: string | null;
   splits?: { guideAmount: number; hotelAmount: number; protocolAmount: number };
   payout: PayoutInfo | null;
+  refund: RefundInfo | null;
   rating: RatingInfo | null;
   createdAt: string;
 }
@@ -89,6 +105,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 function authHeaders(accessToken?: string): HeadersInit {
   return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+}
+
+export function getFxRates() {
+  return request<FxSnapshot>("/api/fx");
 }
 
 export function matchExperience(text: string) {
@@ -130,12 +150,35 @@ export function getQrToken(bookingId: string) {
   return request<{ qrToken: string }>(`/api/bookings/${bookingId}/qr-token`);
 }
 
+export function getCompletionCode(bookingId: string, accessToken?: string) {
+  return request<{ qrToken: string; pin: string }>(`/api/bookings/${bookingId}/completion-code`, {
+    headers: authHeaders(accessToken),
+  });
+}
+
 export const SNOWTRACE_TX_BASE = "https://testnet.snowtrace.io/tx";
 
 export function completeBooking(token: string) {
   return request<{ booking: BookingRecord }>("/api/complete", {
     method: "POST",
     body: JSON.stringify({ token }),
+  });
+}
+
+export function completeBookingWithPin(bookingId: string, pin: string, accessToken: string) {
+  return request<{ booking: BookingRecord }>("/api/complete", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ bookingId, pin }),
+  });
+}
+
+/// Guide-only: settles a booking as a tourist no-show, refunding 80% back
+/// through escrow (minus a 20% inconvenience fee) instead of paying the guide.
+export function reportNoShow(bookingId: string, accessToken: string) {
+  return request<{ booking: BookingRecord }>(`/api/bookings/${bookingId}/no-show`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
   });
 }
 
@@ -149,6 +192,109 @@ export function submitRating(
   accessToken: string
 ) {
   return request<{ rating: RatingInfo }>("/api/ratings", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
+}
+
+export type StreamStatus = "scheduled" | "live" | "ended";
+
+export interface LiveStreamRecord {
+  id: string;
+  guideId: string;
+  guideName: string;
+  guideWallet: string | null;
+  experienceId: string | null;
+  experienceTitle: string | null;
+  roomName: string;
+  title: string;
+  status: StreamStatus;
+  priceUsdc: number;
+  startedAt: string | null;
+  endedAt: string | null;
+  recordingUrl: string | null;
+  createdAt: string;
+}
+
+export interface StreamTip {
+  id: string;
+  tipperId: string | null;
+  tipperWallet: string | null;
+  amountUsdc: number;
+  txHash: string;
+  createdAt: string;
+}
+
+export function listLiveStreams() {
+  return request<{ streams: LiveStreamRecord[] }>("/api/streams/live");
+}
+
+export function listRecordedStreams() {
+  return request<{ streams: LiveStreamRecord[] }>("/api/streams/recorded");
+}
+
+export function getStream(streamId: string) {
+  return request<{ stream: LiveStreamRecord }>(`/api/streams/${streamId}`);
+}
+
+export function listStreamTips(streamId: string) {
+  return request<{ tips: StreamTip[] }>(`/api/streams/${streamId}/tips`);
+}
+
+export function startStream(
+  input: { title: string; experienceId?: string; priceUsdc?: number },
+  accessToken: string
+) {
+  return request<{ stream: LiveStreamRecord; token: string }>("/api/streams", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
+}
+
+export function joinStream(
+  streamId: string,
+  accessToken?: string,
+  txHash?: string
+) {
+  return request<{ token: string; stream: LiveStreamRecord; role: "publisher" | "viewer" }>(
+    `/api/streams/${streamId}/join-token`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify(txHash ? { txHash } : {}),
+    }
+  );
+}
+
+export function endStream(streamId: string, accessToken: string) {
+  return request<{ stream: LiveStreamRecord }>(`/api/streams/${streamId}/end`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+  });
+}
+
+export function provisionWallet(accessToken: string) {
+  return request<{ walletAddress: string }>("/api/wallet/provision", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+  });
+}
+
+export function approveApplication(id: string, accessToken: string) {
+  return request<{ ok: true; userId: string; walletAddress: string }>(`/api/admin/applications/${id}/approve`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+  });
+}
+
+export function recordStreamTip(
+  streamId: string,
+  input: { amountUsdc: number; txHash: string; tipperWallet?: string },
+  accessToken?: string
+) {
+  return request<{ tip: StreamTip }>(`/api/streams/${streamId}/tip`, {
     method: "POST",
     headers: authHeaders(accessToken),
     body: JSON.stringify(input),

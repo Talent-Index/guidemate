@@ -42,7 +42,7 @@ export default function VerifyPage() {
       <Card className="w-full max-w-md text-center">
         <h1 className="text-xl font-bold text-brand-blueDark">Verify Tour Completion</h1>
         <p className="mt-1 text-sm text-brand-muted">
-          Scan the guide&apos;s QR code, or paste the token below, to release payment.
+          Scan the tourist&apos;s End trip QR, or paste the token, to release payment.
         </p>
 
         {status === "idle" && (
@@ -50,7 +50,7 @@ export default function VerifyPage() {
             <QrScanner onScan={(text) => runComplete(text)} />
             <div className="flex w-full gap-2">
               <input
-                className="flex-1 rounded-lg border border-brand-border px-3 py-2 text-sm outline-none focus:border-brand-accent"
+                className="form-input-light flex-1"
                 placeholder="Paste QR token"
                 value={manualToken}
                 onChange={(e) => setManualToken(e.target.value)}

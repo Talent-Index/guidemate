@@ -2,16 +2,17 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { useAccount } from "wagmi";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
+import { ListRowSkeleton } from "@/components/ui/Skeleton";
 import { StarRating } from "@/components/ui/StarRating";
-import { WalletConnectButton } from "@/components/WalletConnectButton";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
-import { listMyBookings, type BookingRecord } from "@/lib/api";
+import { EXPERIENCE_CATEGORIES } from "@/lib/categories";
+import { listMyBookings, provisionWallet, type BookingRecord } from "@/lib/api";
+import { Price } from "@/lib/fx";
 
 type DashboardTab = "experiences" | "history" | "settings";
 
@@ -20,6 +21,7 @@ interface ExperienceRow {
   title: string;
   description: string;
   tags: string[];
+  category: string | null;
   price_usdc: number;
   duration_minutes: number;
   location: string | null;
@@ -42,7 +44,6 @@ async function uploadExperiencePhoto(file: File, guideId: string): Promise<strin
 
 export default function GuideDashboardPage() {
   const { loading: authLoading, session, profile, refreshProfile } = useAuth();
-  const { address } = useAccount();
 
   const [activeTab, setActiveTab] = useState<DashboardTab>("experiences");
 
@@ -65,6 +66,7 @@ export default function GuideDashboardPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
+  const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
   const [duration, setDuration] = useState("");
   const [location, setLocation] = useState("");
@@ -75,6 +77,8 @@ export default function GuideDashboardPage() {
 
   const [photoUpdatingId, setPhotoUpdatingId] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [provisioningWallet, setProvisioningWallet] = useState(false);
+  const [provisionError, setProvisionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile) {
@@ -119,7 +123,7 @@ export default function GuideDashboardPage() {
     const supabase = createClient();
     const { data } = await supabase
       .from("experiences")
-      .select("id, title, description, tags, price_usdc, duration_minutes, location, image_url, is_active")
+      .select("id, title, description, tags, category, price_usdc, duration_minutes, location, image_url, is_active")
       .eq("guide_id", guideId)
       .order("created_at", { ascending: false });
     setExperiences((data as ExperienceRow[]) ?? []);
@@ -144,7 +148,6 @@ export default function GuideDashboardPage() {
             .split(",")
             .map((l) => l.trim())
             .filter(Boolean),
-          wallet_address: address ?? profile?.walletAddress ?? null,
         })
         .eq("id", session.user.id);
       if (error) throw error;
@@ -182,6 +185,7 @@ export default function GuideDashboardPage() {
           .split(",")
           .map((t) => t.trim())
           .filter(Boolean),
+        category: category || null,
         price_usdc: Number(price),
         duration_minutes: Number(duration),
         location: location || null,
@@ -191,6 +195,7 @@ export default function GuideDashboardPage() {
       setTitle("");
       setDescription("");
       setTags("");
+      setCategory("");
       setPrice("");
       setDuration("");
       setLocation("");
@@ -219,6 +224,16 @@ export default function GuideDashboardPage() {
     } finally {
       setPhotoUpdatingId(null);
     }
+  }
+
+  async function handleCategoryChange(exp: ExperienceRow, newCategory: string) {
+    if (!session) return;
+    const supabase = createClient();
+    await supabase
+      .from("experiences")
+      .update({ category: newCategory || null })
+      .eq("id", exp.id);
+    await loadExperiences(session.user.id);
   }
 
   async function handleToggleActive(exp: ExperienceRow) {
@@ -264,8 +279,13 @@ export default function GuideDashboardPage() {
             Active tour
           </Link>
           <span className="rounded-full bg-brand-blue px-4 py-1.5 text-xs font-semibold text-white">Dashboard</span>
+          <Link
+            href="/live"
+            className="rounded-full border border-brand-border px-4 py-1.5 text-xs font-semibold text-brand-muted hover:border-brand-accent hover:text-brand-accent"
+          >
+            Go live
+          </Link>
         </div>
-        <WalletConnectButton />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -331,11 +351,36 @@ export default function GuideDashboardPage() {
           <Field label="Payout wallet address">
             <input
               className={inputClass}
-              value={address ?? profile?.walletAddress ?? ""}
+              value={profile.walletAddress ?? ""}
               readOnly
-              placeholder="Connect your wallet above"
+              placeholder="Not provisioned yet"
             />
           </Field>
+          {!profile.walletAddress && (
+            <div className="sm:col-span-2">
+              {provisionError && <p className="mb-2 text-sm text-red-600">{provisionError}</p>}
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={provisioningWallet}
+                onClick={async () => {
+                  if (!session) return;
+                  setProvisioningWallet(true);
+                  setProvisionError(null);
+                  try {
+                    await provisionWallet(session.access_token);
+                    await refreshProfile();
+                  } catch (err) {
+                    setProvisionError((err as Error).message);
+                  } finally {
+                    setProvisioningWallet(false);
+                  }
+                }}
+              >
+                {provisioningWallet ? "Provisioning..." : "Provision wallet"}
+              </Button>
+            </div>
+          )}
           <div className="sm:col-span-2">
             <Field label="Bio">
               <textarea className={inputClass} rows={3} value={bio} onChange={(e) => setBio(e.target.value)} />
@@ -398,6 +443,16 @@ export default function GuideDashboardPage() {
                 required
               />
             </Field>
+            <Field label="Category">
+              <select className={inputClass} value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="">Uncategorized</option>
+                {EXPERIENCE_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <div className="sm:col-span-2">
               <Field label="Tags (comma separated)">
                 <input
@@ -452,18 +507,23 @@ export default function GuideDashboardPage() {
         {photoError && <p className="mt-3 text-sm text-red-600">{photoError}</p>}
 
         <div className="mt-4 flex flex-col gap-3">
-          {loadingExperiences && <p className="text-sm text-brand-muted">Loading...</p>}
+          {loadingExperiences && <ListRowSkeleton count={3} />}
           {!loadingExperiences && experiences.length === 0 && (
             <p className="text-sm text-brand-muted">You haven&apos;t published any experiences yet.</p>
           )}
           {experiences.map((exp) => (
-            <div key={exp.id} className="flex items-center justify-between rounded-lg border border-brand-border p-3">
+            <div key={exp.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3">
               <div className="flex items-center gap-3">
                 <ExperiencePhoto src={exp.image_url} alt={exp.title} className="h-14 w-20 shrink-0 rounded-lg" />
                 <div>
                   <p className="font-semibold text-brand-blueDark">{exp.title}</p>
                   <p className="text-xs text-brand-muted">
-                    {exp.price_usdc} USDC · {exp.duration_minutes} min{exp.location ? ` · ${exp.location}` : ""}
+                    <span className="inline-flex items-baseline gap-2">
+                      <Price amountUsdc={exp.price_usdc} size="sm" align="start" />
+                      <span>
+                        · {exp.duration_minutes} min{exp.location ? ` · ${exp.location}` : ""}
+                      </span>
+                    </span>
                   </p>
                   <label className="mt-1 inline-block cursor-pointer text-xs font-semibold text-brand-accent hover:underline">
                     {photoUpdatingId === exp.id ? "Uploading..." : exp.image_url ? "Change photo" : "Add photo"}
@@ -475,6 +535,18 @@ export default function GuideDashboardPage() {
                       onChange={(e) => handlePhotoChange(exp, e.target.files?.[0] ?? null)}
                     />
                   </label>
+                  <select
+                    className="mt-1 block rounded-full border border-brand-border bg-white px-2 py-0.5 text-xs text-brand-muted"
+                    value={exp.category ?? ""}
+                    onChange={(e) => handleCategoryChange(exp, e.target.value)}
+                  >
+                    <option value="">Uncategorized</option>
+                    {EXPERIENCE_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -514,7 +586,7 @@ export default function GuideDashboardPage() {
         </div>
 
         <div className="mt-4 flex flex-col gap-3">
-          {loadingBookings && <p className="text-sm text-brand-muted">Loading...</p>}
+          {loadingBookings && <ListRowSkeleton count={3} />}
           {bookingsError && <p className="text-sm text-red-600">{bookingsError}</p>}
           {!loadingBookings && !bookingsError && pastBookings.length === 0 && (
             <p className="text-sm text-brand-muted">No completed tours yet - they&apos;ll show up here once a booking is verified.</p>
@@ -524,7 +596,8 @@ export default function GuideDashboardPage() {
               <div>
                 <p className="font-semibold text-brand-blueDark">{b.experienceTitle ?? b.request ?? "Tour"}</p>
                 <p className="text-xs text-brand-muted">
-                  {new Date(b.createdAt).toLocaleDateString()} · {b.amountUsdc} USDC
+                  {new Date(b.createdAt).toLocaleDateString()} ·{" "}
+                  <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
                   {b.splits ? ` · your cut ${b.splits.guideAmount} USDC` : ""}
                 </p>
                 {b.rating && (
@@ -534,10 +607,14 @@ export default function GuideDashboardPage() {
                 )}
               </div>
               <div className="flex flex-col items-end gap-1">
-                <Chip tone={b.status === "paid" ? "paid" : b.status === "released" ? "released" : "locked"} />
+                <Chip tone={b.status} />
                 {b.status === "paid" && b.payout ? (
                   <p className="text-xs font-medium text-brand-success">
                     {b.payout.kesAmount} KES · Ref {b.payout.reference}
+                  </p>
+                ) : b.status === "refunded" && b.refund ? (
+                  <p className="text-xs text-red-600">
+                    No-show · {b.refund.refundAmount.toFixed(2)} USDC refunded
                   </p>
                 ) : (
                   <p className="text-xs text-brand-muted">Payout not yet received</p>
@@ -552,8 +629,7 @@ export default function GuideDashboardPage() {
   );
 }
 
-const inputClass =
-  "w-full rounded-lg border border-brand-border px-3 py-2 text-sm outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent";
+const inputClass = "form-input-light";
 
 function TabButton({
   active,

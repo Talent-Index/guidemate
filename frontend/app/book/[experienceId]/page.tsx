@@ -11,6 +11,7 @@ import { WalletConnectButton } from "@/components/WalletConnectButton";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import { createBooking, SNOWTRACE_TX_BASE, type BookingRecord } from "@/lib/api";
+import { Price } from "@/lib/fx";
 
 interface ExperienceDetail {
   id: string;
@@ -121,7 +122,9 @@ export default function BookExperiencePage() {
         <p className="mt-2 text-sm text-brand-muted">
           {experience.title} with {experience.guide?.full_name} is locked in escrow.
         </p>
-        <p className="mt-4 text-lg font-bold text-brand-blueDark">{booking.amountUsdc} USDC</p>
+        <div className="mt-4 flex justify-center">
+          <Price amountUsdc={booking.amountUsdc} align="start" />
+        </div>
         {booking.lockTxHash && (
           <a
             href={`${SNOWTRACE_TX_BASE}/${booking.lockTxHash}`}
@@ -133,11 +136,11 @@ export default function BookExperiencePage() {
           </a>
         )}
         <p className="mt-4 text-sm text-brand-muted">
-          Your guide will show you a QR code once the tour is done - scan it at{" "}
-          <Link href="/verify" className="text-brand-accent underline">
-            /verify
+          Payment is held in the Guidemate escrow contract. When you arrive, open{" "}
+          <Link href="/tourist/bookings" className="text-brand-accent underline">
+            My bookings
           </Link>{" "}
-          to release payment.
+          and tap End trip - your guide enters the 6-digit PIN (or scans the QR) to get paid.
         </p>
         <Link href="/tourist/bookings">
           <Button variant="secondary" className="mt-4">
@@ -163,7 +166,7 @@ export default function BookExperiencePage() {
                 className="mt-1"
               />
             </div>
-            <span className="whitespace-nowrap text-xl font-bold text-brand-blueDark">{experience.price_usdc} USDC</span>
+            <Price amountUsdc={experience.price_usdc} size="lg" />
           </div>
 
           <p className="mt-3 text-sm text-brand-muted">{experience.description}</p>
@@ -199,6 +202,8 @@ export default function BookExperiencePage() {
             <WalletConnectButton />
           </div>
 
+          <FeeBreakdown priceUsdc={experience.price_usdc} />
+
           {bookingError && <p className="mt-3 text-sm text-red-600">{bookingError}</p>}
 
           <Button variant="primary" className="mt-6 w-full" disabled={bookingLoading} onClick={handleConfirm}>
@@ -206,6 +211,38 @@ export default function BookExperiencePage() {
           </Button>
         </div>
       </Card>
+    </div>
+  );
+}
+
+const GUIDE_BPS = 8500;
+const BPS_DENOMINATOR = 10_000;
+
+/// Direct tourist bookings have no booking partner in the loop, so the escrow's
+/// 10% "hotel" slot routes to the Guidemate treasury alongside the 5% protocol
+/// slice - see GuidemateEscrow.sol's resolvedHotelWallet fallback. That's a
+/// 15% platform take here vs. the 5% Guidemate keeps when a booking partner
+/// (e.g. hotel concierge) is in the loop and earns the other 10% as a referral fee.
+function FeeBreakdown({ priceUsdc }: { priceUsdc: number }) {
+  const guideAmount = (priceUsdc * GUIDE_BPS) / BPS_DENOMINATOR;
+  const platformAmount = priceUsdc - guideAmount;
+
+  return (
+    <div className="mt-4 rounded-lg border border-brand-border p-4 text-sm">
+      <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Where your money goes</p>
+      <div className="mt-2 flex items-center justify-between">
+        <span className="text-brand-muted">Guide receives (85%)</span>
+        <Price amountUsdc={guideAmount} size="sm" />
+      </div>
+      <div className="mt-1 flex items-center justify-between">
+        <span className="text-brand-muted">Guidemate platform fee (15%)</span>
+        <Price amountUsdc={platformAmount} size="sm" />
+      </div>
+      <p className="mt-2 text-xs text-brand-muted">
+        Guidemate&apos;s core platform fee is a flat 5%. The other 10% here goes to Guidemate too since
+        there&apos;s no booking partner involved - when a partner (e.g. a hotel concierge desk) refers the
+        booking instead, that 10% goes to them as a referral fee.
+      </p>
     </div>
   );
 }

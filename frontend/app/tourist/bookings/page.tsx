@@ -2,21 +2,21 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { QRCodeSVG } from "qrcode.react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
+import { ListRowSkeleton } from "@/components/ui/Skeleton";
 import { StarRating, StarRatingInput } from "@/components/ui/StarRating";
+import { EndTripPanel } from "@/components/EndTripPanel";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
-  getQrToken,
-  getVerifyUrl,
   listMyBookings,
   submitRating,
   SNOWTRACE_TX_BASE,
   type BookingRecord,
 } from "@/lib/api";
+import { Price } from "@/lib/fx";
 
 export default function TouristBookingsPage() {
   const { loading: authLoading, session, profile } = useAuth();
@@ -72,7 +72,7 @@ export default function TouristBookingsPage() {
         </p>
       </div>
 
-      {loadingBookings && <p className="text-sm text-brand-muted">Loading...</p>}
+      {loadingBookings && <ListRowSkeleton count={3} />}
       {error && <p className="text-sm text-red-600">{error}</p>}
       {!loadingBookings && bookings.length === 0 && (
         <Card className="text-center text-sm text-brand-muted">
@@ -108,12 +108,12 @@ export default function TouristBookingsPage() {
                       </p>
                     )}
                   </div>
-                  <Chip tone={booking.status === "paid" ? "paid" : booking.status === "released" ? "released" : "locked"} />
+                  <Chip tone={booking.status} />
                 </div>
 
                 <div className="mt-3 flex items-center justify-between text-sm">
                   <span className="text-brand-muted">Amount</span>
-                  <span className="font-semibold text-brand-blueDark">{booking.amountUsdc} USDC</span>
+                  <Price amountUsdc={booking.amountUsdc} size="sm" />
                 </div>
 
                 {booking.lockTxHash && (
@@ -136,7 +136,29 @@ export default function TouristBookingsPage() {
                   </div>
                 )}
 
-                {booking.status === "locked" && <CompletionCodeSection bookingId={booking.bookingId} />}
+                {booking.status === "refunded" && booking.refund && (
+                  <div className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                    <p className="font-semibold">Marked as a no-show and refunded.</p>
+                    <p className="mt-1 text-xs">
+                      {booking.refund.refundAmount.toFixed(2)} USDC refunded · {booking.refund.feeAmount.toFixed(2)}{" "}
+                      USDC kept by Guidemate as an inconvenience fee.
+                    </p>
+                    {booking.refundTxHash && (
+                      <a
+                        href={`${SNOWTRACE_TX_BASE}/${booking.refundTxHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-block text-xs font-semibold underline"
+                      >
+                        View refund on Snowtrace
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                {booking.status === "locked" && (
+                  <EndTripPanel bookingId={booking.bookingId} accessToken={session.access_token} />
+                )}
 
                 {booking.status === "paid" && (
                   <RateTourSection
@@ -154,79 +176,6 @@ export default function TouristBookingsPage() {
           </Card>
         ))}
       </div>
-    </div>
-  );
-}
-
-/// Once the guide completes the tour, either side can settle it: the guide shows
-/// this same QR on their Active Tour screen, or the tourist can pull it up here
-/// and either scan it themselves or hand the raw code to whoever's checking out.
-function CompletionCodeSection({ bookingId }: { bookingId: string }) {
-  const [qrToken, setQrToken] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    getQrToken(bookingId)
-      .then(({ qrToken: token }) => {
-        if (!cancelled) setQrToken(token);
-      })
-      .catch((err) => {
-        if (!cancelled) setError((err as Error).message);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [bookingId]);
-
-  async function handleCopy() {
-    if (!qrToken) return;
-    await navigator.clipboard.writeText(qrToken);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  return (
-    <div className="mt-3 rounded-lg border border-brand-border p-3">
-      <p className="text-sm font-semibold text-brand-blueDark">Completion code</p>
-      <p className="text-xs text-brand-muted">
-        Once your guide confirms the tour is done, scan this QR (or enter the code below) at{" "}
-        <Link href="/verify" className="text-brand-accent underline">
-          /verify
-        </Link>{" "}
-        to release payment.
-      </p>
-
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-
-      {qrToken && (
-        <div className="mt-3 flex flex-col items-center gap-3 sm:flex-row sm:items-start">
-          <div className="rounded-lg border border-brand-border bg-white p-2">
-            <QRCodeSVG value={getVerifyUrl(qrToken)} size={120} />
-          </div>
-          <div className="flex w-full flex-col gap-2">
-            <p className="text-xs font-medium text-brand-muted">Code</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 truncate rounded-lg bg-brand-bg px-3 py-2 text-xs text-brand-blueDark">
-                {qrToken}
-              </code>
-              <button
-                type="button"
-                onClick={handleCopy}
-                className="shrink-0 rounded-lg border border-brand-border px-3 py-2 text-xs font-semibold text-brand-accent hover:border-brand-accent"
-              >
-                {copied ? "Copied!" : "Copy"}
-              </button>
-            </div>
-            <Link href="/verify">
-              <Button variant="secondary" className="w-full sm:w-auto">
-                Open /verify
-              </Button>
-            </Link>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -275,7 +224,7 @@ function RateTourSection({
       <p className="text-xs text-brand-muted">How was your experience? Your rating helps other tourists choose.</p>
       <StarRatingInput value={stars} onChange={setStars} className="mt-2" />
       <textarea
-        className="mt-2 w-full rounded-lg border border-brand-border p-2 text-sm outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent"
+        className="form-input-light mt-2 resize-none"
         rows={2}
         placeholder="Optional: say a bit about your guide (public)"
         value={comment}

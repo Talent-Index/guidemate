@@ -26,3 +26,13 @@ export async function getUserIdFromAuthHeader(authHeader: string | undefined): P
   if (error || !data.user) return undefined;
   return data.user.id;
 }
+
+/// Same as getUserIdFromAuthHeader, but only returns the id when the caller's
+/// profiles.role is admin. Used to gate /api/admin/* routes.
+export async function getAdminUserIdFromAuthHeader(authHeader: string | undefined): Promise<string | undefined> {
+  const userId = await getUserIdFromAuthHeader(authHeader);
+  if (!userId) return undefined;
+  const { data, error } = await supabaseAdmin.from("profiles").select("role").eq("id", userId).maybeSingle();
+  if (error || data?.role !== "admin") return undefined;
+  return userId;
+}

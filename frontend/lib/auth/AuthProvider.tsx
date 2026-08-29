@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 
 export interface Profile {
   id: string;
-  role: "guide" | "tourist";
+  role: "guide" | "tourist" | "admin";
   fullName: string | null;
   phone: string | null;
   walletAddress: string | null;
@@ -14,6 +14,7 @@ export interface Profile {
   languages: string[];
   ratingAvg: number;
   ratingCount: number;
+  isVetted: boolean;
 }
 
 interface AuthContextValue {
@@ -39,6 +40,7 @@ function toProfile(row: any): Profile {
     languages: row.languages ?? [],
     ratingAvg: Number(row.rating_avg ?? 0),
     ratingCount: row.rating_count ?? 0,
+    isVetted: Boolean(row.is_vetted),
   };
 }
 

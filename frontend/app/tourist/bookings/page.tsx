@@ -108,7 +108,7 @@ export default function TouristBookingsPage() {
                       </p>
                     )}
                   </div>
-                  <Chip tone={booking.status === "paid" ? "paid" : booking.status === "released" ? "released" : "locked"} />
+                  <Chip tone={booking.status} />
                 </div>
 
                 <div className="mt-3 flex items-center justify-between text-sm">
@@ -133,6 +133,26 @@ export default function TouristBookingsPage() {
                 {booking.payout && (
                   <div className="mt-3 rounded-lg bg-brand-successBg p-3 text-sm text-brand-success">
                     Payout of KES {booking.payout.kesAmount.toLocaleString()} sent to the guide.
+                  </div>
+                )}
+
+                {booking.status === "refunded" && booking.refund && (
+                  <div className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                    <p className="font-semibold">Marked as a no-show and refunded.</p>
+                    <p className="mt-1 text-xs">
+                      {booking.refund.refundAmount.toFixed(2)} USDC refunded · {booking.refund.feeAmount.toFixed(2)}{" "}
+                      USDC kept by Guidemate as an inconvenience fee.
+                    </p>
+                    {booking.refundTxHash && (
+                      <a
+                        href={`${SNOWTRACE_TX_BASE}/${booking.refundTxHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-block text-xs font-semibold underline"
+                      >
+                        View refund on Snowtrace
+                      </a>
+                    )}
                   </div>
                 )}
 
@@ -275,7 +295,7 @@ function RateTourSection({
       <p className="text-xs text-brand-muted">How was your experience? Your rating helps other tourists choose.</p>
       <StarRatingInput value={stars} onChange={setStars} className="mt-2" />
       <textarea
-        className="mt-2 w-full rounded-lg border border-brand-border p-2 text-sm outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent"
+        className="form-input-light mt-2 resize-none"
         rows={2}
         placeholder="Optional: say a bit about your guide (public)"
         value={comment}

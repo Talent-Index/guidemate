@@ -197,10 +197,7 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-b from-brand-blueDark/90 via-brand-blueDark/60 to-brand-blueDark/85" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
         </div>
-        <div className="relative mx-auto flex min-h-[520px] max-w-5xl flex-col items-center justify-center gap-6 px-4 py-24 text-center sm:min-h-[600px] sm:py-32">
-          <span className="rounded-full bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-white backdrop-blur">
-            Curated local experiences · Vetted guides
-          </span>
+        <div className="relative mx-auto flex min-h-[520px] max-w-5xl flex-col items-start justify-center gap-6 px-4 py-24 text-left sm:min-h-[600px] sm:py-32">
           <h1 className="max-w-3xl text-4xl font-bold leading-tight text-white drop-shadow-sm sm:text-5xl">
             Curated local experiences, from guides you can trust.
           </h1>
@@ -212,7 +209,7 @@ export default function HomePage() {
             vouched for over time by an AI reputation agent - so every excursion feels hand-picked,
             not googled.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
+          <div className="flex flex-wrap items-center justify-start gap-3">
             <Link href="/explore">
               <Button variant="primary">Find an experience</Button>
             </Link>

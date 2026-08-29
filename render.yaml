@@ -1,0 +1,60 @@
+services:
+  # Node/Express API: AI matching, chain orchestration, QR signing, M-Pesa sim
+  - type: web
+    name: guidemate-backend
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FUJI_RPC_URL
+        value: https://api.avax-test.network/ext/bc/C/rpc
+      - key: BACKEND_PRIVATE_KEY
+        sync: false # paste from backend/.env in the Render dashboard - never commit this
+      - key: ESCROW_ADDRESS
+        value: "0x838a43Fd4F66c231eE7C1407a73D4bfA61821Ab0"
+      - key: MOCK_USDC_ADDRESS
+        value: "0x76EC76a347115afa9a3490a256bA13447cfBd8c5"
+      - key: SUPABASE_URL
+        value: https://oeyynnedpmuhfqxkecyt.supabase.co
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false # paste from backend/.env in the Render dashboard - never commit this
+      - key: GEMINI_API_KEY
+        sync: false # paste from backend/.env in the Render dashboard - never commit this
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: QR_SIGNING_SECRET
+        generateValue: true # fresh production secret, independent of local dev value
+      - key: USDC_TO_KES_RATE
+        value: "145"
+
+  # Next.js app: auth, guide dashboard, tourist marketplace, wallet connect
+  - type: web
+    name: guidemate-frontend
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Must match the backend service's public onrender.com URL above.
+      # If Render assigns a different subdomain (e.g. name collision), update this
+      # in the dashboard and redeploy.
+      - key: NEXT_PUBLIC_API_BASE_URL
+        value: https://guidemate-backend.onrender.com
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://oeyynnedpmuhfqxkecyt.supabase.co
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9leXlubmVkcG11aGZxeGtlY3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5NDg3NTQsImV4cCI6MjEwMzUyNDc1NH0.RV0GAn_EEMn5Gyh5HlqnJOR8JmEc-ltzNAkLjGdS7_g
+      - key: NEXT_PUBLIC_MOCK_USDC_ADDRESS
+        value: "0x76EC76a347115afa9a3490a256bA13447cfBd8c5"
+      - key: NEXT_PUBLIC_FUJI_RPC_URL
+        value: https://api.avax-test.network/ext/bc/C/rpc

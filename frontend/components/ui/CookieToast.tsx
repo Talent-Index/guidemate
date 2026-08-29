@@ -31,7 +31,7 @@ export function CookieToast() {
   return (
     <aside
       role="status"
-      className="fixed bottom-4 left-4 z-[60] max-w-sm animate-[slideInLeft_0.35s_ease-out] border border-white/15 bg-brand-navy p-4 text-white shadow-lg"
+      className="fixed bottom-4 left-4 z-[60] max-w-sm animate-[slideInLeft_0.35s_ease-out] border border-white/15 bg-brand-blueDark p-4 text-white shadow-lg"
     >
       <p className="text-sm leading-relaxed text-white/90">
         This site uses cookies to provide you with the best of experience.
@@ -39,7 +39,7 @@ export function CookieToast() {
       <button
         type="button"
         onClick={dismiss}
-        className="mt-3 bg-brand-indigo px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-indigo-500"
+        className="mt-3 bg-brand-amber px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-brand-blueDark transition hover:bg-brand-amberDark"
       >
         Got it
       </button>

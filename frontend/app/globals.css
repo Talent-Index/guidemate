@@ -30,7 +30,7 @@ body {
   color: rgba(255, 255, 255, 0.38);
 }
 .form-input-dark:focus {
-  border-bottom-color: #4f46e5;
+  border-bottom-color: #ffb700;
 }
 
 /* Same silhouette on light pages so every form feels like one system. */

@@ -49,7 +49,7 @@ export function NavBar() {
 
   return (
     <header
-      className={`fixed top-0 z-50 w-full bg-brand-navy/90 backdrop-blur-md transition-transform duration-300 ${
+      className={`fixed top-0 z-50 w-full bg-brand-blueDark/90 backdrop-blur-md transition-transform duration-300 ${
         hidden ? "-translate-y-full" : "translate-y-0"
       }`}
     >
@@ -95,7 +95,7 @@ export function NavBar() {
               </div>
               <Link
                 href="/auth/sign-in"
-                className="bg-brand-indigo px-5 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-white transition hover:bg-indigo-500"
+                className="bg-brand-amber px-5 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-brand-blueDark transition hover:bg-brand-amberDark"
               >
                 Sign in
               </Link>
@@ -123,7 +123,7 @@ export function NavBar() {
       </div>
 
       {menuOpen && (
-        <nav className="border-t border-white/10 bg-brand-navy px-4 pb-4 pt-2 md:hidden">
+        <nav className="border-t border-white/10 bg-brand-blueDark px-4 pb-4 pt-2 md:hidden">
           {loading ? null : user && profile ? (
             <div className="flex flex-col gap-1">
               {profile.role === "tourist" && (
@@ -162,7 +162,7 @@ export function NavBar() {
               </Link>
               <Link
                 href="/auth/sign-in"
-                className="mt-2 block bg-brand-indigo px-4 py-2.5 text-center text-xs font-bold uppercase tracking-wide text-white"
+                className="mt-2 block bg-brand-amber px-4 py-2.5 text-center text-xs font-bold uppercase tracking-wide text-brand-blueDark"
                 onClick={() => setMenuOpen(false)}
               >
                 Sign in

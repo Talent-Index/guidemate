@@ -128,7 +128,7 @@ export default function ApplyPage() {
             type="file"
             accept="image/jpeg,image/png,image/webp,application/pdf"
             onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-sm text-white/60 file:mr-3 file:border-0 file:bg-brand-indigo file:px-3 file:py-1.5 file:text-xs file:font-semibold file:uppercase file:tracking-wide file:text-white"
+            className="block w-full text-sm text-white/60 file:mr-3 file:border-0 file:bg-brand-amber file:px-3 file:py-1.5 file:text-xs file:font-semibold file:uppercase file:tracking-wide file:text-brand-blueDark"
           />
         </FormField>
 
@@ -137,7 +137,7 @@ export default function ApplyPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-brand-indigo py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-white transition hover:bg-indigo-500 disabled:opacity-50"
+          className="w-full bg-brand-amber py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-brand-blueDark transition hover:bg-brand-amberDark disabled:opacity-50"
         >
           {loading ? "Submitting..." : "Submit application"}
         </button>

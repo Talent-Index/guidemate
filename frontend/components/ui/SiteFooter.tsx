@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export function SiteFooter() {
   return (
-    <footer className="bg-brand-navy text-white">
+    <footer className="bg-brand-blueDark text-white">
       <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-12 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-sm font-semibold tracking-wide">Guidemate</p>

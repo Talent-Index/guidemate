@@ -7,13 +7,20 @@ import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { getQrToken, getVerifyUrl, listMyBookings, type BookingRecord } from "@/lib/api";
+import { getQrToken, getVerifyUrl, listMyBookings, reportNoShow, type BookingRecord } from "@/lib/api";
+
+// Mirrors backend/src/routes/bookings.ts's NO_SHOW_GRACE_PERIOD_MS - only used
+// here to decide when to show the button; the backend re-checks and is the
+// source of truth.
+const NO_SHOW_GRACE_PERIOD_MS = 30 * 60 * 1000;
 
 export default function GuideActiveTourPage() {
   const { loading: authLoading, session, profile } = useAuth();
   const [booking, setBooking] = useState<BookingRecord | null>(null);
   const [qrToken, setQrToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reportingNoShow, setReportingNoShow] = useState(false);
+  const [noShowError, setNoShowError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -47,6 +54,26 @@ export default function GuideActiveTourPage() {
       clearInterval(interval);
     };
   }, [session]);
+
+  async function handleReportNoShow() {
+    if (!booking || !session) return;
+    const confirmed = window.confirm(
+      "Mark this tourist as a no-show? 80% of the booking will be refunded and Guidemate will keep a 20% inconvenience fee. This can't be undone."
+    );
+    if (!confirmed) return;
+
+    setReportingNoShow(true);
+    setNoShowError(null);
+    try {
+      const { booking: updated } = await reportNoShow(booking.bookingId, session.access_token);
+      setBooking(updated);
+      setQrToken(null);
+    } catch (err) {
+      setNoShowError((err as Error).message);
+    } finally {
+      setReportingNoShow(false);
+    }
+  }
 
   if (authLoading) return null;
 
@@ -92,7 +119,7 @@ export default function GuideActiveTourPage() {
 
         {booking && (
           <div className="mt-6 flex flex-col items-center gap-4">
-            <Chip tone={booking.status === "paid" ? "paid" : booking.status === "released" ? "released" : "locked"} />
+            <Chip tone={booking.status} />
             <p className="font-semibold text-brand-blueDark">{booking.experienceTitle ?? booking.guideName}</p>
             <p className="text-sm text-brand-muted">{booking.request}</p>
             <p className="text-lg font-bold text-brand-blueDark">{booking.amountUsdc} USDC</p>
@@ -112,6 +139,35 @@ export default function GuideActiveTourPage() {
                 Tourist scans this with their phone camera, or verifies it on{" "}
                 <span className="font-medium text-brand-accent">/verify</span>.
               </p>
+            )}
+
+            {booking.status === "locked" && (
+              <div className="mt-2 w-full border-t border-brand-border pt-4">
+                {Date.now() - new Date(booking.createdAt).getTime() >= NO_SHOW_GRACE_PERIOD_MS ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleReportNoShow}
+                      disabled={reportingNoShow}
+                      className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-50"
+                    >
+                      {reportingNoShow ? "Reporting..." : "Tourist didn't show up"}
+                    </button>
+                    {noShowError && <p className="mt-1 text-xs text-red-600">{noShowError}</p>}
+                  </>
+                ) : (
+                  <p className="text-xs text-brand-muted">
+                    &quot;Tourist didn&apos;t show up&quot; unlocks 30 minutes after booking.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {booking.status === "refunded" && booking.refund && (
+              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                Reported as a no-show. {booking.refund.refundAmount.toFixed(2)} USDC refunded,{" "}
+                {booking.refund.feeAmount.toFixed(2)} USDC kept as an inconvenience fee.
+              </div>
             )}
           </div>
         )}

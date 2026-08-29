@@ -50,7 +50,7 @@ export default function VerifyPage() {
             <QrScanner onScan={(text) => runComplete(text)} />
             <div className="flex w-full gap-2">
               <input
-                className="flex-1 rounded-lg border border-brand-border px-3 py-2 text-sm outline-none focus:border-brand-accent"
+                className="form-input-light flex-1"
                 placeholder="Paste QR token"
                 value={manualToken}
                 onChange={(e) => setManualToken(e.target.value)}

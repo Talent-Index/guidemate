@@ -5,8 +5,9 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
+import { StarRating, StarRatingInput } from "@/components/ui/StarRating";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { listMyBookings, SNOWTRACE_TX_BASE, type BookingRecord } from "@/lib/api";
+import { listMyBookings, submitRating, SNOWTRACE_TX_BASE, type BookingRecord } from "@/lib/api";
 
 export default function TouristBookingsPage() {
   const { loading: authLoading, session, profile } = useAuth();
@@ -119,9 +120,79 @@ export default function TouristBookingsPage() {
                 to release payment.
               </p>
             )}
+
+            {booking.status === "paid" && (
+              <RateTourSection
+                booking={booking}
+                accessToken={session.access_token}
+                onRated={(rating) =>
+                  setBookings((prev) =>
+                    prev.map((b) => (b.bookingId === booking.bookingId ? { ...b, rating } : b))
+                  )
+                }
+              />
+            )}
           </Card>
         ))}
       </div>
+    </div>
+  );
+}
+
+function RateTourSection({
+  booking,
+  accessToken,
+  onRated,
+}: {
+  booking: BookingRecord;
+  accessToken: string;
+  onRated: (rating: NonNullable<BookingRecord["rating"]>) => void;
+}) {
+  const [stars, setStars] = useState(0);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (booking.rating) {
+    return (
+      <div className="mt-3 rounded-lg bg-brand-bg p-3">
+        <p className="text-xs font-semibold text-brand-muted">Your rating</p>
+        <StarRating value={booking.rating.stars} count={1} className="mt-1" />
+        {booking.rating.comment && <p className="mt-1 text-sm text-brand-muted">&quot;{booking.rating.comment}&quot;</p>}
+      </div>
+    );
+  }
+
+  async function handleSubmit() {
+    if (stars < 1) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const { rating } = await submitRating({ bookingId: booking.bookingId, stars, comment: comment.trim() }, accessToken);
+      onRated(rating);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 rounded-lg border border-brand-border p-3">
+      <p className="text-sm font-semibold text-brand-blueDark">Rate {booking.guideName}</p>
+      <p className="text-xs text-brand-muted">How was your experience? Your rating helps other tourists choose.</p>
+      <StarRatingInput value={stars} onChange={setStars} className="mt-2" />
+      <textarea
+        className="mt-2 w-full rounded-lg border border-brand-border p-2 text-sm outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent"
+        rows={2}
+        placeholder="Optional: say a bit about your guide (public)"
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+      />
+      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+      <Button variant="primary" className="mt-2" disabled={stars < 1 || submitting} onClick={handleSubmit}>
+        {submitting ? "Submitting..." : "Submit rating"}
+      </Button>
     </div>
   );
 }

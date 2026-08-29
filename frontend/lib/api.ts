@@ -53,6 +53,9 @@ export interface BookingRecord {
   guidePhone: string | null;
   experienceId: string | null;
   experienceTitle: string | null;
+  experienceImageUrl: string | null;
+  experienceLocation: string | null;
+  experienceDurationMinutes: number | null;
   hotelName: string | null;
   hotelWallet: string | null;
   request: string | null;

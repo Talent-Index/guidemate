@@ -24,6 +24,9 @@ export interface BookingRecord {
   guidePhone: string | null;
   experienceId: string | null;
   experienceTitle: string | null;
+  experienceImageUrl: string | null;
+  experienceLocation: string | null;
+  experienceDurationMinutes: number | null;
   hotelName: string | null;
   hotelWallet: string | null;
   request: string | null;
@@ -43,7 +46,7 @@ const SELECT = `
   guide_wallet, hotel_name, hotel_wallet, lock_tx_hash, release_tx_hash,
   guide_split, hotel_split, protocol_split, payout, created_at,
   guide:guide_id ( full_name, phone ),
-  experience:experience_id ( title )
+  experience:experience_id ( title, image_url, location, duration_minutes )
 `;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -57,6 +60,9 @@ function toBookingRecord(row: any, rating: RatingInfo | null = null): BookingRec
     guidePhone: row.guide?.phone ?? null,
     experienceId: row.experience_id,
     experienceTitle: row.experience?.title ?? null,
+    experienceImageUrl: row.experience?.image_url ?? null,
+    experienceLocation: row.experience?.location ?? null,
+    experienceDurationMinutes: row.experience?.duration_minutes ?? null,
     hotelName: row.hotel_name,
     hotelWallet: row.hotel_wallet,
     request: row.request_text,

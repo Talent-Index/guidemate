@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
+import { StarRating } from "@/components/ui/StarRating";
 import { createClient } from "@/lib/supabase/client";
 import { matchExperience, type Experience, type MatchResult } from "@/lib/api";
 
@@ -15,7 +17,8 @@ interface ExperienceListRow {
   price_usdc: number;
   duration_minutes: number;
   location: string | null;
-  guide: { id: string; full_name: string } | null;
+  image_url: string | null;
+  guide: { id: string; full_name: string; rating_avg: number; rating_count: number } | null;
 }
 
 const EXAMPLE_REQUESTS = [
@@ -38,7 +41,9 @@ export default function ExplorePage() {
       const supabase = createClient();
       const { data } = await supabase
         .from("experiences")
-        .select("id, title, description, tags, price_usdc, duration_minutes, location, guide:guide_id ( id, full_name )")
+        .select(
+          "id, title, description, tags, price_usdc, duration_minutes, location, image_url, guide:guide_id ( id, full_name, rating_avg, rating_count )"
+        )
         .eq("is_active", true)
         .order("created_at", { ascending: false });
       setExperiences((data as unknown as ExperienceListRow[]) ?? []);
@@ -113,22 +118,31 @@ export default function ExplorePage() {
         {loadingExperiences && <p className="mt-2 text-sm text-brand-muted">Loading...</p>}
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {experiences.map((exp) => (
-            <Card key={exp.id}>
-              <p className="font-semibold text-brand-blueDark">{exp.title}</p>
-              <p className="text-sm text-brand-muted">with {exp.guide?.full_name ?? "a Guidemate guide"}</p>
-              <p className="mt-2 text-sm text-brand-muted line-clamp-2">{exp.description}</p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {exp.tags.slice(0, 4).map((tag) => (
-                  <span key={tag} className="rounded-full bg-brand-accent/10 px-2.5 py-0.5 text-xs text-brand-accent">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              <div className="mt-4 flex items-center justify-between">
-                <span className="text-lg font-bold text-brand-blueDark">{exp.price_usdc} USDC</span>
-                <Link href={`/book/${exp.id}`}>
-                  <Button variant="primary">Book</Button>
-                </Link>
+            <Card key={exp.id} className="overflow-hidden p-0">
+              <ExperiencePhoto
+                src={exp.image_url}
+                alt={exp.title}
+                className="aspect-[16/10] w-full"
+                sizes="(min-width: 640px) 50vw, 100vw"
+              />
+              <div className="p-6">
+                <p className="font-semibold text-brand-blueDark">{exp.title}</p>
+                <p className="text-sm text-brand-muted">with {exp.guide?.full_name ?? "a Guidemate guide"}</p>
+                <StarRating value={exp.guide?.rating_avg ?? 0} count={exp.guide?.rating_count ?? 0} className="mt-1" />
+                <p className="mt-2 text-sm text-brand-muted line-clamp-2">{exp.description}</p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {exp.tags.slice(0, 4).map((tag) => (
+                    <span key={tag} className="rounded-full bg-brand-accent/10 px-2.5 py-0.5 text-xs text-brand-accent">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-4 flex items-center justify-between">
+                  <span className="text-lg font-bold text-brand-blueDark">{exp.price_usdc} USDC</span>
+                  <Link href={`/book/${exp.id}`}>
+                    <Button variant="primary">Book</Button>
+                  </Link>
+                </div>
               </div>
             </Card>
           ))}
@@ -141,10 +155,16 @@ export default function ExplorePage() {
 function ExperienceCard({ experience, reason }: { experience: Experience; reason: string }) {
   return (
     <div className="mt-2">
-      <div className="flex items-start justify-between">
+      <ExperiencePhoto
+        src={experience.imageUrl}
+        alt={experience.title}
+        className="aspect-[16/9] w-full rounded-lg"
+      />
+      <div className="mt-3 flex items-start justify-between">
         <div>
           <h3 className="text-lg font-bold text-brand-blueDark">{experience.title}</h3>
           <p className="text-sm text-brand-muted">with {experience.guide.fullName}</p>
+          <StarRating value={experience.guide.ratingAvg} count={experience.guide.ratingCount} className="mt-1" />
         </div>
         <span className="text-lg font-bold text-brand-blueDark">{experience.priceUsdc} USDC</span>
       </div>

@@ -14,6 +14,8 @@ import {
   type BookingRecord,
   type MatchResult,
 } from "@/lib/api";
+import { Price } from "@/lib/fx";
+import { EndTripPanel } from "@/components/EndTripPanel";
 
 const EXAMPLE_REQUESTS = [
   "My guest wants authentic downtown street food this evening.",
@@ -174,7 +176,7 @@ export default function ConciergePage() {
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs text-brand-muted">Price</p>
-                  <p className="text-lg font-bold text-brand-blueDark">{match.experience.priceUsdc} USDC</p>
+                  <Price amountUsdc={match.experience.priceUsdc} align="start" />
                 </div>
                 <Button variant="primary" disabled={booking2Loading} onClick={handleBook}>
                   {booking2Loading ? "Locking escrow..." : "Book & Lock Escrow"}
@@ -196,7 +198,7 @@ export default function ConciergePage() {
 
             <dl className="mt-4 space-y-2 text-sm">
               <Row label="Guide" value={booking.guideName} />
-              <Row label="Amount" value={`${booking.amountUsdc} USDC`} />
+              <Row label="Amount" value={<Price amountUsdc={booking.amountUsdc} size="sm" />} />
               {booking.lockTxHash && (
                 <Row
                   label="Escrow lock tx"
@@ -247,11 +249,7 @@ export default function ConciergePage() {
               </div>
             )}
 
-            {booking.status === "locked" && (
-              <p className="mt-4 text-sm text-brand-muted">
-                Waiting for the guide to complete the tour and the QR code to be scanned...
-              </p>
-            )}
+            {booking.status === "locked" && <EndTripPanel bookingId={booking.bookingId} />}
           </Card>
         ) : (
           <Card className="flex h-full min-h-[200px] items-center justify-center text-center text-sm text-brand-muted">

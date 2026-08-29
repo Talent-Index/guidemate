@@ -25,6 +25,7 @@ import {
   type LiveStreamRecord,
   type StreamTip,
 } from "@/lib/api";
+import { Price } from "@/lib/fx";
 
 const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? "";
 const USDC_ADDRESS = (process.env.NEXT_PUBLIC_MOCK_USDC_ADDRESS ?? "") as `0x${string}`;
@@ -227,7 +228,10 @@ export default function LiveStreamPage() {
         </div>
       ) : needsPayment ? (
         <Card>
-          <h2 className="text-lg font-bold text-brand-blueDark">Pay-per-view · {stream.priceUsdc} USDC</h2>
+          <h2 className="flex flex-wrap items-baseline gap-2 text-lg font-bold text-brand-blueDark">
+            Pay-per-view
+            <Price amountUsdc={stream.priceUsdc} size="sm" align="start" />
+          </h2>
           <p className="mt-1 text-sm text-brand-muted">
             This stream is paid. Transfer MockUSDC on Fuji straight to the guide&apos;s wallet, then you&apos;ll get a
             viewer token.

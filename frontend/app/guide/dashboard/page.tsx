@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import { EXPERIENCE_CATEGORIES } from "@/lib/categories";
 import { listMyBookings, provisionWallet, type BookingRecord } from "@/lib/api";
+import { Price } from "@/lib/fx";
 
 type DashboardTab = "experiences" | "history" | "settings";
 
@@ -517,7 +518,12 @@ export default function GuideDashboardPage() {
                 <div>
                   <p className="font-semibold text-brand-blueDark">{exp.title}</p>
                   <p className="text-xs text-brand-muted">
-                    {exp.price_usdc} USDC · {exp.duration_minutes} min{exp.location ? ` · ${exp.location}` : ""}
+                    <span className="inline-flex items-baseline gap-2">
+                      <Price amountUsdc={exp.price_usdc} size="sm" align="start" />
+                      <span>
+                        · {exp.duration_minutes} min{exp.location ? ` · ${exp.location}` : ""}
+                      </span>
+                    </span>
                   </p>
                   <label className="mt-1 inline-block cursor-pointer text-xs font-semibold text-brand-accent hover:underline">
                     {photoUpdatingId === exp.id ? "Uploading..." : exp.image_url ? "Change photo" : "Add photo"}
@@ -590,7 +596,8 @@ export default function GuideDashboardPage() {
               <div>
                 <p className="font-semibold text-brand-blueDark">{b.experienceTitle ?? b.request ?? "Tour"}</p>
                 <p className="text-xs text-brand-muted">
-                  {new Date(b.createdAt).toLocaleDateString()} · {b.amountUsdc} USDC
+                  {new Date(b.createdAt).toLocaleDateString()} ·{" "}
+                  <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
                   {b.splits ? ` · your cut ${b.splits.guideAmount} USDC` : ""}
                 </p>
                 {b.rating && (

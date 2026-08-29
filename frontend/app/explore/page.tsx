@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import { EXPERIENCE_CATEGORIES } from "@/lib/categories";
 import { matchExperience, type Experience, type MatchResult } from "@/lib/api";
+import { Price } from "@/lib/fx";
 
 interface ExperienceListRow {
   id: string;
@@ -147,7 +148,7 @@ export default function ExplorePage() {
                   ))}
                 </div>
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-                  <span className="whitespace-nowrap text-lg font-bold text-brand-blueDark">{exp.price_usdc} USDC</span>
+                  <Price amountUsdc={exp.price_usdc} />
                   <Link href={`/book/${exp.id}`}>
                     <Button variant="primary">Book</Button>
                   </Link>
@@ -247,7 +248,7 @@ function ExperienceCard({ experience, reason }: { experience: Experience; reason
           </p>
           <StarRating value={experience.guide.ratingAvg} count={experience.guide.ratingCount} className="mt-1" />
         </div>
-        <span className="whitespace-nowrap text-lg font-bold text-brand-blueDark">{experience.priceUsdc} USDC</span>
+        <Price amountUsdc={experience.priceUsdc} />
       </div>
       <p className="mt-2 text-sm text-brand-muted">
         <span className="font-semibold text-brand-blueDark">Why this match: </span>

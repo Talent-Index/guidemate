@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { CurrencySelect } from "@/lib/fx";
 
 export function NavBar() {
   const router = useRouter();
@@ -58,7 +59,8 @@ export function NavBar() {
           <Image src="/logo.png" alt="Guidemate" width={1340} height={526} className="h-6 w-auto sm:h-7" priority />
         </Link>
 
-        <nav className="hidden items-center md:flex">
+        <nav className="hidden items-center gap-4 md:flex">
+          <CurrencySelect />
           {loading ? null : user && profile ? (
             <div className="flex items-center gap-6 pr-4">
               {profile.role === "tourist" && (
@@ -124,6 +126,9 @@ export function NavBar() {
 
       {menuOpen && (
         <nav className="border-t border-white/10 bg-brand-blueDark px-4 pb-4 pt-2 md:hidden">
+          <div className="mb-2">
+            <CurrencySelect />
+          </div>
           {loading ? null : user && profile ? (
             <div className="flex flex-col gap-1">
               {profile.role === "tourist" && (

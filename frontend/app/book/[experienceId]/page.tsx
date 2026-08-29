@@ -11,6 +11,7 @@ import { WalletConnectButton } from "@/components/WalletConnectButton";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import { createBooking, SNOWTRACE_TX_BASE, type BookingRecord } from "@/lib/api";
+import { Price } from "@/lib/fx";
 
 interface ExperienceDetail {
   id: string;
@@ -121,7 +122,9 @@ export default function BookExperiencePage() {
         <p className="mt-2 text-sm text-brand-muted">
           {experience.title} with {experience.guide?.full_name} is locked in escrow.
         </p>
-        <p className="mt-4 text-lg font-bold text-brand-blueDark">{booking.amountUsdc} USDC</p>
+        <div className="mt-4 flex justify-center">
+          <Price amountUsdc={booking.amountUsdc} align="start" />
+        </div>
         {booking.lockTxHash && (
           <a
             href={`${SNOWTRACE_TX_BASE}/${booking.lockTxHash}`}
@@ -133,11 +136,11 @@ export default function BookExperiencePage() {
           </a>
         )}
         <p className="mt-4 text-sm text-brand-muted">
-          Your guide will show you a QR code once the tour is done - scan it at{" "}
-          <Link href="/verify" className="text-brand-accent underline">
-            /verify
+          Payment is held in the Guidemate escrow contract. When you arrive, open{" "}
+          <Link href="/tourist/bookings" className="text-brand-accent underline">
+            My bookings
           </Link>{" "}
-          to release payment.
+          and tap End trip - your guide enters the 6-digit PIN (or scans the QR) to get paid.
         </p>
         <Link href="/tourist/bookings">
           <Button variant="secondary" className="mt-4">
@@ -163,7 +166,7 @@ export default function BookExperiencePage() {
                 className="mt-1"
               />
             </div>
-            <span className="whitespace-nowrap text-xl font-bold text-brand-blueDark">{experience.price_usdc} USDC</span>
+            <Price amountUsdc={experience.price_usdc} size="lg" />
           </div>
 
           <p className="mt-3 text-sm text-brand-muted">{experience.description}</p>
@@ -229,11 +232,11 @@ function FeeBreakdown({ priceUsdc }: { priceUsdc: number }) {
       <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Where your money goes</p>
       <div className="mt-2 flex items-center justify-between">
         <span className="text-brand-muted">Guide receives (85%)</span>
-        <span className="font-medium text-brand-blueDark">{guideAmount.toFixed(2)} USDC</span>
+        <Price amountUsdc={guideAmount} size="sm" />
       </div>
       <div className="mt-1 flex items-center justify-between">
         <span className="text-brand-muted">Guidemate platform fee (15%)</span>
-        <span className="font-medium text-brand-blueDark">{platformAmount.toFixed(2)} USDC</span>
+        <Price amountUsdc={platformAmount} size="sm" />
       </div>
       <p className="mt-2 text-xs text-brand-muted">
         Guidemate&apos;s core platform fee is a flat 5%. The other 10% here goes to Guidemate too since

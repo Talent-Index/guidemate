@@ -35,7 +35,7 @@ services:
 
   # Next.js app: auth, guide dashboard, tourist marketplace, wallet connect
   - type: web
-    name: guidemate-frontend
+    name: yourguidemate
     runtime: node
     plan: free
     region: oregon

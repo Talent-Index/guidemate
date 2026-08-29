@@ -5,11 +5,15 @@ import Link from "next/link";
 import { useAccount } from "wagmi";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Chip } from "@/components/ui/Chip";
 import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
 import { StarRating } from "@/components/ui/StarRating";
 import { WalletConnectButton } from "@/components/WalletConnectButton";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
+import { listMyBookings, type BookingRecord } from "@/lib/api";
+
+type DashboardTab = "experiences" | "history" | "settings";
 
 interface ExperienceRow {
   id: string;
@@ -39,6 +43,12 @@ async function uploadExperiencePhoto(file: File, guideId: string): Promise<strin
 export default function GuideDashboardPage() {
   const { loading: authLoading, session, profile, refreshProfile } = useAuth();
   const { address } = useAccount();
+
+  const [activeTab, setActiveTab] = useState<DashboardTab>("experiences");
+
+  const [pastBookings, setPastBookings] = useState<BookingRecord[]>([]);
+  const [loadingBookings, setLoadingBookings] = useState(true);
+  const [bookingsError, setBookingsError] = useState<string | null>(null);
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -78,6 +88,30 @@ export default function GuideDashboardPage() {
   useEffect(() => {
     if (session) void loadExperiences(session.user.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    setLoadingBookings(true);
+    listMyBookings(session.access_token)
+      .then(({ bookings }) => {
+        if (cancelled) return;
+        // Guides only care about tours that have actually run - drop the ones
+        // still sitting in escrow, since those already show up on Active Tour.
+        const completed = bookings.filter((b) => b.guideId === session.user.id && b.status !== "locked");
+        setPastBookings(completed);
+        setBookingsError(null);
+      })
+      .catch((err) => {
+        if (!cancelled) setBookingsError((err as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingBookings(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [session]);
 
   async function loadExperiences(guideId: string) {
@@ -234,6 +268,29 @@ export default function GuideDashboardPage() {
         <WalletConnectButton />
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-2">
+          <TabButton active={activeTab === "experiences"} onClick={() => setActiveTab("experiences")}>
+            Experiences
+          </TabButton>
+          <TabButton active={activeTab === "history"} onClick={() => setActiveTab("history")}>
+            Past tours
+          </TabButton>
+        </div>
+        <button
+          type="button"
+          onClick={() => setActiveTab("settings")}
+          className={`flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
+            activeTab === "settings"
+              ? "border-brand-accent bg-brand-accent/10 text-brand-accent"
+              : "border-brand-border text-brand-muted hover:border-brand-accent hover:text-brand-accent"
+          }`}
+        >
+          ⚙️ Settings
+        </button>
+      </div>
+
+      {activeTab === "settings" && (
       <Card>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
@@ -293,7 +350,9 @@ export default function GuideDashboardPage() {
           </Button>
         </form>
       </Card>
+      )}
 
+      {activeTab === "experiences" && (
       <Card>
         <div className="flex items-center justify-between">
           <div>
@@ -445,12 +504,78 @@ export default function GuideDashboardPage() {
           ))}
         </div>
       </Card>
+      )}
+
+      {activeTab === "history" && (
+      <Card>
+        <div>
+          <h2 className="text-lg font-bold text-brand-blueDark">Past tours</h2>
+          <p className="text-sm text-brand-muted">Completed tours and whether the payout has actually landed.</p>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3">
+          {loadingBookings && <p className="text-sm text-brand-muted">Loading...</p>}
+          {bookingsError && <p className="text-sm text-red-600">{bookingsError}</p>}
+          {!loadingBookings && !bookingsError && pastBookings.length === 0 && (
+            <p className="text-sm text-brand-muted">No completed tours yet - they&apos;ll show up here once a booking is verified.</p>
+          )}
+          {pastBookings.map((b) => (
+            <div key={b.bookingId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3">
+              <div>
+                <p className="font-semibold text-brand-blueDark">{b.experienceTitle ?? b.request ?? "Tour"}</p>
+                <p className="text-xs text-brand-muted">
+                  {new Date(b.createdAt).toLocaleDateString()} · {b.amountUsdc} USDC
+                  {b.splits ? ` · your cut ${b.splits.guideAmount} USDC` : ""}
+                </p>
+                {b.rating && (
+                  <p className="mt-1 text-sm text-brand-amber" aria-label={`Rated ${b.rating.stars} stars`}>
+                    {[1, 2, 3, 4, 5].map((n) => (n <= b.rating!.stars ? "★" : "☆")).join("")}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <Chip tone={b.status === "paid" ? "paid" : b.status === "released" ? "released" : "locked"} />
+                {b.status === "paid" && b.payout ? (
+                  <p className="text-xs font-medium text-brand-success">
+                    {b.payout.kesAmount} KES · Ref {b.payout.reference}
+                  </p>
+                ) : (
+                  <p className="text-xs text-brand-muted">Payout not yet received</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+      )}
     </div>
   );
 }
 
 const inputClass =
   "w-full rounded-lg border border-brand-border px-3 py-2 text-sm outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent";
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+        active ? "bg-brand-blue text-white" : "border border-brand-border text-brand-muted hover:border-brand-accent hover:text-brand-accent"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (

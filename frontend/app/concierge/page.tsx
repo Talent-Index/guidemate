@@ -106,7 +106,7 @@ export default function ConciergePage() {
           </p>
 
           <textarea
-            className="mt-4 w-full rounded-lg border border-brand-border p-3 text-sm outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent"
+            className="form-input-light mt-4 resize-none"
             rows={4}
             placeholder="e.g. My guest wants authentic downtown street food this evening."
             value={requestText}
@@ -191,9 +191,7 @@ export default function ConciergePage() {
           <Card>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-brand-blueDark">Booking Status</h2>
-              <Chip
-                tone={booking.status === "paid" ? "paid" : booking.status === "released" ? "released" : "locked"}
-              />
+              <Chip tone={booking.status} />
             </div>
 
             <dl className="mt-4 space-y-2 text-sm">

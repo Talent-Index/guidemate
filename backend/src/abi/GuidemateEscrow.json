@@ -25,11 +25,19 @@
     "outputs": [
       { "name": "guide", "type": "address" },
       { "name": "hotel", "type": "address" },
+      { "name": "payer", "type": "address" },
       { "name": "amount", "type": "uint256" },
       { "name": "released", "type": "bool" },
       { "name": "exists", "type": "bool" }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "refundNoShow",
+    "inputs": [{ "name": "id", "type": "bytes32" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -57,6 +65,16 @@
       { "name": "guideAmount", "type": "uint256", "indexed": false },
       { "name": "hotelAmount", "type": "uint256", "indexed": false },
       { "name": "protocolAmount", "type": "uint256", "indexed": false }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "BookingRefunded",
+    "inputs": [
+      { "name": "id", "type": "bytes32", "indexed": true },
+      { "name": "feeAmount", "type": "uint256", "indexed": false },
+      { "name": "refundAmount", "type": "uint256", "indexed": false }
     ],
     "anonymous": false
   }

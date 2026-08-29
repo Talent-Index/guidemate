@@ -77,7 +77,8 @@ Copy the printed `MockUSDC` and `GuidemateEscrow` addresses into `backend/.env` 
 ```bash
 cd backend
 cp .env.example .env     # fill in BACKEND_PRIVATE_KEY, ESCROW_ADDRESS, MOCK_USDC_ADDRESS,
-                          # SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY
+                          # SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY,
+                          # WALLET_ENCRYPTION_KEY
 npm run seed              # tops up MockUSDC balance + escrow approval, so the demo never runs dry
 npm run dev                # http://localhost:4000
 ```
@@ -94,9 +95,9 @@ npm run dev                   # http://localhost:3000
 ## Happy-path demo runbook
 
 1. **Guide onboarding.** Go to `/auth/sign-up`, choose "I'm a guide", sign up with an M-Pesa phone
-   number. Land on `/guide/dashboard`; connect a Fuji wallet (Core/MetaMask) to set the payout
-   wallet address, then publish an experience (title, description, tags, price in USDC, duration,
-   location).
+   number. A custodial payout wallet is provisioned automatically (no MetaMask required). Land on
+   `/guide/dashboard` and publish an experience (title, description, tags, price in USDC, duration,
+   location). To apply as a vetted guide instead, use `/apply`; approvals happen at `/admin/applications`.
 2. **Tourist search.** In another browser/session, sign up as a tourist and land on `/explore`.
    Type a request, e.g. *"I want authentic downtown street food this evening,"* and click **Find my
    guide** - the AI agent matches the best-fit experience with a one-line reason. (Or just browse
@@ -157,8 +158,17 @@ primitives are in `frontend/components/ui/`.
 
 ## Notes
 
+- Guide payout wallets are custodial and receive-only: `GuidemateEscrow.release()` transfers USDC
+  to the stored address; the guide never signs. The encrypted private key is stored in
+  `guide_wallet_keys` (service-role only) under `WALLET_ENCRYPTION_KEY` for future withdrawals -
+  there is no withdraw/export UI yet. This is a single-env-var AES-256-GCM setup, not KMS/HSM.
+- Instant guide self-signup still works for demos. The public `/apply` waitlist is the vetted path:
+  an admin (`profiles.role = 'admin'`) reviews applications at `/admin/applications`, then the
+  backend invites the applicant and provisions their wallet. Bootstrap an admin by signing up
+  normally and setting `role` to `'admin'` in the Supabase SQL editor - there is no self-serve
+  "become admin" path.
 - The backend wallet is the trusted signer for the escrow lock/release transactions themselves
-  (mint/createBooking/release) - tourist and guide wallets are used for identity, balance display
+  (mint/createBooking/release) - tourist wallets are used for identity, balance display
   and the testnet mUSDC faucet, not for signing the lock/release transactions directly.
 - `MockUSDC` is a testnet-only mintable ERC-20 standing in for real USDC/USDT; anyone can self-serve
   a capped amount via its public `faucet()` function.

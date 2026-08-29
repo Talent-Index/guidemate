@@ -42,7 +42,7 @@ export default function VerifyPage() {
       <Card className="w-full max-w-md text-center">
         <h1 className="text-xl font-bold text-brand-blueDark">Verify Tour Completion</h1>
         <p className="mt-1 text-sm text-brand-muted">
-          Scan the guide&apos;s QR code, or paste the token below, to release payment.
+          Scan the tourist&apos;s End trip QR, or paste the token, to release payment.
         </p>
 
         {status === "idle" && (

@@ -14,6 +14,7 @@ import {
   startStream,
   type LiveStreamRecord,
 } from "@/lib/api";
+import { Price } from "@/lib/fx";
 
 export default function LiveBrowsePage() {
   const router = useRouter();
@@ -184,9 +185,16 @@ function StreamCard({ stream }: { stream: LiveStreamRecord }) {
           label={stream.status === "live" ? "Live" : "Recording"}
         />
       </div>
-      <p className="mt-3 text-sm font-semibold text-brand-blueDark">
-        {stream.priceUsdc > 0 ? `${stream.priceUsdc} USDC to watch` : "Free"}
-      </p>
+      <div className="mt-3">
+        {stream.priceUsdc > 0 ? (
+          <span className="inline-flex items-baseline gap-1.5">
+            <Price amountUsdc={stream.priceUsdc} size="sm" align="start" />
+            <span className="text-sm text-brand-muted">to watch</span>
+          </span>
+        ) : (
+          <p className="text-sm font-semibold text-brand-blueDark">Free</p>
+        )}
+      </div>
       <Link href={`/live/${stream.id}`}>
         <Button variant="primary" className="mt-4 w-full">
           {stream.status === "live" ? "Watch live" : "Play recording"}

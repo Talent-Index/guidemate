@@ -9,6 +9,21 @@ export function signBookingToken(bookingId: string): string {
   return `${bookingId}.${hmac}`;
 }
 
+/// Deterministic 6-digit end-trip PIN. Shown only to the tourist; the guide
+/// types it on their device to release escrow (Uber-style).
+export function completionPin(bookingId: string): string {
+  const hmac = createHmac("sha256", SECRET).update(`pin:${bookingId}`).digest();
+  return (hmac.readUInt32BE(0) % 1_000_000).toString().padStart(6, "0");
+}
+
+export function verifyCompletionPin(bookingId: string, pin: string): boolean {
+  const expected = completionPin(bookingId);
+  const provided = pin.replace(/\D/g, "").padStart(6, "0");
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 export function verifyBookingToken(token: string): { valid: boolean; bookingId?: string } {
   const lastDot = token.lastIndexOf(".");
   if (lastDot === -1) return { valid: false };

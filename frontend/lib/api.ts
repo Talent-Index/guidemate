@@ -41,6 +41,13 @@ export interface PayoutInfo {
   completedAt: string;
 }
 
+export interface FxSnapshot {
+  base: "USDC";
+  rates: Record<string, number>;
+  asOf: string;
+  source: string;
+}
+
 export interface RatingInfo {
   stars: number;
   comment: string | null;
@@ -100,6 +107,10 @@ function authHeaders(accessToken?: string): HeadersInit {
   return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 }
 
+export function getFxRates() {
+  return request<FxSnapshot>("/api/fx");
+}
+
 export function matchExperience(text: string) {
   return request<MatchResult>("/api/match", {
     method: "POST",
@@ -139,12 +150,26 @@ export function getQrToken(bookingId: string) {
   return request<{ qrToken: string }>(`/api/bookings/${bookingId}/qr-token`);
 }
 
+export function getCompletionCode(bookingId: string, accessToken?: string) {
+  return request<{ qrToken: string; pin: string }>(`/api/bookings/${bookingId}/completion-code`, {
+    headers: authHeaders(accessToken),
+  });
+}
+
 export const SNOWTRACE_TX_BASE = "https://testnet.snowtrace.io/tx";
 
 export function completeBooking(token: string) {
   return request<{ booking: BookingRecord }>("/api/complete", {
     method: "POST",
     body: JSON.stringify({ token }),
+  });
+}
+
+export function completeBookingWithPin(bookingId: string, pin: string, accessToken: string) {
+  return request<{ booking: BookingRecord }>("/api/complete", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ bookingId, pin }),
   });
 }
 

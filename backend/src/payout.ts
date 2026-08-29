@@ -1,6 +1,5 @@
 import type { PayoutInfo } from "./bookings.js";
-
-const RATE = Number(process.env.USDC_TO_KES_RATE ?? 145);
+import { usdcToKes } from "./fx.js";
 
 function randomRef(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -17,7 +16,7 @@ export async function simulateMpesaPayout(guideUsdcAmount: number, guidePhone: s
   // Simulate network latency of a real offramp call.
   await new Promise((resolve) => setTimeout(resolve, 800));
 
-  const kesAmount = Math.round(guideUsdcAmount * RATE * 100) / 100;
+  const kesAmount = await usdcToKes(guideUsdcAmount);
 
   return {
     reference: randomRef(),

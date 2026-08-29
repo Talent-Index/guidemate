@@ -32,7 +32,7 @@ const ADVANTAGES = [
   },
   {
     title: "Held in escrow until it's done",
-    body: "Payment locks on-chain when you book. A QR scan at the end releases it - the guide is paid, you are covered if the tour never happens.",
+    body: "Payment locks on-chain when you book. The tourist taps End trip and the guide enters a PIN or scans a QR - then the guide is paid, and you are covered if the tour never happens.",
   },
   {
     title: "A 5% cut, not an OTA tax",

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { formatUnits } from "ethers";
 import { getBooking, listBookings, updateBooking, type RefundInfo } from "../bookings.js";
-import { signBookingToken } from "../qr.js";
+import { completionPin, signBookingToken } from "../qr.js";
 import { getUserIdFromAuthHeader } from "../supabase.js";
 import { bookingIdToBytes32, requireChain } from "../chain.js";
 
@@ -38,8 +38,28 @@ bookingsRouter.get("/:id", async (req, res) => {
   res.json({ booking });
 });
 
-/// The QR token is a deterministic HMAC of the bookingId, so it's safe to
-/// regenerate on demand for the Guide view without storing it server-side.
+/// End-trip codes live only on the tourist side (QR + 6-digit PIN). The guide
+/// never receives them here - they type the PIN the tourist reads out.
+bookingsRouter.get("/:id/completion-code", async (req, res) => {
+  const booking = await getBooking(req.params.id);
+  if (!booking) {
+    return res.status(404).json({ error: "booking not found" });
+  }
+
+  const userId = await getUserIdFromAuthHeader(req.headers.authorization);
+  const isTourist = Boolean(userId && booking.touristId === userId);
+  const isConciergeBooking = booking.touristId == null;
+  if (!isTourist && !isConciergeBooking) {
+    return res.status(403).json({ error: "end-trip codes are only shown to the tourist" });
+  }
+
+  res.json({
+    qrToken: signBookingToken(booking.bookingId),
+    pin: completionPin(booking.bookingId),
+  });
+});
+
+/// Kept so older clients still resolve a QR token. Prefer /completion-code.
 bookingsRouter.get("/:id/qr-token", async (req, res) => {
   const booking = await getBooking(req.params.id);
   if (!booking) {

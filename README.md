@@ -105,16 +105,11 @@ npm run dev                   # http://localhost:3000
 3. **Book & pay.** Click **Book**, connect a wallet (optional - can also get free testnet mUSDC via
    the faucet button here), then **Confirm & pay** - the backend mints MockUSDC and locks it in
    `GuidemateEscrow` on Fuji. A Snowtrace link appears, and the booking shows up on `/tourist/bookings`.
-4. **Guide completes the tour.** Back in the guide's session, open `/guide` - the active booking's
-   dynamic QR renders automatically.
-5. **Verify & release.** Open `/verify` (e.g. scan the QR with a phone camera, which opens this URL
-   with the token pre-filled) - this calls `release()` on-chain, splitting funds 85% guide / 10%
-   hotel-or-protocol / 5% protocol.
+4. **Tourist ends the trip.** On `/tourist/bookings`, tap **End trip** to reveal a 6-digit PIN and QR.
+5. **Guide releases payment.** On `/guide`, enter that PIN (or scan the QR at `/verify`). That calls
+   `release()` on-chain, splitting funds 85% guide / 10% hotel-or-protocol / 5% protocol.
 6. Back on `/tourist/bookings` and `/guide`, the status flips to **Released** then **Paid**, showing
    the split amounts and a simulated M-Pesa receipt (`KES ... sent to +254... · Ref MPESA-...`).
-
-If the camera scan isn't convenient on stage, paste the token manually into the `/verify` page's
-text field - it's the same value encoded in the QR.
 
 ### Secondary flow: hotel concierge (B2B)
 
@@ -175,6 +170,9 @@ primitives are in `frontend/components/ui/`.
 - Direct tourist bookings (no real hotel) route the "hotel" 10% share to the protocol treasury
   address instead of requiring a hotel wallet.
 - M-Pesa payout is simulated (`backend/src/payout.ts`) - no real Daraja/HoneyCoin call is made.
+  The KES amount uses a live USDC/USD + USD/KES rate (`GET /api/fx`); `USDC_TO_KES_RATE` is only
+  a fallback if the rate providers are unreachable. The nav currency picker converts displayed
+  USDC prices the same way.
 - Every table (`profiles`, `experiences`, `bookings`) has Row Level Security enabled; the `bookings`
   table has no client-facing write policies at all - every write goes through the backend's
   service-role key so escrow state and DB state can never drift apart.

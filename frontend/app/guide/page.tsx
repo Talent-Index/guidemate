@@ -1,23 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { QRCodeSVG } from "qrcode.react";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { getQrToken, getVerifyUrl, listMyBookings, reportNoShow, type BookingRecord } from "@/lib/api";
+import { completeBookingWithPin, listMyBookings, reportNoShow, type BookingRecord } from "@/lib/api";
+import { Price } from "@/lib/fx";
 
-// Mirrors backend/src/routes/bookings.ts's NO_SHOW_GRACE_PERIOD_MS - only used
-// here to decide when to show the button; the backend re-checks and is the
-// source of truth.
 const NO_SHOW_GRACE_PERIOD_MS = 30 * 60 * 1000;
 
 export default function GuideActiveTourPage() {
   const { loading: authLoading, session, profile } = useAuth();
   const [booking, setBooking] = useState<BookingRecord | null>(null);
-  const [qrToken, setQrToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reportingNoShow, setReportingNoShow] = useState(false);
   const [noShowError, setNoShowError] = useState<string | null>(null);
@@ -30,17 +26,8 @@ export default function GuideActiveTourPage() {
       try {
         const { bookings } = await listMyBookings(session!.access_token);
         if (cancelled) return;
-        // Show the most recent booking that still needs the guide's completion QR,
-        // otherwise fall back to the latest booking so the demo shows the paid state.
         const active = bookings.find((b) => b.status === "locked") ?? bookings[0] ?? null;
         setBooking(active);
-
-        if (active && active.status === "locked") {
-          const { qrToken: token } = await getQrToken(active.bookingId);
-          if (!cancelled) setQrToken(token);
-        } else {
-          setQrToken(null);
-        }
         setError(null);
       } catch (err) {
         if (!cancelled) setError((err as Error).message);
@@ -67,7 +54,6 @@ export default function GuideActiveTourPage() {
     try {
       const { booking: updated } = await reportNoShow(booking.bookingId, session.access_token);
       setBooking(updated);
-      setQrToken(null);
     } catch (err) {
       setNoShowError((err as Error).message);
     } finally {
@@ -109,12 +95,17 @@ export default function GuideActiveTourPage() {
 
       <Card className="w-full max-w-sm text-center">
         <h1 className="text-xl font-bold text-brand-blueDark">Active Tour</h1>
-        <p className="mt-1 text-sm text-brand-muted">Show this screen to the tourist once the excursion is complete.</p>
+        <p className="mt-1 text-sm text-brand-muted">
+          When you arrive, ask the tourist to tap <span className="font-semibold text-brand-blueDark">End trip</span>{" "}
+          and enter their 6-digit PIN here.
+        </p>
 
         {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
         {!booking && !error && (
-          <p className="mt-8 text-sm text-brand-muted">No active bookings yet. Waiting for a tourist to book one of your experiences...</p>
+          <p className="mt-8 text-sm text-brand-muted">
+            No active bookings yet. Waiting for a tourist to book one of your experiences...
+          </p>
         )}
 
         {booking && (
@@ -122,23 +113,20 @@ export default function GuideActiveTourPage() {
             <Chip tone={booking.status} />
             <p className="font-semibold text-brand-blueDark">{booking.experienceTitle ?? booking.guideName}</p>
             <p className="text-sm text-brand-muted">{booking.request}</p>
-            <p className="text-lg font-bold text-brand-blueDark">{booking.amountUsdc} USDC</p>
+            <Price amountUsdc={booking.amountUsdc} />
 
-            {qrToken ? (
-              <div className="rounded-card border border-brand-border p-4">
-                <QRCodeSVG value={getVerifyUrl(qrToken)} size={220} />
-              </div>
-            ) : (
+            {booking.status === "locked" && session && (
+              <EndTripPinForm
+                bookingId={booking.bookingId}
+                accessToken={session.access_token}
+                onReleased={setBooking}
+              />
+            )}
+
+            {booking.status !== "locked" && booking.status !== "refunded" && (
               <div className="rounded-lg bg-brand-successBg px-4 py-3 text-sm text-brand-success">
                 Tour verified - payout in progress or complete.
               </div>
-            )}
-
-            {qrToken && (
-              <p className="text-xs text-brand-muted">
-                Tourist scans this with their phone camera, or verifies it on{" "}
-                <span className="font-medium text-brand-accent">/verify</span>.
-              </p>
             )}
 
             {booking.status === "locked" && (
@@ -173,5 +161,64 @@ export default function GuideActiveTourPage() {
         )}
       </Card>
     </div>
+  );
+}
+
+function EndTripPinForm({
+  bookingId,
+  accessToken,
+  onReleased,
+}: {
+  bookingId: string;
+  accessToken: string;
+  onReleased: (booking: BookingRecord) => void;
+}) {
+  const [pin, setPin] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (pin.length !== 6) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const { booking } = await completeBookingWithPin(bookingId, pin, accessToken);
+      onReleased(booking);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="w-full text-left">
+      <label htmlFor="end-trip-pin" className="text-xs font-semibold uppercase tracking-wide text-brand-muted">
+        Tourist&apos;s 6-digit PIN
+      </label>
+      <input
+        id="end-trip-pin"
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        maxLength={6}
+        pattern="\d{6}"
+        className="form-input-light mt-1 text-center font-mono text-2xl tracking-[0.4em]"
+        placeholder="000000"
+        value={pin}
+        onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+      />
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      <Button variant="primary" type="submit" className="mt-3 w-full" disabled={pin.length !== 6 || submitting}>
+        {submitting ? "Releasing escrow..." : "Confirm trip & release payment"}
+      </Button>
+      <p className="mt-2 text-center text-xs text-brand-muted">
+        You can also scan the tourist&apos;s End trip QR at{" "}
+        <Link href="/verify" className="font-semibold text-brand-accent">
+          /verify
+        </Link>
+        .
+      </p>
+    </form>
   );
 }

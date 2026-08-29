@@ -68,7 +68,7 @@ export function NavBar() {
               )}
               {profile.role === "admin" && (
                 <Link href="/admin/applications" className={linkClass}>
-                  Applications
+                  Dashboard
                 </Link>
               )}
               <Link href="/live" className={linkClass}>
@@ -133,7 +133,7 @@ export function NavBar() {
               )}
               {profile.role === "admin" && (
                 <Link href="/admin/applications" className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
-                  Applications
+                  Dashboard
                 </Link>
               )}
               <Link href="/live" className={mobileLinkClass} onClick={() => setMenuOpen(false)}>

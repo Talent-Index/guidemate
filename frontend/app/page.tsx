@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { HomeInquiryForm } from "@/components/home/HomeInquiryForm";
 
 const OFFERINGS = [
   {
@@ -145,12 +144,25 @@ export default function HomePage() {
         />
         <div className="absolute inset-0 bg-brand-blueDark/80" />
         <div className="relative mx-auto max-w-3xl px-4 py-24">
-          <div className="bg-brand-blueDark/95 px-6 py-14 sm:px-16">
-            <h2 className="text-center text-3xl font-bold tracking-tight sm:text-4xl">Ready for a local experience?</h2>
-            <p className="mx-auto mt-3 max-w-md text-center text-sm text-white/65">
-              Tell us what you&apos;re after. We&apos;ll take you to the experiences you can book today.
+          <div className="bg-brand-blueDark/95 px-6 py-14 text-center sm:px-16">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Get in early</h2>
+            <p className="mx-auto mt-3 max-w-md text-sm text-white/65">
+              Apply to host as a guide, or join the waitlist if you want access when we open more widely.
             </p>
-            <HomeInquiryForm />
+            <div className="mt-10 flex flex-wrap justify-center gap-3">
+              <Link
+                href="/apply"
+                className="bg-brand-amber px-7 py-3 text-sm font-semibold text-brand-blueDark transition hover:bg-brand-blue hover:text-white"
+              >
+                Apply to be a guide
+              </Link>
+              <Link
+                href="/waitlist"
+                className="bg-brand-amber px-7 py-3 text-sm font-semibold text-brand-blueDark transition hover:bg-brand-blue hover:text-white"
+              >
+                Join waitlist
+              </Link>
+            </div>
           </div>
         </div>
       </section>

@@ -10,6 +10,15 @@ import { createClient } from "@/lib/supabase/client";
 import { approveApplication } from "@/lib/api";
 
 type ApplicationStatus = "pending" | "approved" | "rejected";
+type AdminTab = "guides" | "waitlist";
+
+interface WaitlistRow {
+  id: string;
+  full_name: string;
+  email: string;
+  interest: string | null;
+  created_at: string;
+}
 
 interface ApplicationRow {
   id: string;
@@ -26,7 +35,9 @@ interface ApplicationRow {
 
 export default function AdminApplicationsPage() {
   const { loading: authLoading, session, profile } = useAuth();
+  const [tab, setTab] = useState<AdminTab>("guides");
   const [applications, setApplications] = useState<ApplicationRow[]>([]);
+  const [waitlist, setWaitlist] = useState<WaitlistRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<ApplicationStatus | "all">("pending");
@@ -71,10 +82,29 @@ export default function AdminApplicationsPage() {
     setLoading(false);
   }
 
+  async function loadWaitlist() {
+    setLoading(true);
+    setError(null);
+    const supabase = createClient();
+    const { data, error: loadError } = await supabase
+      .from("waitlist")
+      .select("id, full_name, email, interest, created_at")
+      .order("created_at", { ascending: false });
+    if (loadError) {
+      setError(loadError.message);
+      setWaitlist([]);
+    } else {
+      setWaitlist((data as WaitlistRow[]) ?? []);
+    }
+    setLoading(false);
+  }
+
   useEffect(() => {
-    if (session && profile?.role === "admin") void loadApplications();
+    if (!session || profile?.role !== "admin") return;
+    if (tab === "guides") void loadApplications();
+    else void loadWaitlist();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, profile, filter]);
+  }, [session, profile, filter, tab]);
 
   async function handleApprove(id: string) {
     if (!session) return;
@@ -134,12 +164,34 @@ export default function AdminApplicationsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-bold text-brand-blueDark">Guide applications</h1>
+        <h1 className="text-xl font-bold text-brand-blueDark">Admin dashboard</h1>
         <p className="mt-1 text-sm text-brand-muted">
-          Approve a guide to invite them, provision a custodial payout wallet, and mark them as vetted.
+          Guide applications from /apply, and people who joined the waitlist.
         </p>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setTab("guides")}
+          className={`px-4 py-1.5 text-xs font-semibold uppercase tracking-wide ${
+            tab === "guides" ? "bg-brand-blue text-white" : "border border-brand-border text-brand-muted"
+          }`}
+        >
+          Guide applicants
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("waitlist")}
+          className={`px-4 py-1.5 text-xs font-semibold uppercase tracking-wide ${
+            tab === "waitlist" ? "bg-brand-blue text-white" : "border border-brand-border text-brand-muted"
+          }`}
+        >
+          Waitlist
+        </button>
+      </div>
+
+      {tab === "guides" && (
       <div className="flex flex-wrap gap-2">
         {(["pending", "approved", "rejected", "all"] as const).map((status) => (
           <button
@@ -156,14 +208,29 @@ export default function AdminApplicationsPage() {
           </button>
         ))}
       </div>
+      )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       {loading && <ListRowSkeleton count={3} />}
-      {!loading && applications.length === 0 && (
+
+      {tab === "waitlist" && !loading && waitlist.length === 0 && (
+        <p className="text-sm text-brand-muted">No one has joined the waitlist yet.</p>
+      )}
+      {tab === "waitlist" &&
+        waitlist.map((row) => (
+          <Card key={row.id}>
+            <h2 className="font-semibold text-brand-blueDark">{row.full_name}</h2>
+            <p className="text-sm text-brand-muted">{row.email}</p>
+            {row.interest && <p className="mt-2 text-sm text-brand-blueDark">{row.interest}</p>}
+            <p className="mt-1 text-xs text-brand-muted">{new Date(row.created_at).toLocaleString()}</p>
+          </Card>
+        ))}
+
+      {tab === "guides" && !loading && applications.length === 0 && (
         <p className="text-sm text-brand-muted">No applications in this view.</p>
       )}
 
-      {applications.map((app) => (
+      {tab === "guides" && applications.map((app) => (
         <Card key={app.id}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>

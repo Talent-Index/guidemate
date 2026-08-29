@@ -76,7 +76,9 @@ export default function LiveBrowsePage() {
       <div>
         <h1 className="text-xl font-bold text-brand-blueDark">Live experiences</h1>
         <p className="mt-1 text-sm text-brand-muted">
-          Watch a guide stream from the street - or go live yourself from your phone camera.
+          Watch a guide stream from their phone. This list is empty until a signed-in guide starts a
+          stream with <span className="font-semibold text-brand-blueDark">Go live</span> - then it
+          appears here for everyone.
         </p>
       </div>
 
@@ -124,7 +126,23 @@ export default function LiveBrowsePage() {
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
         {loading && <ExperienceGridSkeleton count={2} />}
         {!loading && live.length === 0 && (
-          <p className="mt-2 text-sm text-brand-muted">Nobody is live right now. Check back, or be the first.</p>
+          <Card className="mt-4">
+            <p className="font-semibold text-brand-blueDark">Nobody is live right now</p>
+            <p className="mt-2 text-sm text-brand-muted">
+              This page lists streams that a signed-in guide has started. Until someone clicks{" "}
+              <span className="font-semibold text-brand-blueDark">Start stream</span> on this page
+              (guide accounts only), the list stays empty on purpose.
+            </p>
+            {profile?.role !== "guide" && (
+              <p className="mt-2 text-sm text-brand-muted">
+                Want to host?{" "}
+                <Link href="/apply" className="font-semibold text-brand-accent hover:underline">
+                  Apply to be a guide
+                </Link>
+                , or use instant guide sign-up for the demo.
+              </p>
+            )}
+          </Card>
         )}
         {!loading && (
           <div className="mt-4 grid gap-4 sm:grid-cols-2">

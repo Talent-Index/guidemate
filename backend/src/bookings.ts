@@ -10,6 +10,11 @@ export interface PayoutInfo {
   completedAt: string;
 }
 
+export interface RatingInfo {
+  stars: number;
+  comment: string | null;
+}
+
 export interface BookingRecord {
   bookingId: string; // uuid, also keccak'd (bookingIdToBytes32) to derive the on-chain id
   touristId: string | null;
@@ -29,6 +34,7 @@ export interface BookingRecord {
   releaseTxHash: string | null;
   splits?: { guideAmount: number; hotelAmount: number; protocolAmount: number };
   payout: PayoutInfo | null;
+  rating: RatingInfo | null;
   createdAt: string;
 }
 
@@ -41,7 +47,7 @@ const SELECT = `
 `;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toBookingRecord(row: any): BookingRecord {
+function toBookingRecord(row: any, rating: RatingInfo | null = null): BookingRecord {
   return {
     bookingId: row.id,
     touristId: row.tourist_id,
@@ -68,8 +74,17 @@ function toBookingRecord(row: any): BookingRecord {
           }
         : undefined,
     payout: row.payout ?? null,
+    rating,
     createdAt: row.created_at,
   };
+}
+
+/// Batch-fetches ratings for a set of bookings, keyed by booking id, so
+/// list/detail endpoints can attach "already rated" state in one extra query.
+async function fetchRatingsByBookingId(bookingIds: string[]): Promise<Map<string, RatingInfo>> {
+  if (bookingIds.length === 0) return new Map();
+  const { data } = await supabaseAdmin.from("ratings").select("booking_id, stars, comment").in("booking_id", bookingIds);
+  return new Map((data ?? []).map((r) => [r.booking_id as string, { stars: r.stars, comment: r.comment } as RatingInfo]));
 }
 
 export interface CreateBookingInput {
@@ -113,7 +128,8 @@ export async function saveBooking(input: CreateBookingInput): Promise<BookingRec
 export async function getBooking(bookingId: string): Promise<BookingRecord | undefined> {
   const { data, error } = await supabaseAdmin.from("bookings").select(SELECT).eq("id", bookingId).maybeSingle();
   if (error || !data) return undefined;
-  return toBookingRecord(data);
+  const ratings = await fetchRatingsByBookingId([bookingId]);
+  return toBookingRecord(data, ratings.get(bookingId) ?? null);
 }
 
 export interface UpdateBookingPatch {
@@ -152,5 +168,6 @@ export async function listBookings(filter: ListBookingsFilter = {}): Promise<Boo
 
   const { data, error } = await query;
   if (error || !data) return [];
-  return data.map(toBookingRecord);
+  const ratings = await fetchRatingsByBookingId(data.map((row) => row.id as string));
+  return data.map((row) => toBookingRecord(row, ratings.get(row.id as string) ?? null));
 }

@@ -1,5 +1,18 @@
 import { supabaseAdmin } from "./supabase.js";
 
+// Mirrors the check constraint on experiences.category (add_experience_category migration).
+export const EXPERIENCE_CATEGORIES = [
+  "Food & Drink",
+  "Wildlife & Safari",
+  "Art & Culture",
+  "Adventure & Hiking",
+  "Nightlife & Shopping",
+  "Photography",
+  "Dance & Music",
+  "City Tours",
+] as const;
+export type ExperienceCategory = (typeof EXPERIENCE_CATEGORIES)[number];
+
 export interface ExperienceGuide {
   id: string;
   fullName: string;
@@ -9,6 +22,7 @@ export interface ExperienceGuide {
   languages: string[];
   ratingAvg: number;
   ratingCount: number;
+  isVetted: boolean;
 }
 
 export interface Experience {
@@ -16,6 +30,7 @@ export interface Experience {
   title: string;
   description: string;
   tags: string[];
+  category: string | null;
   priceUsdc: number;
   durationMinutes: number;
   location: string | null;
@@ -24,8 +39,8 @@ export interface Experience {
 }
 
 const SELECT = `
-  id, title, description, tags, price_usdc, duration_minutes, location, image_url,
-  guide:guide_id ( id, full_name, phone, wallet_address, bio, languages, rating_avg, rating_count )
+  id, title, description, tags, category, price_usdc, duration_minutes, location, image_url,
+  guide:guide_id ( id, full_name, phone, wallet_address, bio, languages, rating_avg, rating_count, is_vetted )
 `;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,6 +50,7 @@ function toExperience(row: any): Experience {
     title: row.title,
     description: row.description,
     tags: row.tags ?? [],
+    category: row.category ?? null,
     priceUsdc: Number(row.price_usdc),
     durationMinutes: row.duration_minutes,
     location: row.location ?? null,
@@ -48,6 +64,7 @@ function toExperience(row: any): Experience {
       languages: row.guide?.languages ?? [],
       ratingAvg: Number(row.guide?.rating_avg ?? 0),
       ratingCount: row.guide?.rating_count ?? 0,
+      isVetted: Boolean(row.guide?.is_vetted),
     },
   };
 }

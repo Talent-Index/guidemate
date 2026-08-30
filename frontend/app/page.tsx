@@ -21,7 +21,7 @@ const OFFERINGS = [
     title: "Art, History & Culture",
     body: "Museums, galleries and colonial-era architecture, narrated by guides with real subject-matter depth.",
     category: "Art & Culture",
-    image: "https://images.unsplash.com/photo-1577083552431-6e5fd01988ec?auto=format&fit=crop&w=1200&q=80",
+    image: "https://images.unsplash.com/photo-1554907984-15263bfd63bd?auto=format&fit=crop&w=1200&q=80",
     imageAlt: "Gallery interior with artwork on the walls",
   },
 ];

@@ -23,7 +23,7 @@ export function SiteFooter() {
           </Link>
         </div>
         <div className="flex items-center gap-4">
-          <SocialLink href="https://www.linkedin.com/" label="LinkedIn">
+          <SocialLink href="https://www.linkedin.com/company/your-guidemate/" label="LinkedIn">
             <path d="M4.98 3.5C4.98 4.88 3.88 6 2.5 6S.02 4.88.02 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.22 8.5h4.56V24H.22V8.5zM8.34 8.5h4.37v2.12h.06c.61-1.16 2.1-2.38 4.32-2.38 4.62 0 5.47 3.04 5.47 7v8.76h-4.56v-7.77c0-1.85-.03-4.23-2.58-4.23-2.58 0-2.98 2.01-2.98 4.1V24H8.34V8.5z" />
           </SocialLink>
           <SocialLink href="https://www.instagram.com/" label="Instagram">

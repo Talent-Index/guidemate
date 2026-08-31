@@ -188,7 +188,7 @@ function SignUpForm() {
               <a href="/guide/terms" className="font-semibold text-brand-accent underline" target="_blank" rel="noreferrer">
                 guide terms
               </a>
-              : the platform takes 15% of my rate, and tourist cancellations carry a 50% inconvenience fee.
+              : the platform takes 15% of my rate, and tourist cancellations carry a 20% inconvenience fee.
             </span>
           </label>
         )}

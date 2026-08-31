@@ -69,7 +69,7 @@ bookingsRouter.get("/:id/qr-token", async (req, res) => {
 });
 
 /// Guide-only: settles a booking as a tourist no-show instead of a completed
-/// tour. Refunds 50% back through escrow (minus a 50% inconvenience fee kept
+/// tour. Refunds 80% back through escrow (minus a 20% inconvenience fee kept
 /// by Guidemate) rather than paying out the guide.
 bookingsRouter.post("/:id/no-show", async (req, res) => {
   const userId = await getUserIdFromAuthHeader(req.headers.authorization);

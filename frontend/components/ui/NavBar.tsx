@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { homeForRole } from "@/lib/auth/home";
@@ -51,8 +51,8 @@ export function NavBar() {
       }`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 md:py-4">
-        <Link href={profile ? homeForRole(profile.role) : "/"} className="flex items-center border border-[var(--gm-border)] bg-[#ffffff] px-3 py-1.5">
-          <Image src="/logo.png" alt="Guidemate" width={1340} height={526} className="h-6 w-auto sm:h-7" priority />
+        <Link href={profile ? homeForRole(profile.role) : "/"} className="flex items-center border border-[var(--gm-border)] bg-[#ffffff] px-3 py-1.5 dark:bg-[#000000]">
+          <BrandLogo className="h-6 w-auto sm:h-7" priority />
         </Link>
 
         <nav className="hidden items-center gap-3 md:flex">

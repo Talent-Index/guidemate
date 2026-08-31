@@ -1,14 +1,14 @@
 import type { ReactNode } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 
 export function SiteFooter() {
   return (
     <footer className="border-t border-[var(--gm-border)] bg-[var(--gm-canvas)] text-[var(--gm-ink)]">
       <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-12 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <Link href="/" className="inline-flex items-center border border-[var(--gm-border)] bg-[#ffffff] px-3 py-1.5">
-            <Image src="/logo.png" alt="Guidemate" width={1340} height={526} className="h-6 w-auto" />
+          <Link href="/" className="inline-flex items-center border border-[var(--gm-border)] bg-[#ffffff] px-3 py-1.5 dark:bg-[#000000]">
+            <BrandLogo className="h-6 w-auto" />
           </Link>
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-[var(--gm-muted)]">
             Curated local experiences from vetted guides, settled instantly on Avalanche.

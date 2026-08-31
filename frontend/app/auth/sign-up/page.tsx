@@ -29,9 +29,14 @@ function SignUpForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (role === "guide" && !acceptedTerms) {
+      setError("Agree to the guide terms to continue.");
+      return;
+    }
     setError(null);
     setLoading(true);
 
@@ -169,9 +174,28 @@ function SignUpForm() {
 
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
+        {role === "guide" && (
+          <label className="mb-6 flex items-start gap-3 text-sm text-[var(--gm-muted)]">
+            <input
+              type="checkbox"
+              required
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              I agree to the{" "}
+              <a href="/guide/terms" className="font-semibold text-brand-accent underline" target="_blank" rel="noreferrer">
+                guide terms
+              </a>
+              : the platform takes 15% of my rate, and tourist cancellations carry a 50% inconvenience fee.
+            </span>
+          </label>
+        )}
+
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || (role === "guide" && !acceptedTerms)}
           className="w-full bg-brand-amber py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-brand-blueDark transition hover:bg-brand-amberDark disabled:opacity-50"
         >
           {loading ? "Creating account..." : "Create account"}

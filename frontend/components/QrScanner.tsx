@@ -2,9 +2,13 @@
 
 import { useEffect, useRef } from "react";
 
-const ELEMENT_ID = "guidemate-qr-scanner";
-
-export function QrScanner({ onScan }: { onScan: (text: string) => void }) {
+export function QrScanner({
+  onScan,
+  elementId = "guidemate-qr-scanner",
+}: {
+  onScan: (text: string) => void;
+  elementId?: string;
+}) {
   const scannerRef = useRef<import("html5-qrcode").Html5QrcodeScanner | null>(null);
 
   useEffect(() => {
@@ -13,11 +17,7 @@ export function QrScanner({ onScan }: { onScan: (text: string) => void }) {
     import("html5-qrcode").then(({ Html5QrcodeScanner }) => {
       if (!mounted) return;
 
-      const scanner = new Html5QrcodeScanner(
-        ELEMENT_ID,
-        { fps: 10, qrbox: 220 },
-        /* verbose= */ false
-      );
+      const scanner = new Html5QrcodeScanner(elementId, { fps: 10, qrbox: 220 }, false);
       scannerRef.current = scanner;
 
       scanner.render(
@@ -35,5 +35,5 @@ export function QrScanner({ onScan }: { onScan: (text: string) => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return <div id={ELEMENT_ID} className="w-full max-w-sm" />;
+  return <div id={elementId} className="w-full max-w-sm" />;
 }

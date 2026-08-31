@@ -15,6 +15,12 @@ export function SiteFooter() {
           </p>
         </div>
         <div className="flex flex-col gap-3 text-sm">
+          <Link href="/terms" className="text-[var(--gm-muted)] transition hover:text-[var(--gm-ink)]">
+            Terms and conditions
+          </Link>
+          <Link href="/guide/terms" className="text-[var(--gm-muted)] transition hover:text-[var(--gm-ink)]">
+            Guide terms
+          </Link>
           <Link href="/privacy" className="text-[var(--gm-muted)] transition hover:text-[var(--gm-ink)]">
             Privacy Policy
           </Link>

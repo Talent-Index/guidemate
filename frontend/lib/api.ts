@@ -72,6 +72,8 @@ export interface BookingRecord {
   experienceDurationMinutes: number | null;
   hotelName: string | null;
   hotelWallet: string | null;
+  touristName: string | null;
+  touristPhone: string | null;
   request: string | null;
   matchReason: string | null;
   amountUsdc: number;

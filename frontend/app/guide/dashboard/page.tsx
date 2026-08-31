@@ -48,7 +48,7 @@ export default function GuideDashboardPage() {
 
   const [activeTab, setActiveTab] = useState<DashboardTab>("experiences");
 
-  const [pastBookings, setPastBookings] = useState<BookingRecord[]>([]);
+  const [guideBookings, setGuideBookings] = useState<BookingRecord[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [bookingsError, setBookingsError] = useState<string | null>(null);
 
@@ -98,24 +98,25 @@ export default function GuideDashboardPage() {
   useEffect(() => {
     if (!session) return;
     let cancelled = false;
-    setLoadingBookings(true);
-    listMyBookings(session.access_token)
-      .then(({ bookings }) => {
+
+    async function refresh() {
+      try {
+        const { bookings } = await listMyBookings(session!.access_token);
         if (cancelled) return;
-        // Guides only care about tours that have actually run - drop the ones
-        // still sitting in escrow, since those already show up on Active Tour.
-        const completed = bookings.filter((b) => b.guideId === session.user.id && b.status !== "locked");
-        setPastBookings(completed);
+        setGuideBookings(bookings.filter((b) => b.guideId === session!.user.id));
         setBookingsError(null);
-      })
-      .catch((err) => {
+      } catch (err) {
         if (!cancelled) setBookingsError((err as Error).message);
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoadingBookings(false);
-      });
+      }
+    }
+
+    refresh();
+    const interval = setInterval(refresh, 4000);
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
   }, [session]);
 
@@ -269,6 +270,9 @@ export default function GuideDashboardPage() {
     );
   }
 
+  const upcoming = guideBookings.filter((b) => b.status === "locked");
+  const pastBookings = guideBookings.filter((b) => b.status !== "locked");
+
   return (
     <div className="flex flex-col gap-6">
       <MobilePageBanner eyebrow="Dashboard" title="Your listings and payouts" />
@@ -289,6 +293,43 @@ export default function GuideDashboardPage() {
           </Link>
         </div>
       </div>
+
+      {upcoming.length > 0 && (
+        <Card>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-brand-blueDark">Booked tours</h2>
+              <p className="text-sm text-brand-muted">
+                A tourist has paid. Open Active tour to enter their PIN or scan their QR.
+              </p>
+            </div>
+            <Link href="/guide">
+              <Button variant="primary">Enter PIN / scan QR</Button>
+            </Link>
+          </div>
+          <div className="mt-4 flex flex-col gap-3">
+            {upcoming.map((b) => (
+              <div
+                key={b.bookingId}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3 max-md:rounded-3xl"
+              >
+                <div>
+                  <p className="font-semibold text-brand-blueDark">{b.touristName?.trim() || "Guest"}</p>
+                  {b.touristPhone && (
+                    <a href={`tel:${b.touristPhone}`} className="text-sm font-semibold text-brand-accent">
+                      {b.touristPhone}
+                    </a>
+                  )}
+                  <p className="text-xs text-brand-muted">
+                    {b.experienceTitle ?? "Experience"} · <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
+                  </p>
+                </div>
+                <Chip tone={b.status} />
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2">
@@ -327,6 +368,19 @@ export default function GuideDashboardPage() {
             size="md"
             className="rounded-full bg-brand-bg px-3 py-1.5"
           />
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-brand-border p-4 text-sm">
+          <p className="font-semibold text-brand-blueDark">Terms</p>
+          <p className="mt-2 text-brand-muted">
+            Guidemate takes <span className="font-semibold text-brand-blueDark">15%</span> of your listed rate. You
+            keep 85% when the trip is completed. If a tourist cancels, the platform charges a{" "}
+            <span className="font-semibold text-brand-blueDark">50% inconvenience fee</span> so your time is
+            respected.
+          </p>
+          <Link href="/guide/terms" className="mt-2 inline-block font-semibold text-brand-accent">
+            Read full guide terms
+          </Link>
         </div>
 
         <form className="mt-4 grid gap-3 sm:grid-cols-2" onSubmit={handleSaveProfile}>
@@ -597,6 +651,10 @@ export default function GuideDashboardPage() {
             <div key={b.bookingId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3 max-md:rounded-3xl">
               <div>
                 <p className="font-semibold text-brand-blueDark">{b.experienceTitle ?? b.request ?? "Tour"}</p>
+                <p className="text-xs text-brand-muted">
+                  {b.touristName?.trim() || "Guest"}
+                  {b.touristPhone ? ` · ${b.touristPhone}` : ""}
+                </p>
                 <p className="text-xs text-brand-muted">
                   {new Date(b.createdAt).toLocaleDateString()} ·{" "}
                   <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />

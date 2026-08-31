@@ -4,21 +4,21 @@ import Link from "next/link";
 
 export function SiteFooter() {
   return (
-    <footer className="bg-brand-blueDark text-white">
+    <footer className="border-t border-[var(--gm-border)] bg-[var(--gm-canvas)] text-[var(--gm-ink)]">
       <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-12 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <Link href="/" className="inline-flex items-center bg-white px-3 py-1.5">
+          <Link href="/" className="inline-flex items-center border border-[var(--gm-border)] bg-[#ffffff] px-3 py-1.5">
             <Image src="/logo.png" alt="Guidemate" width={1340} height={526} className="h-6 w-auto" />
           </Link>
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/60">
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-[var(--gm-muted)]">
             Curated local experiences from vetted guides, settled instantly on Avalanche.
           </p>
         </div>
         <div className="flex flex-col gap-3 text-sm">
-          <Link href="/privacy" className="text-white/75 transition hover:text-white">
+          <Link href="/privacy" className="text-[var(--gm-muted)] transition hover:text-[var(--gm-ink)]">
             Privacy Policy
           </Link>
-          <Link href="/accessibility" className="text-white/75 transition hover:text-white">
+          <Link href="/accessibility" className="text-[var(--gm-muted)] transition hover:text-[var(--gm-ink)]">
             Accessibility Statement
           </Link>
         </div>
@@ -45,7 +45,7 @@ function SocialLink({ href, label, children }: { href: string; label: string; ch
       target="_blank"
       rel="noreferrer"
       aria-label={label}
-      className="flex h-10 w-10 items-center justify-center border border-white/20 text-white/80 transition hover:border-white hover:text-white"
+      className="flex h-10 w-10 items-center justify-center border border-[var(--gm-border)] text-[var(--gm-ink)]/70 transition hover:border-brand-accent hover:text-brand-accent"
     >
       <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
         {children}

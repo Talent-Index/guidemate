@@ -66,7 +66,7 @@ const ROLE_ADVANTAGES = [
   {
     role: "Guides",
     items: [
-      "Keep 85% of every direct booking - a 5% platform fee, not a 20–30% OTA cut.",
+      "Keep 85% of every booking. Guidemate takes 15% of your listed rate.",
       "Get paid the moment the tourist ends the trip. No weekly settlement wait.",
       "List food, safari and culture experiences with photos, prices and categories.",
       "A custodial payout wallet is provisioned for you. M-Pesa payout is simulated in this demo.",

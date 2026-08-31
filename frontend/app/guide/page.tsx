@@ -6,9 +6,10 @@ import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { completeBookingWithPin, listMyBookings, reportNoShow, type BookingRecord } from "@/lib/api";
+import { completeBooking, completeBookingWithPin, listMyBookings, reportNoShow, type BookingRecord } from "@/lib/api";
 import { Price } from "@/lib/fx";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
+import { QrScanner } from "@/components/QrScanner";
 
 const NO_SHOW_GRACE_PERIOD_MS = 30 * 60 * 1000;
 
@@ -180,6 +181,17 @@ function TouristDetails({ booking }: { booking: BookingRecord }) {
   );
 }
 
+function extractToken(scanned: string): string {
+  try {
+    const url = new URL(scanned);
+    const token = url.searchParams.get("token");
+    if (token) return token;
+  } catch {
+    // not a URL
+  }
+  return scanned;
+}
+
 function EndTripPinForm({
   bookingId,
   accessToken,
@@ -191,6 +203,7 @@ function EndTripPinForm({
 }) {
   const [pin, setPin] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
@@ -208,31 +221,68 @@ function EndTripPinForm({
     }
   }
 
+  async function handleScan(raw: string) {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const { booking } = await completeBooking(extractToken(raw));
+      setScanning(false);
+      onReleased(booking);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="w-full text-left">
-      <label htmlFor={`end-trip-pin-${bookingId}`} className="text-xs font-semibold uppercase tracking-wide text-brand-muted">
-        Enter the tourist&apos;s 6-digit PIN
-      </label>
-      <input
-        id={`end-trip-pin-${bookingId}`}
-        inputMode="numeric"
-        autoComplete="one-time-code"
-        maxLength={6}
-        pattern="\d{6}"
-        className="form-input-light mt-1 text-center font-mono text-2xl tracking-[0.4em]"
-        placeholder="000000"
-        value={pin}
-        onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-      />
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-      <Button variant="primary" type="submit" className="mt-3 w-full" disabled={pin.length !== 6 || submitting}>
-        {submitting ? "Releasing escrow..." : "Confirm trip & release payment"}
+    <div className="w-full text-left">
+      <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Release payment</p>
+      <p className="mt-1 text-sm text-brand-muted">Scan the tourist&apos;s End trip QR, or type the 6-digit PIN they show you.</p>
+
+      <Button
+        type="button"
+        variant="accent"
+        className="mt-4 w-full"
+        disabled={submitting}
+        onClick={() => {
+          setError(null);
+          setScanning((open) => !open);
+        }}
+      >
+        {scanning ? "Hide camera" : "Scan tourist QR"}
       </Button>
-      <Link href="/verify" className="mt-3 block">
-        <Button type="button" variant="secondary" className="w-full">
-          Scan tourist QR
+
+      {scanning && (
+        <div className="mt-3 overflow-hidden rounded-2xl border border-brand-border p-2">
+          {submitting ? (
+            <p className="py-6 text-center text-sm text-brand-muted">Verifying and releasing escrow...</p>
+          ) : (
+            <QrScanner elementId={`guide-scan-${bookingId}`} onScan={(text) => void handleScan(text)} />
+          )}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="mt-5">
+        <label htmlFor={`end-trip-pin-${bookingId}`} className="text-xs font-semibold uppercase tracking-wide text-brand-muted">
+          Or enter PIN
+        </label>
+        <input
+          id={`end-trip-pin-${bookingId}`}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={6}
+          pattern="\d{6}"
+          className="form-input-light mt-1 text-center font-mono text-2xl tracking-[0.4em]"
+          placeholder="000000"
+          value={pin}
+          onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+        />
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        <Button variant="primary" type="submit" className="mt-3 w-full" disabled={pin.length !== 6 || submitting}>
+          {submitting ? "Releasing escrow..." : "Confirm PIN & release payment"}
         </Button>
-      </Link>
-    </form>
+      </form>
+    </div>
   );
 }

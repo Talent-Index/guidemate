@@ -42,7 +42,7 @@ export function NavBar() {
   }
 
   const linkClass =
-    "text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--gm-nav-fg)]/75 transition hover:text-[var(--gm-nav-fg)]";
+    "text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-800 transition hover:text-black dark:text-white dark:hover:text-white";
 
   return (
     <header
@@ -92,7 +92,7 @@ export function NavBar() {
               </div>
               <Link
                 href="/auth/sign-in"
-                className="bg-brand-amber px-5 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-brand-blueDark transition hover:bg-brand-amberDark"
+                className="bg-brand-amber px-5 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-[#111111] transition hover:bg-brand-amberDark"
               >
                 Sign in
               </Link>
@@ -107,14 +107,14 @@ export function NavBar() {
             <button
               type="button"
               onClick={handleSignOut}
-              className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--gm-nav-fg)]/80"
+              className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-800 dark:text-white"
             >
               Sign out
             </button>
           ) : pathname === "/" ? (
             <Link
               href="/auth/sign-in"
-              className="bg-brand-amber px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-brand-blueDark"
+              className="bg-brand-amber px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#111111]"
             >
               Sign in
             </Link>

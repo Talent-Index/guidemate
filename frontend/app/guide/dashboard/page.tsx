@@ -375,7 +375,7 @@ export default function GuideDashboardPage() {
           <p className="mt-2 text-brand-muted">
             Guidemate takes <span className="font-semibold text-brand-blueDark">15%</span> of your listed rate. You
             keep 85% when the trip is completed. If a tourist cancels, the platform charges a{" "}
-            <span className="font-semibold text-brand-blueDark">50% inconvenience fee</span> so your time is
+            <span className="font-semibold text-brand-blueDark">20% inconvenience fee</span> so your time is
             respected.
           </p>
           <Link href="/guide/terms" className="mt-2 inline-block font-semibold text-brand-accent">

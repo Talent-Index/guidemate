@@ -34,9 +34,8 @@ export default function TermsPage() {
       <h2 className="mt-8 text-lg font-bold">Cancellations</h2>
       <p className="mt-2 text-sm leading-relaxed text-brand-muted">
         If you cancel after paying, Guidemate charges an inconvenience fee of{" "}
-        <span className="font-semibold text-[var(--gm-ink)]">50%</span> of the booking. Half exists so
-        a guide who held the slot is not left empty-handed; half may be returned to you. Not showing
-        up after the grace period is treated the same way.
+        <span className="font-semibold text-[var(--gm-ink)]">20%</span> of the booking. 80% may be
+        returned to you. Not showing up after the grace period is treated the same way.
       </p>
 
       <h2 className="mt-8 text-lg font-bold">Guides</h2>
@@ -46,7 +45,7 @@ export default function TermsPage() {
           guide terms
         </Link>{" "}
         also apply: Guidemate takes 15% of your listed rate, you keep 85% on a completed trip, and
-        tourist cancellations carry the 50% inconvenience fee above.
+        tourist cancellations carry the 20% inconvenience fee above.
       </p>
 
       <h2 className="mt-8 text-lg font-bold">Live streams</h2>

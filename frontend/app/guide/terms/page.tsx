@@ -21,9 +21,9 @@ export default function GuideTermsPage() {
       <h2 className="mt-8 text-lg font-bold">Cancellations and time</h2>
       <p className="mt-2 text-sm leading-relaxed text-brand-muted">
         If a tourist cancels after paying, Guidemate charges an inconvenience fee of{" "}
-        <span className="font-semibold text-[var(--gm-ink)]">50%</span> of the booking. That fee
-        exists so your time is respected: half the value stays with the platform (and can be used
-        to compensate a guide who held the slot), and half may be returned to the tourist.
+        <span className="font-semibold text-[var(--gm-ink)]">20%</span> of the booking. That fee
+        exists so your time is respected: the platform keeps 20% (and can use it to compensate a
+        guide who held the slot), and 80% is returned to the tourist.
       </p>
       <p className="mt-2 text-sm leading-relaxed text-brand-muted">
         If you mark a tourist as a no-show after the grace period, the same principle applies:

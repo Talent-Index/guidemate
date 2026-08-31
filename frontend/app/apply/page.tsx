@@ -149,7 +149,7 @@ export default function ApplyPage() {
             <a href="/guide/terms" className="font-semibold text-brand-accent underline" target="_blank" rel="noreferrer">
               guide terms
             </a>
-            : Guidemate takes 15% of my listed rate, and if a tourist cancels, a 50% inconvenience fee applies so
+            : Guidemate takes 15% of my listed rate, and if a tourist cancels, a 20% inconvenience fee applies so
             my time is respected.
           </span>
         </label>

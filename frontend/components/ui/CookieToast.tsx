@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 const STORAGE_KEY = "guidemate-cookie-notice";
 
 export function CookieToast() {
+  const pathname = usePathname();
+  const aboveTabs = pathname !== "/" && !pathname.startsWith("/auth/");
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -31,9 +34,9 @@ export function CookieToast() {
   return (
     <aside
       role="status"
-      className="fixed bottom-4 left-4 z-[60] max-w-sm animate-[slideInLeft_0.35s_ease-out] border border-white/15 bg-brand-blueDark p-4 text-white shadow-lg"
+      className={`fixed bottom-4 left-4 z-[60] max-w-sm animate-[slideInLeft_0.35s_ease-out] border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 text-[var(--gm-ink)] shadow-lg ${aboveTabs ? "max-md:bottom-24" : ""}`}
     >
-      <p className="text-sm leading-relaxed text-white/90">
+      <p className="text-sm leading-relaxed text-[var(--gm-muted)]">
         This site uses cookies to provide you with the best of experience.
       </p>
       <button

@@ -58,7 +58,7 @@ export function EndTripPanel({ bookingId, accessToken }: { bookingId: string; ac
 
       {qrToken && (
         <div className="mt-4 flex flex-col items-center gap-2">
-          <div className="bg-white p-3">
+          <div className="bg-[#ffffff] p-3">
             <QRCodeSVG value={getVerifyUrl(qrToken)} size={160} />
           </div>
           <p className="text-xs text-brand-muted">Or let your guide scan this QR</p>

@@ -370,6 +370,19 @@ export default function GuideDashboardPage() {
           />
         </div>
 
+        <div className="mt-6 rounded-2xl border border-brand-border p-4 text-sm">
+          <p className="font-semibold text-brand-blueDark">Terms</p>
+          <p className="mt-2 text-brand-muted">
+            Guidemate takes <span className="font-semibold text-brand-blueDark">15%</span> of your listed rate. You
+            keep 85% when the trip is completed. If a tourist cancels, the platform charges a{" "}
+            <span className="font-semibold text-brand-blueDark">50% inconvenience fee</span> so your time is
+            respected.
+          </p>
+          <Link href="/guide/terms" className="mt-2 inline-block font-semibold text-brand-accent">
+            Read full guide terms
+          </Link>
+        </div>
+
         <form className="mt-4 grid gap-3 sm:grid-cols-2" onSubmit={handleSaveProfile}>
           <Field label="Full name">
             <input className={inputClass} value={fullName} onChange={(e) => setFullName(e.target.value)} required />

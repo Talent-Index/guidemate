@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { ExperienceGridSkeleton } from "@/components/ui/Skeleton";
+import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   listLiveStreams,
@@ -75,11 +76,17 @@ export default function LiveBrowsePage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-xl font-bold text-brand-blueDark">Live experiences</h1>
-        <p className="mt-1 text-sm text-brand-muted">
-          Watch a guide stream from their phone. This list is empty until a signed-in guide starts a
-          stream with <span className="font-semibold text-brand-blueDark">Go live</span> - then it
-          appears here for everyone.
+        <MobilePageBanner eyebrow="Live" title="Watch a guide stream from their phone" />
+        <div className="hidden md:block">
+          <h1 className="text-xl font-bold text-brand-blueDark">Live experiences</h1>
+          <p className="mt-1 text-sm text-brand-muted">
+            Watch a guide stream from their phone. This list is empty until a signed-in guide starts a
+            stream with <span className="font-semibold text-brand-blueDark">Go live</span> - then it
+            appears here for everyone.
+          </p>
+        </div>
+        <p className="mt-3 text-sm text-brand-muted md:hidden">
+          This list is empty until a signed-in guide starts a stream - then it appears here for everyone.
         </p>
       </div>
 

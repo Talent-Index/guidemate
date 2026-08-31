@@ -59,7 +59,7 @@ export default function ApplyPage() {
   if (submitted) {
     return (
       <FormShell title="Application received">
-        <p className="text-center text-sm text-white/70">
+        <p className="text-center text-sm text-[var(--gm-muted)]">
           Thanks {fullName}. Your application is saved on the Guidemate admin dashboard. An admin will review it
           there — we do not send automated emails yet. If you are approved, they will invite you to sign in as a
           guide.
@@ -75,7 +75,7 @@ export default function ApplyPage() {
       footer={
         <>
           Just want to try the demo?{" "}
-          <a href="/auth/sign-up?role=guide" className="font-semibold text-white underline">
+          <a href="/auth/sign-up?role=guide" className="font-semibold text-brand-accent underline">
             Instant guide sign-up
           </a>
         </>
@@ -83,15 +83,15 @@ export default function ApplyPage() {
     >
       <form onSubmit={handleSubmit}>
         <FormField label="Full name *">
-          <input required className="form-input-dark" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          <input required className="form-input-light" value={fullName} onChange={(e) => setFullName(e.target.value)} />
         </FormField>
         <FormField label="Email *">
-          <input required type="email" className="form-input-dark" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input required type="email" className="form-input-light" value={email} onChange={(e) => setEmail(e.target.value)} />
         </FormField>
         <FormField label="Phone *">
           <input
             required
-            className="form-input-dark"
+            className="form-input-light"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="+254 7XX XXX XXX"
@@ -100,7 +100,7 @@ export default function ApplyPage() {
         <FormField label="Location *">
           <input
             required
-            className="form-input-dark"
+            className="form-input-light"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             placeholder="Nairobi, Kenya"
@@ -109,7 +109,7 @@ export default function ApplyPage() {
         <FormField label="Experience you want to bring *">
           <textarea
             required
-            className="form-input-dark resize-none"
+            className="form-input-light resize-none"
             rows={3}
             value={experiencePitch}
             onChange={(e) => setExperiencePitch(e.target.value)}
@@ -118,7 +118,7 @@ export default function ApplyPage() {
         </FormField>
         <FormField label="Portfolio / proof links">
           <input
-            className="form-input-dark"
+            className="form-input-light"
             value={portfolioLinks}
             onChange={(e) => setPortfolioLinks(e.target.value)}
             placeholder="Instagram, Tripadvisor..."
@@ -129,11 +129,11 @@ export default function ApplyPage() {
             type="file"
             accept="image/jpeg,image/png,image/webp,application/pdf"
             onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-sm text-white/60 file:mr-3 file:border-0 file:bg-brand-amber file:px-3 file:py-1.5 file:text-xs file:font-semibold file:uppercase file:tracking-wide file:text-brand-blueDark"
+            className="block w-full text-sm text-[var(--gm-muted)] file:mr-3 file:border-0 file:bg-brand-amber file:px-3 file:py-1.5 file:text-xs file:font-semibold file:uppercase file:tracking-wide file:text-brand-blueDark"
           />
         </FormField>
 
-        {error && <p className="mb-4 text-sm text-red-300">{error}</p>}
+        {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
         <button
           type="submit"

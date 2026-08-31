@@ -222,6 +222,13 @@ export default function HomePage() {
                 Join waitlist
               </Link>
             </div>
+            <p className="mt-8 text-xs text-brand-muted">
+              By using Guidemate you agree to our{" "}
+              <Link href="/terms" className="font-semibold text-brand-accent underline">
+                Terms and conditions
+              </Link>
+              .
+            </p>
           </div>
         </section>
       </div>

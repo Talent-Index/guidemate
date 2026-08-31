@@ -12,6 +12,7 @@ export default function ApplyPage() {
   const [experiencePitch, setExperiencePitch] = useState("");
   const [portfolioLinks, setPortfolioLinks] = useState("");
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -135,9 +136,27 @@ export default function ApplyPage() {
 
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
+        <label className="mb-6 flex items-start gap-3 text-sm text-[var(--gm-muted)]">
+          <input
+            type="checkbox"
+            required
+            checked={acceptedTerms}
+            onChange={(e) => setAcceptedTerms(e.target.checked)}
+            className="mt-1"
+          />
+          <span>
+            I agree to the{" "}
+            <a href="/guide/terms" className="font-semibold text-brand-accent underline" target="_blank" rel="noreferrer">
+              guide terms
+            </a>
+            : Guidemate takes 15% of my listed rate, and if a tourist cancels, a 50% inconvenience fee applies so
+            my time is respected.
+          </span>
+        </label>
+
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !acceptedTerms}
           className="w-full bg-brand-amber py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-brand-blueDark transition hover:bg-brand-amberDark disabled:opacity-50"
         >
           {loading ? "Submitting..." : "Submit application"}

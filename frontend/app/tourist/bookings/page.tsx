@@ -9,6 +9,7 @@ import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
 import { ListRowSkeleton } from "@/components/ui/Skeleton";
 import { StarRating, StarRatingInput } from "@/components/ui/StarRating";
 import { EndTripPanel } from "@/components/EndTripPanel";
+import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   listMyBookings,
@@ -66,8 +67,14 @@ export default function TouristBookingsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-bold text-brand-blueDark">My bookings</h1>
-        <p className="text-sm text-brand-muted">
+        <MobilePageBanner eyebrow="Bookings" title="Your locked experiences" />
+        <div className="hidden md:block">
+          <h1 className="text-xl font-bold text-brand-blueDark">My bookings</h1>
+          <p className="text-sm text-brand-muted">
+            Signed in as {profile?.fullName ?? session.user.email} · escrow status updates live.
+          </p>
+        </div>
+        <p className="mt-3 text-sm text-brand-muted md:hidden">
           Signed in as {profile?.fullName ?? session.user.email} · escrow status updates live.
         </p>
       </div>
@@ -91,7 +98,7 @@ export default function TouristBookingsPage() {
               <ExperiencePhoto
                 src={booking.experienceImageUrl}
                 alt={booking.experienceTitle ?? "Experience"}
-                className="aspect-[16/10] w-full shrink-0 rounded-lg sm:aspect-square sm:w-32"
+                className="aspect-[16/10] w-full shrink-0 rounded-lg max-md:rounded-2xl sm:aspect-square sm:w-32"
                 sizes="128px"
               />
 

@@ -82,30 +82,30 @@ export default function SignInPage() {
       footer={
         <>
           Don&apos;t have an account?{" "}
-          <a href="/auth/sign-up" className="font-semibold text-white underline">
+          <a href="/auth/sign-up" className="font-semibold text-brand-accent underline">
             Create one
           </a>
           <br />
-          Admin? Use this same form. Your profile must have role <span className="text-white">admin</span> — there is
+          Admin? Use this same form. Your profile must have role <span className="text-[var(--gm-ink)]">admin</span> — there is
           no separate admin password.
         </>
       }
     >
       <form onSubmit={handleSubmit}>
         <FormField label="Email *">
-          <input required type="email" className="form-input-dark" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input required type="email" className="form-input-light" value={email} onChange={(e) => setEmail(e.target.value)} />
         </FormField>
         <FormField label="Password *">
           <input
             required
             type="password"
-            className="form-input-dark"
+            className="form-input-light"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
         </FormField>
 
-        {error && <p className="mb-4 text-sm text-red-300">{error}</p>}
+        {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
         <button
           type="submit"

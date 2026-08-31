@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
+import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { ExperienceGridSkeleton } from "@/components/ui/Skeleton";
 import { StarRating } from "@/components/ui/StarRating";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -90,8 +91,14 @@ export default function ExplorePage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-xl font-bold text-brand-blueDark">Experiences you can book</h1>
-        <p className="mt-1 text-sm text-brand-muted">Browse what&apos;s live right now. Sign in to get a match tailored by our AI agent.</p>
+        <MobilePageBanner eyebrow="Explore" title="Experiences you can book" />
+        <div className="hidden md:block">
+          <h1 className="text-xl font-bold text-brand-blueDark">Experiences you can book</h1>
+          <p className="mt-1 text-sm text-brand-muted">Browse what&apos;s live right now. Sign in to get a match tailored by our AI agent.</p>
+        </div>
+        <p className="mt-3 text-sm text-brand-muted md:hidden">
+          Browse what&apos;s live right now. Sign in to get a match tailored by our AI agent.
+        </p>
 
         <div className="mt-3 flex flex-wrap gap-2">
           {[ALL_CATEGORIES, ...EXPERIENCE_CATEGORIES].map((cat) => (
@@ -99,9 +106,9 @@ export default function ExplorePage() {
               key={cat}
               type="button"
               onClick={() => setActiveCategory(cat)}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition max-md:px-4 max-md:py-2 ${
                 activeCategory === cat
-                  ? "bg-brand-blue text-white"
+                  ? "bg-brand-blue text-white max-md:bg-brand-amber max-md:text-brand-blueDark"
                   : "border border-brand-border text-brand-muted hover:border-brand-accent hover:text-brand-accent"
               }`}
             >

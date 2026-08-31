@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/client";
 import { EXPERIENCE_CATEGORIES } from "@/lib/categories";
 import { listMyBookings, provisionWallet, type BookingRecord } from "@/lib/api";
 import { Price } from "@/lib/fx";
+import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 
 type DashboardTab = "experiences" | "history" | "settings";
 
@@ -270,7 +271,8 @@ export default function GuideDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <MobilePageBanner eyebrow="Dashboard" title="Your listings and payouts" />
+      <div className="hidden flex-wrap items-center justify-between gap-4 md:flex">
         <div className="flex gap-2">
           <Link
             href="/guide"
@@ -410,7 +412,7 @@ export default function GuideDashboardPage() {
         </div>
 
         {showForm && (
-          <form className="mt-4 grid gap-3 rounded-lg bg-brand-bg p-4 sm:grid-cols-2" onSubmit={handleCreateExperience}>
+          <form className="mt-4 grid gap-3 rounded-lg bg-brand-bg p-4 max-md:rounded-3xl sm:grid-cols-2" onSubmit={handleCreateExperience}>
             <Field label="Title">
               <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} required />
             </Field>
@@ -512,7 +514,7 @@ export default function GuideDashboardPage() {
             <p className="text-sm text-brand-muted">You haven&apos;t published any experiences yet.</p>
           )}
           {experiences.map((exp) => (
-            <div key={exp.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3">
+            <div key={exp.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3 max-md:rounded-3xl">
               <div className="flex items-center gap-3">
                 <ExperiencePhoto src={exp.image_url} alt={exp.title} className="h-14 w-20 shrink-0 rounded-lg" />
                 <div>
@@ -592,7 +594,7 @@ export default function GuideDashboardPage() {
             <p className="text-sm text-brand-muted">No completed tours yet - they&apos;ll show up here once a booking is verified.</p>
           )}
           {pastBookings.map((b) => (
-            <div key={b.bookingId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3">
+            <div key={b.bookingId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3 max-md:rounded-3xl">
               <div>
                 <p className="font-semibold text-brand-blueDark">{b.experienceTitle ?? b.request ?? "Tour"}</p>
                 <p className="text-xs text-brand-muted">
@@ -645,7 +647,7 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-        active ? "bg-brand-blue text-white" : "border border-brand-border text-brand-muted hover:border-brand-accent hover:text-brand-accent"
+        active ? "bg-brand-blue text-white max-md:bg-brand-amber max-md:text-brand-blueDark" : "border border-brand-border text-brand-muted hover:border-brand-accent hover:text-brand-accent"
       }`}
     >
       {children}

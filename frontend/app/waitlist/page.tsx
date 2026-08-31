@@ -40,7 +40,7 @@ export default function WaitlistPage() {
   if (submitted) {
     return (
       <FormShell title="You're on the list">
-        <p className="text-center text-sm text-white/70">
+        <p className="text-center text-sm text-[var(--gm-muted)]">
           Thanks {fullName}. You&apos;re on the waitlist in the admin dashboard. We do not send automated emails
           yet — an admin will reach out when Guidemate is ready.
         </p>
@@ -55,14 +55,14 @@ export default function WaitlistPage() {
     >
       <form onSubmit={handleSubmit}>
         <FormField label="Full name *">
-          <input required className="form-input-dark" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          <input required className="form-input-light" value={fullName} onChange={(e) => setFullName(e.target.value)} />
         </FormField>
         <FormField label="Email *">
-          <input required type="email" className="form-input-dark" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input required type="email" className="form-input-light" value={email} onChange={(e) => setEmail(e.target.value)} />
         </FormField>
         <FormField label="What are you interested in?">
           <input
-            className="form-input-dark"
+            className="form-input-light"
             value={interest}
             onChange={(e) => setInterest(e.target.value)}
             placeholder="Booking trips, partnering as a hotel, watching live..."

@@ -94,8 +94,8 @@ function SignUpForm() {
   if (needsConfirmation) {
     return (
       <FormShell title="Check your email">
-        <p className="text-center text-sm text-white/70">
-          We sent a confirmation link to <strong className="text-white">{email}</strong>. Click it, then come back and
+        <p className="text-center text-sm text-[var(--gm-muted)]">
+          We sent a confirmation link to <strong className="text-[var(--gm-ink)]">{email}</strong>. Click it, then come back and
           sign in.
         </p>
       </FormShell>
@@ -110,18 +110,18 @@ function SignUpForm() {
       footer={
         <>
           Already have an account?{" "}
-          <a href="/auth/sign-in" className="font-semibold text-white underline">
+          <a href="/auth/sign-in" className="font-semibold text-brand-accent underline">
             Sign in
           </a>
           <br />
           Want to be a vetted guide?{" "}
-          <a href="/apply" className="font-semibold text-white underline">
+          <a href="/apply" className="font-semibold text-brand-accent underline">
             Apply here
           </a>
         </>
       }
     >
-      <div className="mb-8 flex border border-white/15">
+      <div className="mb-8 flex border border-[var(--gm-border)]">
         <RoleTab label="I'm a tourist" active={role === "tourist"} onClick={() => setRole("tourist")} />
         <RoleTab label="I'm a guide" active={role === "guide"} onClick={() => setRole("guide")} />
       </div>
@@ -130,7 +130,7 @@ function SignUpForm() {
         <FormField label="Full name *">
           <input
             required
-            className="form-input-dark"
+            className="form-input-light"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             placeholder="Jane Doe"
@@ -140,7 +140,7 @@ function SignUpForm() {
           <input
             required
             type="email"
-            className="form-input-dark"
+            className="form-input-light"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
@@ -151,7 +151,7 @@ function SignUpForm() {
             required
             type="password"
             minLength={6}
-            className="form-input-dark"
+            className="form-input-light"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="At least 6 characters"
@@ -160,14 +160,14 @@ function SignUpForm() {
         <FormField label={role === "guide" ? "M-Pesa phone number *" : "Phone number"}>
           <input
             required={role === "guide"}
-            className="form-input-dark"
+            className="form-input-light"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="+254 7XX XXX XXX"
           />
         </FormField>
 
-        {error && <p className="mb-4 text-sm text-red-300">{error}</p>}
+        {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
         <button
           type="submit"
@@ -188,7 +188,7 @@ function RoleTab({ label, active, onClick }: { label: string; active: boolean; o
       type="button"
       onClick={onClick}
       className={`flex-1 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide transition ${
-        active ? "bg-brand-accent text-white" : "text-white/60 hover:text-white"
+        active ? "bg-brand-blue text-white" : "text-[var(--gm-muted)] hover:text-[var(--gm-ink)]"
       }`}
     >
       {label}

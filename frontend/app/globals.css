@@ -2,12 +2,71 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --gm-canvas: #ffffff;
+  --gm-ink: #111111;
+  --gm-muted: #5b6b82;
+  --gm-surface: #ffffff;
+  --gm-border: #e3e8ef;
+  --gm-nav: #ffffff;
+  --gm-nav-fg: #111111;
+  --gm-tabs: #ffffff;
+}
+
+html.dark {
+  --gm-canvas: #000000;
+  --gm-ink: #f4f4f4;
+  --gm-muted: rgba(255, 255, 255, 0.62);
+  --gm-surface: #141414;
+  --gm-border: rgba(255, 255, 255, 0.12);
+  --gm-nav: #000000;
+  --gm-nav-fg: #f4f4f4;
+  --gm-tabs: #000000;
+}
+
 html,
 body {
-  background-color: #f5f7fb;
-  color: #1a1a1a;
+  background-color: var(--gm-canvas);
+  color: var(--gm-ink);
   /* Needed so the full-bleed hero's 100vw trick never introduces a horizontal scrollbar. */
   overflow-x: hidden;
+}
+
+/* Headings and body copy stay ink-colored so brand blue is reserved for CTAs. */
+.text-brand-blueDark {
+  color: var(--gm-ink);
+}
+.text-brand-muted {
+  color: var(--gm-muted);
+}
+.border-brand-border {
+  border-color: var(--gm-border);
+}
+.bg-white {
+  background-color: var(--gm-surface);
+}
+.bg-brand-bg {
+  background-color: var(--gm-canvas);
+}
+
+html.dark .form-input-light {
+  color: var(--gm-ink);
+  border-bottom-color: var(--gm-border);
+}
+html.dark .form-input-light::placeholder {
+  color: var(--gm-muted);
+}
+html.dark .form-input-light:focus {
+  border-bottom-color: #ffb700;
+}
+html.dark .bg-brand-successBg {
+  background-color: rgba(0, 128, 9, 0.22);
+}
+html.dark .bg-red-50 {
+  background-color: rgba(220, 38, 38, 0.18);
+}
+html.dark .shadow-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
 }
 
 * {
@@ -38,15 +97,15 @@ body {
   width: 100%;
   background: transparent;
   border: 0;
-  border-bottom: 1px solid #c9d2de;
+  border-bottom: 1px solid var(--gm-border);
   border-radius: 0;
   padding: 0.65rem 0;
-  color: #00265e;
+  color: var(--gm-ink);
   font-size: 0.95rem;
   outline: none;
 }
 .form-input-light::placeholder {
-  color: #8a97ab;
+  color: var(--gm-muted);
 }
 .form-input-light:focus {
   border-bottom-color: #0071c2;
@@ -62,3 +121,4 @@ body {
     transform: translateX(0);
   }
 }
+

@@ -10,8 +10,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-brand-bg font-sans text-brand-ink antialiased">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem("guidemate-theme")==="dark")document.documentElement.classList.add("dark")}catch(e){}`,
+          }}
+        />
+      </head>
+      <body className="min-h-screen bg-[var(--gm-canvas)] font-sans text-[var(--gm-ink)] antialiased">
         <Providers>
           <SiteChrome>{children}</SiteChrome>
         </Providers>

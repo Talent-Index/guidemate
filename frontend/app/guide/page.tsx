@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { completeBookingWithPin, listMyBookings, reportNoShow, type BookingRecord } from "@/lib/api";
 import { Price } from "@/lib/fx";
+import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 
 const NO_SHOW_GRACE_PERIOD_MS = 30 * 60 * 1000;
 
@@ -81,7 +82,8 @@ export default function GuideActiveTourPage() {
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <div className="flex w-full max-w-sm justify-center gap-2">
+      <MobilePageBanner eyebrow="Tour" title="Your active tour" />
+      <div className="hidden w-full max-w-sm justify-center gap-2 md:flex">
         <Link href="/guide" className="rounded-full bg-brand-blue px-4 py-1.5 text-xs font-semibold text-white">
           Active tour
         </Link>
@@ -94,7 +96,7 @@ export default function GuideActiveTourPage() {
       </div>
 
       <Card className="w-full max-w-sm text-center">
-        <h1 className="text-xl font-bold text-brand-blueDark">Active Tour</h1>
+        <h1 className="hidden text-xl font-bold text-brand-blueDark md:block">Active Tour</h1>
         <p className="mt-1 text-sm text-brand-muted">
           When you arrive, ask the tourist to tap <span className="font-semibold text-brand-blueDark">End trip</span>{" "}
           and enter their 6-digit PIN here.

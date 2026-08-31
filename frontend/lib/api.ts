@@ -175,8 +175,8 @@ export function completeBookingWithPin(bookingId: string, pin: string, accessTok
   });
 }
 
-/// Guide-only: settles a booking as a tourist no-show, refunding 80% back
-/// through escrow (minus a 20% inconvenience fee) instead of paying the guide.
+/// Guide-only: settles a booking as a tourist no-show, refunding 50% back
+/// through escrow (minus a 50% inconvenience fee) instead of paying the guide.
 export function reportNoShow(bookingId: string, accessToken: string) {
   return request<{ booking: BookingRecord }>(`/api/bookings/${bookingId}/no-show`, {
     method: "POST",

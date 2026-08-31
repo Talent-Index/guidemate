@@ -46,7 +46,7 @@ export default function GuideActiveTourPage() {
   async function handleReportNoShow(booking: BookingRecord) {
     if (!session) return;
     const confirmed = window.confirm(
-      "Mark this tourist as a no-show? 80% of the booking will be refunded and Guidemate will keep a 20% inconvenience fee. This can't be undone."
+      "Mark this tourist as a no-show? 50% of the booking will be refunded and Guidemate will keep a 50% inconvenience fee. This can't be undone."
     );
     if (!confirmed) return;
 

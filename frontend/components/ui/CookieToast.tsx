@@ -34,7 +34,7 @@ export function CookieToast() {
   return (
     <aside
       role="status"
-      className={`fixed bottom-4 left-4 z-[60] max-w-sm animate-[slideInLeft_0.35s_ease-out] border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 text-[var(--gm-ink)] shadow-lg ${aboveTabs ? "max-md:bottom-24" : ""}`}
+      className={`fixed bottom-4 left-4 z-[60] max-w-sm animate-[slideInLeft_0.35s_ease-out] border border-[var(--gm-border)] bg-[var(--gm-surface)] p-4 text-[var(--gm-ink)] shadow-lg ${aboveTabs ? "max-md:bottom-28" : ""}`}
     >
       <p className="text-sm leading-relaxed text-[var(--gm-muted)]">
         This site uses cookies to provide you with the best of experience.

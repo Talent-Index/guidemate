@@ -19,7 +19,7 @@ export function SiteChrome({ children }: { children: ReactNode }) {
         className={`flex-1 ${
           isHome
             ? "pt-0"
-            : "mx-auto w-full px-4 pb-8 pt-24 md:max-w-5xl max-md:pb-24"
+            : "mx-auto w-full px-4 pb-8 pt-24 md:max-w-5xl max-md:pb-28"
         }`}
       >
         {children}

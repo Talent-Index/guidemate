@@ -34,6 +34,8 @@ export interface BookingRecord {
   experienceDurationMinutes: number | null;
   hotelName: string | null;
   hotelWallet: string | null;
+  touristName: string | null;
+  touristPhone: string | null;
   request: string | null;
   matchReason: string | null;
   amountUsdc: number;
@@ -72,6 +74,8 @@ function toBookingRecord(row: any, rating: RatingInfo | null = null): BookingRec
     experienceDurationMinutes: row.experience?.duration_minutes ?? null,
     hotelName: row.hotel_name,
     hotelWallet: row.hotel_wallet,
+    touristName: null,
+    touristPhone: null,
     request: row.request_text,
     matchReason: row.match_reason,
     amountUsdc: Number(row.amount_usdc),
@@ -100,6 +104,22 @@ async function fetchRatingsByBookingId(bookingIds: string[]): Promise<Map<string
   if (bookingIds.length === 0) return new Map();
   const { data } = await supabaseAdmin.from("ratings").select("booking_id, stars, comment").in("booking_id", bookingIds);
   return new Map((data ?? []).map((r) => [r.booking_id as string, { stars: r.stars, comment: r.comment } as RatingInfo]));
+}
+
+async function withTouristProfiles(records: BookingRecord[]): Promise<BookingRecord[]> {
+  const ids = [...new Set(records.map((r) => r.touristId).filter((id): id is string => Boolean(id)))];
+  if (ids.length === 0) return records;
+  const { data, error } = await supabaseAdmin.from("profiles").select("id, full_name, phone").in("id", ids);
+  if (error || !data) return records;
+  const byId = new Map(data.map((p) => [p.id as string, p]));
+  return records.map((r) => {
+    const tourist = r.touristId ? byId.get(r.touristId) : undefined;
+    return {
+      ...r,
+      touristName: (tourist?.full_name as string | null | undefined) ?? null,
+      touristPhone: (tourist?.phone as string | null | undefined) ?? null,
+    };
+  });
 }
 
 export interface CreateBookingInput {
@@ -137,14 +157,16 @@ export async function saveBooking(input: CreateBookingInput): Promise<BookingRec
     .single();
 
   if (error || !data) throw new Error(error?.message ?? "failed to save booking");
-  return toBookingRecord(data);
+  const [record] = await withTouristProfiles([toBookingRecord(data)]);
+  return record;
 }
 
 export async function getBooking(bookingId: string): Promise<BookingRecord | undefined> {
   const { data, error } = await supabaseAdmin.from("bookings").select(SELECT).eq("id", bookingId).maybeSingle();
   if (error || !data) return undefined;
   const ratings = await fetchRatingsByBookingId([bookingId]);
-  return toBookingRecord(data, ratings.get(bookingId) ?? null);
+  const [record] = await withTouristProfiles([toBookingRecord(data, ratings.get(bookingId) ?? null)]);
+  return record;
 }
 
 export interface UpdateBookingPatch {
@@ -172,7 +194,8 @@ export async function updateBooking(bookingId: string, patch: UpdateBookingPatch
   const { data, error } = await supabaseAdmin.from("bookings").update(update).eq("id", bookingId).select(SELECT).single();
 
   if (error || !data) return undefined;
-  return toBookingRecord(data);
+  const [record] = await withTouristProfiles([toBookingRecord(data)]);
+  return record;
 }
 
 export interface ListBookingsFilter {
@@ -188,5 +211,5 @@ export async function listBookings(filter: ListBookingsFilter = {}): Promise<Boo
   const { data, error } = await query;
   if (error || !data) return [];
   const ratings = await fetchRatingsByBookingId(data.map((row) => row.id as string));
-  return data.map((row) => toBookingRecord(row, ratings.get(row.id as string) ?? null));
+  return withTouristProfiles(data.map((row) => toBookingRecord(row, ratings.get(row.id as string) ?? null)));
 }

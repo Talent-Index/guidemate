@@ -8,6 +8,7 @@ import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { ExperienceGridSkeleton } from "@/components/ui/Skeleton";
 import { StarRating } from "@/components/ui/StarRating";
+import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import { EXPERIENCE_CATEGORIES } from "@/lib/categories";
@@ -156,9 +157,12 @@ export default function ExplorePage() {
                 </div>
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                   <Price amountUsdc={exp.price_usdc} />
-                  <Link href={`/book/${exp.id}`}>
-                    <Button variant="primary">Book</Button>
-                  </Link>
+                  <div className="flex flex-wrap gap-2">
+                    {exp.guide?.id && <ViewGuideProfileButton guideId={exp.guide.id} />}
+                    <Link href={`/book/${exp.id}`}>
+                      <Button variant="primary">Book</Button>
+                    </Link>
+                  </div>
                 </div>
               </div>
             </Card>
@@ -273,6 +277,7 @@ function ExperienceCard({ experience, reason }: { experience: Experience; reason
           Book this experience
         </Button>
       </Link>
+      <ViewGuideProfileButton guideId={experience.guide.id} className="mt-3 inline-block" />
     </div>
   );
 }

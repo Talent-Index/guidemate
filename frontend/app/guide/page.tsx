@@ -6,10 +6,12 @@ import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { completeBooking, completeBookingWithPin, listMyBookings, reportNoShow, type BookingRecord } from "@/lib/api";
+import { completeBooking, completeBookingWithPin, listMyBookings, reportNoShow, submitTouristRating, type BookingRecord } from "@/lib/api";
 import { Price } from "@/lib/fx";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { QrScanner } from "@/components/QrScanner";
+import { RatePanel } from "@/components/RatePanel";
+import { StarRating } from "@/components/ui/StarRating";
 
 const NO_SHOW_GRACE_PERIOD_MS = 30 * 60 * 1000;
 
@@ -81,6 +83,9 @@ export default function GuideActiveTourPage() {
   }
 
   const locked = bookings.filter((b) => b.status === "locked");
+  const awaitingTouristRating = bookings.filter(
+    (b) => b.status === "paid" && Boolean(b.touristId) && !b.touristRating
+  );
 
   return (
     <div className="flex flex-col items-center gap-6">
@@ -105,7 +110,7 @@ export default function GuideActiveTourPage() {
 
         {error && <p className="text-center text-sm text-red-600">{error}</p>}
 
-        {locked.length === 0 && !error && (
+        {locked.length === 0 && awaitingTouristRating.length === 0 && !error && (
           <Card className="text-center">
             <p className="text-sm text-brand-muted">
               No locked bookings on your listings yet. A tourist must book one of{" "}
@@ -159,6 +164,30 @@ export default function GuideActiveTourPage() {
             </div>
           </Card>
         ))}
+
+        {awaitingTouristRating.map((booking) => (
+          <Card key={`rate-${booking.bookingId}`}>
+            <p className="text-xs font-semibold uppercase tracking-wide text-brand-success">Trip completed</p>
+            <p className="mt-1 font-semibold text-brand-blueDark">{booking.experienceTitle ?? "Experience"}</p>
+            <TouristDetails booking={booking} />
+            <RatePanel
+              title={`Rate ${booking.touristName?.trim() || "this tourist"}`}
+              subtitle="How was this guest? Your rating helps other guides."
+              existing={booking.touristRating}
+              placeholder="Optional: note how the trip went (visible to the tourist)"
+              onSubmit={async (stars, comment) => {
+                const { rating } = await submitTouristRating(
+                  { bookingId: booking.bookingId, stars, comment },
+                  session.access_token
+                );
+                setBookings((prev) =>
+                  prev.map((b) => (b.bookingId === booking.bookingId ? { ...b, touristRating: rating } : b))
+                );
+                return rating;
+              }}
+            />
+          </Card>
+        ))}
       </div>
     </div>
   );
@@ -170,6 +199,11 @@ function TouristDetails({ booking }: { booking: BookingRecord }) {
     <div className="w-full rounded-2xl border border-brand-border bg-brand-bg px-4 py-3 text-left">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-muted">Tourist</p>
       <p className="mt-1 text-lg font-bold text-brand-blueDark">{name}</p>
+      {booking.touristRatingCount > 0 ? (
+        <StarRating value={booking.touristRatingAvg} count={booking.touristRatingCount} className="mt-1" />
+      ) : (
+        <p className="mt-1 text-xs text-brand-muted">No tourist ratings yet</p>
+      )}
       {booking.touristPhone ? (
         <a href={`tel:${booking.touristPhone}`} className="mt-1 inline-block text-sm font-semibold text-brand-accent">
           {booking.touristPhone}

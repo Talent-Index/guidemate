@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
 import { StarRating } from "@/components/ui/StarRating";
+import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 import {
   createBooking,
   getBooking,
@@ -157,6 +158,7 @@ export default function ConciergePage() {
                     count={match.experience.guide.ratingCount}
                     className="mt-1"
                   />
+                  <ViewGuideProfileButton guideId={match.experience.guide.id} className="mt-3 inline-block" />
                 </div>
               </div>
 

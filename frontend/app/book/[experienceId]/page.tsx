@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
 import { StarRating } from "@/components/ui/StarRating";
 import { WalletConnectButton } from "@/components/WalletConnectButton";
+import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import { createBooking, SNOWTRACE_TX_BASE, type BookingRecord } from "@/lib/api";
@@ -162,6 +163,9 @@ export default function BookExperiencePage() {
                 count={experience.guide?.rating_count ?? 0}
                 className="mt-1"
               />
+              {experience.guide?.id && (
+                <ViewGuideProfileButton guideId={experience.guide.id} className="mt-3 inline-block" />
+              )}
             </div>
             <p className="text-xl font-bold text-brand-blueDark">{experience.price_usdc} USDC</p>
           </div>

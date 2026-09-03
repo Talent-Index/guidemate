@@ -12,6 +12,7 @@ import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { QrScanner } from "@/components/QrScanner";
 import { RatePanel } from "@/components/RatePanel";
 import { StarRating } from "@/components/ui/StarRating";
+import { ViewTouristProfileButton } from "@/components/ViewTouristProfileButton";
 
 const NO_SHOW_GRACE_PERIOD_MS = 30 * 60 * 1000;
 
@@ -195,6 +196,8 @@ export default function GuideActiveTourPage() {
 
 function TouristDetails({ booking }: { booking: BookingRecord }) {
   const name = booking.touristName?.trim() || "Guest";
+  const languages = booking.touristLanguages ?? [];
+  const tripCount = booking.touristCompletedTripCount ?? 0;
   return (
     <div className="w-full rounded-2xl border border-brand-border bg-brand-bg px-4 py-3 text-left">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-muted">Tourist</p>
@@ -204,12 +207,25 @@ function TouristDetails({ booking }: { booking: BookingRecord }) {
       ) : (
         <p className="mt-1 text-xs text-brand-muted">No tourist ratings yet</p>
       )}
+      <p className="mt-1 text-xs text-brand-muted">
+        {tripCount} {tripCount === 1 ? "trip" : "trips"} completed
+      </p>
       {booking.touristPhone ? (
         <a href={`tel:${booking.touristPhone}`} className="mt-1 inline-block text-sm font-semibold text-brand-accent">
           {booking.touristPhone}
         </a>
       ) : (
         <p className="mt-1 text-sm text-brand-muted">No phone on file</p>
+      )}
+      {languages.length > 0 && (
+        <p className="mt-2 text-sm text-brand-muted">
+          <span className="font-semibold text-brand-blueDark">Languages: </span>
+          {languages.join(", ")}
+        </p>
+      )}
+      {booking.touristBio && <p className="mt-2 text-sm text-brand-muted">{booking.touristBio}</p>}
+      {booking.touristId && (
+        <ViewTouristProfileButton touristId={booking.touristId} className="mt-3 block" fullWidth />
       )}
     </div>
   );

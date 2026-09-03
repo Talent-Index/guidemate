@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import { EXPERIENCE_CATEGORIES } from "@/lib/categories";
 import { RatePanel } from "@/components/RatePanel";
+import { ViewTouristProfileButton } from "@/components/ViewTouristProfileButton";
 import { listMyBookings, provisionWallet, submitTouristRating, type BookingRecord } from "@/lib/api";
 import { Price } from "@/lib/fx";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
@@ -321,9 +322,18 @@ export default function GuideDashboardPage() {
                       {b.touristPhone}
                     </a>
                   )}
+                  {b.touristRatingCount > 0 && (
+                    <StarRating value={b.touristRatingAvg} count={b.touristRatingCount} className="mt-1" />
+                  )}
+                  <p className="text-xs text-brand-muted">
+                    {b.touristCompletedTripCount} {b.touristCompletedTripCount === 1 ? "trip" : "trips"}
+                    {b.touristLanguages?.length ? ` · ${b.touristLanguages.join(", ")}` : ""}
+                  </p>
+                  {b.touristBio && <p className="mt-1 text-sm text-brand-muted line-clamp-2">{b.touristBio}</p>}
                   <p className="text-xs text-brand-muted">
                     {b.experienceTitle ?? "Experience"} · <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
                   </p>
+                  {b.touristId && <ViewTouristProfileButton touristId={b.touristId} className="mt-2 inline-block" />}
                 </div>
                 <Chip tone={b.status} />
               </div>
@@ -656,7 +666,12 @@ export default function GuideDashboardPage() {
                 <p className="text-xs text-brand-muted">
                   {b.touristName?.trim() || "Guest"}
                   {b.touristPhone ? ` · ${b.touristPhone}` : ""}
+                  {` · ${b.touristCompletedTripCount} ${b.touristCompletedTripCount === 1 ? "trip" : "trips"}`}
                 </p>
+                {b.touristLanguages?.length ? (
+                  <p className="text-xs text-brand-muted">{b.touristLanguages.join(", ")}</p>
+                ) : null}
+                {b.touristBio && <p className="mt-1 text-sm text-brand-muted line-clamp-2">{b.touristBio}</p>}
                 <p className="text-xs text-brand-muted">
                   {new Date(b.createdAt).toLocaleDateString()} ·{" "}
                   <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
@@ -685,6 +700,8 @@ export default function GuideDashboardPage() {
               </div>
               </div>
               {b.status === "paid" && b.touristId && (
+                <>
+                <ViewTouristProfileButton touristId={b.touristId} className="mt-3 inline-block" />
                 <RatePanel
                   title={`Rate ${b.touristName?.trim() || "this tourist"}`}
                   subtitle="How was this guest? Your rating helps other guides."
@@ -701,6 +718,7 @@ export default function GuideDashboardPage() {
                     return rating;
                   }}
                 />
+                </>
               )}
             </div>
           ))}

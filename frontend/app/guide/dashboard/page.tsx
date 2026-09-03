@@ -11,7 +11,8 @@ import { StarRating } from "@/components/ui/StarRating";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import { EXPERIENCE_CATEGORIES } from "@/lib/categories";
-import { listMyBookings, provisionWallet, type BookingRecord } from "@/lib/api";
+import { RatePanel } from "@/components/RatePanel";
+import { listMyBookings, provisionWallet, submitTouristRating, type BookingRecord } from "@/lib/api";
 import { Price } from "@/lib/fx";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 
@@ -648,7 +649,8 @@ export default function GuideDashboardPage() {
             <p className="text-sm text-brand-muted">No completed tours yet - they&apos;ll show up here once a booking is verified.</p>
           )}
           {pastBookings.map((b) => (
-            <div key={b.bookingId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3 max-md:rounded-3xl">
+            <div key={b.bookingId} className="rounded-lg border border-brand-border p-3 max-md:rounded-3xl">
+              <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="font-semibold text-brand-blueDark">{b.experienceTitle ?? b.request ?? "Tour"}</p>
                 <p className="text-xs text-brand-muted">
@@ -663,6 +665,7 @@ export default function GuideDashboardPage() {
                 {b.rating && (
                   <p className="mt-1 text-sm text-brand-amber" aria-label={`Rated ${b.rating.stars} stars`}>
                     {[1, 2, 3, 4, 5].map((n) => (n <= b.rating!.stars ? "★" : "☆")).join("")}
+                    <span className="ml-1 text-xs text-brand-muted">from tourist</span>
                   </p>
                 )}
               </div>
@@ -680,6 +683,25 @@ export default function GuideDashboardPage() {
                   <p className="text-xs text-brand-muted">Payout not yet received</p>
                 )}
               </div>
+              </div>
+              {b.status === "paid" && b.touristId && (
+                <RatePanel
+                  title={`Rate ${b.touristName?.trim() || "this tourist"}`}
+                  subtitle="How was this guest? Your rating helps other guides."
+                  existing={b.touristRating}
+                  placeholder="Optional: note how the trip went (visible to the tourist)"
+                  onSubmit={async (stars, comment) => {
+                    const { rating } = await submitTouristRating(
+                      { bookingId: b.bookingId, stars, comment },
+                      session.access_token
+                    );
+                    setGuideBookings((prev) =>
+                      prev.map((row) => (row.bookingId === b.bookingId ? { ...row, touristRating: rating } : row))
+                    );
+                    return rating;
+                  }}
+                />
+              )}
             </div>
           ))}
         </div>

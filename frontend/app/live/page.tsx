@@ -16,6 +16,7 @@ import {
   type LiveStreamRecord,
 } from "@/lib/api";
 import { Price } from "@/lib/fx";
+import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 
 export default function LiveBrowsePage() {
   const router = useRouter();
@@ -207,6 +208,7 @@ function StreamCard({ stream }: { stream: LiveStreamRecord }) {
           {stream.status === "live" ? "Watch live" : "Play recording"}
         </Button>
       </Link>
+      <ViewGuideProfileButton guideId={stream.guideId} className="mt-2 block" fullWidth />
     </Card>
   );
 }

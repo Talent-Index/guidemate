@@ -26,6 +26,7 @@ import {
   type StreamTip,
 } from "@/lib/api";
 import { Price } from "@/lib/fx";
+import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 
 const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? "";
 const USDC_ADDRESS = (process.env.NEXT_PUBLIC_MOCK_USDC_ADDRESS ?? "") as `0x${string}`;
@@ -177,6 +178,7 @@ export default function LiveStreamPage() {
           <Chip tone="neutral" label="Ended" />
           <h1 className="mt-2 text-xl font-bold text-brand-blueDark">{stream.title}</h1>
           <p className="text-sm text-brand-muted">with {stream.guideName}</p>
+          <ViewGuideProfileButton guideId={stream.guideId} className="mt-3 inline-block" />
           {stream.recordingUrl ? (
             <video className="mt-4 w-full rounded-lg bg-black" src={stream.recordingUrl} controls playsInline />
           ) : (
@@ -199,6 +201,7 @@ export default function LiveStreamPage() {
             with {stream.guideName}
             {stream.experienceTitle ? ` · ${stream.experienceTitle}` : ""}
           </p>
+          <ViewGuideProfileButton guideId={stream.guideId} className="mt-3 inline-block" />
         </div>
         <Chip tone="paid" label="Live" />
       </div>

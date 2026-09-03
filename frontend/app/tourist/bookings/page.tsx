@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
 import { ListRowSkeleton } from "@/components/ui/Skeleton";
-import { StarRating, StarRatingInput } from "@/components/ui/StarRating";
+import { StarRating } from "@/components/ui/StarRating";
 import { EndTripPanel } from "@/components/EndTripPanel";
+import { RatePanel } from "@/components/RatePanel";
+import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
@@ -158,6 +160,7 @@ function TripCard({
             <div>
               <p className="font-semibold text-brand-blueDark">{booking.experienceTitle ?? "Experience"}</p>
               <p className="text-sm text-brand-muted">with {booking.guideName}</p>
+              <ViewGuideProfileButton guideId={booking.guideId} className="mt-2 inline-block" />
               {(booking.experienceLocation || booking.experienceDurationMinutes) && (
                 <p className="mt-0.5 text-xs text-brand-muted">
                   {booking.experienceLocation}
@@ -178,68 +181,34 @@ function TripCard({
             <EndTripPanel bookingId={booking.bookingId} accessToken={sessionToken} />
           )}
           {booking.status === "paid" && (
-            <RateTourSection booking={booking} accessToken={sessionToken} onRated={onRated} />
+            <>
+              <RatePanel
+                title={`Rate ${booking.guideName}`}
+                subtitle="How was your experience? Your rating helps other tourists choose."
+                existing={booking.rating}
+                placeholder="Optional: say a bit about your guide (public)"
+                onSubmit={async (stars, comment) => {
+                  const { rating } = await submitRating(
+                    { bookingId: booking.bookingId, stars, comment },
+                    sessionToken
+                  );
+                  onRated(rating);
+                  return rating;
+                }}
+              />
+              {booking.touristRating && (
+                <div className="mt-3 rounded-lg bg-brand-bg p-3">
+                  <p className="text-xs font-semibold text-brand-muted">Your guide rated you</p>
+                  <StarRating value={booking.touristRating.stars} count={1} showCount={false} className="mt-1" />
+                  {booking.touristRating.comment && (
+                    <p className="mt-1 text-sm text-brand-muted">&quot;{booking.touristRating.comment}&quot;</p>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
     </Card>
-  );
-}
-
-function RateTourSection({
-  booking,
-  accessToken,
-  onRated,
-}: {
-  booking: BookingRecord;
-  accessToken: string;
-  onRated: (rating: NonNullable<BookingRecord["rating"]>) => void;
-}) {
-  const [stars, setStars] = useState(0);
-  const [comment, setComment] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  if (booking.rating) {
-    return (
-      <div className="mt-3 rounded-lg bg-brand-bg p-3">
-        <p className="text-xs font-semibold text-brand-muted">Your rating</p>
-        <StarRating value={booking.rating.stars} count={1} className="mt-1" />
-        {booking.rating.comment && <p className="mt-1 text-sm text-brand-muted">&quot;{booking.rating.comment}&quot;</p>}
-      </div>
-    );
-  }
-
-  async function handleSubmit() {
-    if (stars < 1) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const { rating } = await submitRating({ bookingId: booking.bookingId, stars, comment: comment.trim() }, accessToken);
-      onRated(rating);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div className="mt-3 rounded-lg border border-brand-border p-3">
-      <p className="text-sm font-semibold text-brand-blueDark">Rate {booking.guideName}</p>
-      <p className="text-xs text-brand-muted">How was your experience? Your rating helps other tourists choose.</p>
-      <StarRatingInput value={stars} onChange={setStars} className="mt-2" />
-      <textarea
-        className="form-input-light mt-2 resize-none"
-        rows={2}
-        placeholder="Optional: say a bit about your guide (public)"
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-      />
-      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
-      <Button variant="primary" className="mt-2" disabled={stars < 1 || submitting} onClick={handleSubmit}>
-        {submitting ? "Submitting..." : "Submit rating"}
-      </Button>
-    </div>
   );
 }

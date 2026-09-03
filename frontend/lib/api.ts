@@ -85,6 +85,9 @@ export interface BookingRecord {
   payout: PayoutInfo | null;
   refund: RefundInfo | null;
   rating: RatingInfo | null;
+  touristRating: RatingInfo | null;
+  touristRatingAvg: number;
+  touristRatingCount: number;
   createdAt: string;
 }
 
@@ -198,6 +201,53 @@ export function submitRating(
     headers: authHeaders(accessToken),
     body: JSON.stringify(input),
   });
+}
+
+export function submitTouristRating(
+  input: { bookingId: string; stars: number; comment?: string },
+  accessToken: string
+) {
+  return request<{ rating: RatingInfo }>("/api/ratings/tourist", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
+}
+
+export interface GuidePublicReview {
+  stars: number;
+  comment: string | null;
+  createdAt: string;
+  touristFirstName: string;
+}
+
+export interface GuidePublicExperience {
+  id: string;
+  title: string;
+  description: string;
+  tags: string[];
+  category: string | null;
+  priceUsdc: number;
+  durationMinutes: number;
+  location: string | null;
+  imageUrl: string | null;
+}
+
+export interface GuidePublicProfile {
+  id: string;
+  fullName: string;
+  bio: string | null;
+  languages: string[];
+  ratingAvg: number;
+  ratingCount: number;
+  isVetted: boolean;
+  completedTripCount: number;
+  reviews: GuidePublicReview[];
+  experiences: GuidePublicExperience[];
+}
+
+export function getGuideProfile(guideId: string) {
+  return request<{ guide: GuidePublicProfile }>(`/api/guides/${guideId}`);
 }
 
 export type StreamStatus = "scheduled" | "live" | "ended";

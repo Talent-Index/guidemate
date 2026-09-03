@@ -139,7 +139,7 @@ export function MobileTabBar() {
       {
         href: "/explore",
         label: "Explore",
-        match: (p) => p.startsWith("/explore") || p.startsWith("/book"),
+        match: (p) => p.startsWith("/explore") || p.startsWith("/book") || p.startsWith("/guides"),
         icon: (a) => <CompassIcon active={a} />,
       },
       { href: "/live", label: "Live", match: (p) => p.startsWith("/live"), icon: (a) => <LiveIcon active={a} /> },

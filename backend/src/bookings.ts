@@ -36,6 +36,9 @@ export interface BookingRecord {
   hotelWallet: string | null;
   touristName: string | null;
   touristPhone: string | null;
+  touristBio: string | null;
+  touristLanguages: string[];
+  touristCompletedTripCount: number;
   request: string | null;
   matchReason: string | null;
   amountUsdc: number;

@@ -7,10 +7,11 @@ interface StarRatingProps {
   count?: number;
   size?: "sm" | "md";
   className?: string;
+  showCount?: boolean;
 }
 
 /** Read-only star rating, e.g. "★★★★☆ 4.3 (12)". Shows a neutral placeholder until a guide has any reviews. */
-export function StarRating({ value, count, size = "sm", className = "" }: StarRatingProps) {
+export function StarRating({ value, count, size = "sm", className = "", showCount = true }: StarRatingProps) {
   const textSize = size === "sm" ? "text-xs" : "text-sm";
 
   if (!count) {
@@ -21,9 +22,11 @@ export function StarRating({ value, count, size = "sm", className = "" }: StarRa
     <span className={`inline-flex items-center gap-1 ${textSize} ${className}`}>
       <Stars value={value} size={size} />
       <span className="font-semibold text-brand-blueDark">{value.toFixed(1)}</span>
-      <span className="text-brand-muted">
-        ({count} {count === 1 ? "review" : "reviews"})
-      </span>
+      {showCount && (
+        <span className="text-brand-muted">
+          ({count} {count === 1 ? "review" : "reviews"})
+        </span>
+      )}
     </span>
   );
 }

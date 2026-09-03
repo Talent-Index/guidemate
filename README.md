@@ -22,11 +22,19 @@ These are live in the repo today - not a roadmap.
 - Tourist booking list with live escrow status (`/tourist/bookings`)
 - Guide dashboard: list experiences, photos, categories, history (`/guide/dashboard`)
 - Star ratings after a completed tour
-- 5% platform fee copy and a booking fee breakdown (85% guide / 15% platform on a direct book)
+- Direct bookings: tourist pays the listed price; on release 85% guide / 15% Guidemate (the 10% hotel slot routes to the protocol treasury when there is no hotel)
 
 ### Escrow and payouts (Avalanche Fuji)
-- Deployed `GuidemateEscrow`: `0x4837EfB8422143fdaa4f60805fC05a21cc9966C0`
-- Deployed `MockUSDC`: `0x76EC76a347115afa9a3490a256bA13447cfBd8c5`
+
+Live contracts on Avalanche Fuji (chain id `43113`). Explorer: [Snowtrace testnet](https://testnet.snowtrace.io).
+
+| Contract | Address | Deploy tx |
+|---|---|---|
+| `GuidemateEscrow` | [`0x4837EfB8422143fdaa4f60805fC05a21cc9966C0`](https://testnet.snowtrace.io/address/0x4837EfB8422143fdaa4f60805fC05a21cc9966C0) | [`0x148ad6f3…779faa`](https://testnet.snowtrace.io/tx/0x148ad6f395cdfcad5e927a9a197de00d062deb1889f4c00a8ba68d33d6779faa) |
+| `MockUSDC` | [`0x76EC76a347115afa9a3490a256bA13447cfBd8c5`](https://testnet.snowtrace.io/address/0x76EC76a347115afa9a3490a256bA13447cfBd8c5) | [`0x8c904142…cc0804`](https://testnet.snowtrace.io/tx/0x8c904142c9bccc56e117fde003278f904776adfec634d7d614d4f8e80ccc0804) |
+
+- Protocol treasury (15% platform cut + 20% no-show fee): [`0x99D12f1b05AE5AaD16cd230760786B3c972C11c0`](https://testnet.snowtrace.io/address/0x99D12f1b05AE5AaD16cd230760786B3c972C11c0). Set on-chain in [`0x08944ddf…74b378`](https://testnet.snowtrace.io/tx/0x08944ddfe85526dc9d7e981fe60eb38b59b07f862442f340fafab58fa874b378).
+- Deployer / backend signer: `0x15EaaED3067c06df39CA2062360900b249aF7963`
 - Pay → funds sit in the **escrow contract**, not the guide's wallet
 - On release: 85% guide custodial wallet / 10% hotel or protocol / 5% protocol
 - **End trip** on the tourist phone: 6-digit PIN + QR (`/tourist/bookings`)

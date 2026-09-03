@@ -86,6 +86,9 @@ function toBookingRecord(
     hotelWallet: row.hotel_wallet,
     touristName: null,
     touristPhone: null,
+    touristBio: null,
+    touristLanguages: [],
+    touristCompletedTripCount: 0,
     request: row.request_text,
     matchReason: row.match_reason,
     amountUsdc: Number(row.amount_usdc),
@@ -143,18 +146,27 @@ async function attachRatings(records: BookingRecord[], bookingIds: string[]): Pr
 async function withTouristProfiles(records: BookingRecord[]): Promise<BookingRecord[]> {
   const ids = [...new Set(records.map((r) => r.touristId).filter((id): id is string => Boolean(id)))];
   if (ids.length === 0) return records;
-  const { data, error } = await supabaseAdmin
-    .from("profiles")
-    .select("id, full_name, phone, rating_avg, rating_count")
-    .in("id", ids);
+  const [{ data, error }, { data: paidRows }] = await Promise.all([
+    supabaseAdmin.from("profiles").select("id, full_name, phone, bio, languages, rating_avg, rating_count").in("id", ids),
+    supabaseAdmin.from("bookings").select("tourist_id").eq("status", "paid").in("tourist_id", ids),
+  ]);
   if (error || !data) return records;
   const byId = new Map(data.map((p) => [p.id as string, p]));
+  const tripCounts = new Map<string, number>();
+  for (const row of paidRows ?? []) {
+    const id = row.tourist_id as string | null;
+    if (!id) continue;
+    tripCounts.set(id, (tripCounts.get(id) ?? 0) + 1);
+  }
   return records.map((r) => {
     const tourist = r.touristId ? byId.get(r.touristId) : undefined;
     return {
       ...r,
       touristName: (tourist?.full_name as string | null | undefined) ?? null,
       touristPhone: (tourist?.phone as string | null | undefined) ?? null,
+      touristBio: (tourist?.bio as string | null | undefined) ?? null,
+      touristLanguages: (tourist?.languages as string[] | null | undefined) ?? [],
+      touristCompletedTripCount: r.touristId ? (tripCounts.get(r.touristId) ?? 0) : 0,
       touristRatingAvg: Number(tourist?.rating_avg ?? 0),
       touristRatingCount: Number(tourist?.rating_count ?? 0),
     };

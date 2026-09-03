@@ -89,10 +89,11 @@ export default function HomePage() {
       <div className="bg-[var(--gm-canvas)] text-[var(--gm-ink)]">
         <section className="relative min-h-[100svh] w-full overflow-hidden">
           <Image
-            src="/hero-beach.png"
+            src="/hero-beach.jpg"
             alt="Golden sunset over a coastal shoreline"
             fill
             priority
+            quality={85}
             sizes="100vw"
             className="object-cover"
           />
@@ -163,7 +164,7 @@ export default function HomePage() {
                   className={`grid items-center gap-10 md:grid-cols-2 ${idx % 2 === 1 ? "md:[&>*:first-child]:order-2" : ""}`}
                 >
                   <div className="relative aspect-[16/10] overflow-hidden">
-                    <Image src={item.image} alt={item.imageAlt} fill className="object-cover" sizes="(min-width: 768px) 50vw, 100vw" />
+                    <Image src={item.image} alt={item.imageAlt} fill className="object-cover" sizes="(min-width: 768px) 50vw, 100vw" quality={85} />
                   </div>
                   <div>
                     <h3 className="text-2xl font-bold">{item.title}</h3>

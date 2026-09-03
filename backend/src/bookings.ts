@@ -47,6 +47,9 @@ export interface BookingRecord {
   payout: PayoutInfo | null;
   refund: RefundInfo | null;
   rating: RatingInfo | null;
+  touristRating: RatingInfo | null;
+  touristRatingAvg: number;
+  touristRatingCount: number;
   createdAt: string;
 }
 
@@ -59,7 +62,11 @@ const SELECT = `
 `;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toBookingRecord(row: any, rating: RatingInfo | null = null): BookingRecord {
+function toBookingRecord(
+  row: any,
+  rating: RatingInfo | null = null,
+  touristRating: RatingInfo | null = null
+): BookingRecord {
   return {
     bookingId: row.id,
     touristId: row.tourist_id,
@@ -94,6 +101,9 @@ function toBookingRecord(row: any, rating: RatingInfo | null = null): BookingRec
     payout: row.payout ?? null,
     refund: row.refund ?? null,
     rating,
+    touristRating,
+    touristRatingAvg: 0,
+    touristRatingCount: 0,
     createdAt: row.created_at,
   };
 }
@@ -106,10 +116,34 @@ async function fetchRatingsByBookingId(bookingIds: string[]): Promise<Map<string
   return new Map((data ?? []).map((r) => [r.booking_id as string, { stars: r.stars, comment: r.comment } as RatingInfo]));
 }
 
+async function fetchTouristRatingsByBookingId(bookingIds: string[]): Promise<Map<string, RatingInfo>> {
+  if (bookingIds.length === 0) return new Map();
+  const { data } = await supabaseAdmin
+    .from("tourist_ratings")
+    .select("booking_id, stars, comment")
+    .in("booking_id", bookingIds);
+  return new Map((data ?? []).map((r) => [r.booking_id as string, { stars: r.stars, comment: r.comment } as RatingInfo]));
+}
+
+async function attachRatings(records: BookingRecord[], bookingIds: string[]): Promise<BookingRecord[]> {
+  const [guideRatings, touristRatings] = await Promise.all([
+    fetchRatingsByBookingId(bookingIds),
+    fetchTouristRatingsByBookingId(bookingIds),
+  ]);
+  return records.map((r) => ({
+    ...r,
+    rating: guideRatings.get(r.bookingId) ?? null,
+    touristRating: touristRatings.get(r.bookingId) ?? null,
+  }));
+}
+
 async function withTouristProfiles(records: BookingRecord[]): Promise<BookingRecord[]> {
   const ids = [...new Set(records.map((r) => r.touristId).filter((id): id is string => Boolean(id)))];
   if (ids.length === 0) return records;
-  const { data, error } = await supabaseAdmin.from("profiles").select("id, full_name, phone").in("id", ids);
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("id, full_name, phone, rating_avg, rating_count")
+    .in("id", ids);
   if (error || !data) return records;
   const byId = new Map(data.map((p) => [p.id as string, p]));
   return records.map((r) => {
@@ -118,6 +152,8 @@ async function withTouristProfiles(records: BookingRecord[]): Promise<BookingRec
       ...r,
       touristName: (tourist?.full_name as string | null | undefined) ?? null,
       touristPhone: (tourist?.phone as string | null | undefined) ?? null,
+      touristRatingAvg: Number(tourist?.rating_avg ?? 0),
+      touristRatingCount: Number(tourist?.rating_count ?? 0),
     };
   });
 }
@@ -164,8 +200,7 @@ export async function saveBooking(input: CreateBookingInput): Promise<BookingRec
 export async function getBooking(bookingId: string): Promise<BookingRecord | undefined> {
   const { data, error } = await supabaseAdmin.from("bookings").select(SELECT).eq("id", bookingId).maybeSingle();
   if (error || !data) return undefined;
-  const ratings = await fetchRatingsByBookingId([bookingId]);
-  const [record] = await withTouristProfiles([toBookingRecord(data, ratings.get(bookingId) ?? null)]);
+  const [record] = await withTouristProfiles(await attachRatings([toBookingRecord(data)], [bookingId]));
   return record;
 }
 
@@ -210,6 +245,6 @@ export async function listBookings(filter: ListBookingsFilter = {}): Promise<Boo
 
   const { data, error } = await query;
   if (error || !data) return [];
-  const ratings = await fetchRatingsByBookingId(data.map((row) => row.id as string));
-  return withTouristProfiles(data.map((row) => toBookingRecord(row, ratings.get(row.id as string) ?? null)));
+  const ids = data.map((row) => row.id as string);
+  return withTouristProfiles(await attachRatings(data.map((row) => toBookingRecord(row)), ids));
 }

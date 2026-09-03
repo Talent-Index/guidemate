@@ -35,7 +35,7 @@ export function SiteFooter() {
           <SocialLink href="https://www.instagram.com/" label="Instagram">
             <path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm10 2H7a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3zm-5 3.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 0 1 12 7.5zm0 2A2.5 2.5 0 1 0 14.5 12 2.5 2.5 0 0 0 12 9.5zm5.25-3.25a1 1 0 1 1-1 1 1 1 0 0 1 1-1z" />
           </SocialLink>
-          <SocialLink href="https://x.com/" label="X">
+          <SocialLink href="https://x.com/yourguidemate" label="X">
             <path d="M18.9 2H22l-8.2 9.4L23.2 22h-6.6l-5.2-6.8L5.4 22H2.2l8.8-10L1 2h6.7l4.7 6.2L18.9 2zm-1.2 18h1.8L6.4 3.9H4.5L17.7 20z" />
           </SocialLink>
         </div>

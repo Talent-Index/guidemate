@@ -74,6 +74,9 @@ export interface BookingRecord {
   hotelWallet: string | null;
   touristName: string | null;
   touristPhone: string | null;
+  touristBio: string | null;
+  touristLanguages: string[];
+  touristCompletedTripCount: number;
   request: string | null;
   matchReason: string | null;
   amountUsdc: number;
@@ -248,6 +251,32 @@ export interface GuidePublicProfile {
 
 export function getGuideProfile(guideId: string) {
   return request<{ guide: GuidePublicProfile }>(`/api/guides/${guideId}`);
+}
+
+export interface TouristPublicReview {
+  stars: number;
+  comment: string | null;
+  createdAt: string;
+  guideFirstName: string;
+  experienceTitle: string | null;
+}
+
+export interface TouristPublicProfile {
+  id: string;
+  fullName: string;
+  phone: string | null;
+  bio: string | null;
+  languages: string[];
+  ratingAvg: number;
+  ratingCount: number;
+  completedTripCount: number;
+  reviews: TouristPublicReview[];
+}
+
+export function getTouristProfile(touristId: string, accessToken: string) {
+  return request<{ tourist: TouristPublicProfile }>(`/api/tourists/${touristId}`, {
+    headers: authHeaders(accessToken),
+  });
 }
 
 export type StreamStatus = "scheduled" | "live" | "ended";

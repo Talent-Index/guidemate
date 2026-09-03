@@ -115,7 +115,7 @@ export function MobileTabBar() {
   let tabs: Tab[];
   if (profile?.role === "guide") {
     tabs = [
-      { href: "/guide", label: "Tour", match: (p) => p === "/guide", icon: (a) => <TourIcon active={a} /> },
+      { href: "/guide", label: "Tour", match: (p) => p === "/guide" || p.startsWith("/tourists"), icon: (a) => <TourIcon active={a} /> },
       {
         href: "/guide/dashboard",
         label: "Dashboard",

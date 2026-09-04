@@ -22,6 +22,8 @@ export interface LiveStreamRecord {
   title: string;
   status: StreamStatus;
   priceUsdc: number;
+  scheduledAt: string | null;
+  communityNotifiedAt: string | null;
   startedAt: string | null;
   endedAt: string | null;
   recordingUrl: string | null;
@@ -31,7 +33,7 @@ export interface LiveStreamRecord {
 
 const SELECT = `
   id, guide_id, experience_id, room_name, title, status, price_usdc,
-  started_at, ended_at, recording_url, egress_id, created_at,
+  scheduled_at, community_notified_at, started_at, ended_at, recording_url, egress_id, created_at,
   guide:guide_id ( full_name, wallet_address ),
   experience:experience_id ( title )
 `;
@@ -49,6 +51,8 @@ function toStreamRecord(row: any): LiveStreamRecord {
     title: row.title,
     status: row.status,
     priceUsdc: Number(row.price_usdc),
+    scheduledAt: row.scheduled_at ?? null,
+    communityNotifiedAt: row.community_notified_at ?? null,
     startedAt: row.started_at,
     endedAt: row.ended_at,
     recordingUrl: row.recording_url ?? null,
@@ -63,9 +67,11 @@ export interface CreateStreamInput {
   roomName: string;
   title: string;
   priceUsdc: number;
+  scheduledAt?: string | null;
 }
 
 export async function createStream(input: CreateStreamInput): Promise<LiveStreamRecord> {
+  const isScheduled = Boolean(input.scheduledAt);
   const { data, error } = await supabaseAdmin
     .from("live_streams")
     .insert({
@@ -74,14 +80,35 @@ export async function createStream(input: CreateStreamInput): Promise<LiveStream
       room_name: input.roomName,
       title: input.title,
       price_usdc: input.priceUsdc,
-      status: "live",
-      started_at: new Date().toISOString(),
+      status: isScheduled ? "scheduled" : "live",
+      scheduled_at: input.scheduledAt ?? null,
+      started_at: isScheduled ? null : new Date().toISOString(),
     })
     .select(SELECT)
     .single();
 
   if (error || !data) throw new Error(error?.message ?? "failed to create stream");
   return toStreamRecord(data);
+}
+
+export interface ScheduleStreamInput {
+  guideId: string;
+  experienceId: string | null;
+  roomName: string;
+  title: string;
+  priceUsdc: number;
+  scheduledAt: string;
+}
+
+export async function scheduleStream(input: ScheduleStreamInput): Promise<LiveStreamRecord> {
+  return createStream({
+    guideId: input.guideId,
+    experienceId: input.experienceId,
+    roomName: input.roomName,
+    title: input.title,
+    priceUsdc: input.priceUsdc,
+    scheduledAt: input.scheduledAt,
+  });
 }
 
 export async function getStreamById(id: string): Promise<LiveStreamRecord | undefined> {
@@ -114,8 +141,33 @@ export async function listRecordedStreams(): Promise<LiveStreamRecord[]> {
   return data.map(toStreamRecord);
 }
 
+export async function listUpcomingStreams(): Promise<LiveStreamRecord[]> {
+  const { data, error } = await supabaseAdmin
+    .from("live_streams")
+    .select(SELECT)
+    .eq("status", "scheduled")
+    .not("community_notified_at", "is", null)
+    .order("scheduled_at", { ascending: true });
+  if (error || !data) return [];
+  return data.map(toStreamRecord);
+}
+
+export async function listGuideScheduledStreams(guideId: string): Promise<LiveStreamRecord[]> {
+  const { data, error } = await supabaseAdmin
+    .from("live_streams")
+    .select(SELECT)
+    .eq("guide_id", guideId)
+    .eq("status", "scheduled")
+    .order("scheduled_at", { ascending: true });
+  if (error || !data) return [];
+  return data.map(toStreamRecord);
+}
+
 export interface UpdateStreamPatch {
   status?: StreamStatus;
+  scheduledAt?: string | null;
+  communityNotifiedAt?: string | null;
+  startedAt?: string | null;
   endedAt?: string;
   recordingUrl?: string;
   egressId?: string;
@@ -124,6 +176,9 @@ export interface UpdateStreamPatch {
 export async function updateStream(id: string, patch: UpdateStreamPatch): Promise<LiveStreamRecord | undefined> {
   const update: Record<string, unknown> = {};
   if (patch.status) update.status = patch.status;
+  if (patch.scheduledAt !== undefined) update.scheduled_at = patch.scheduledAt;
+  if (patch.communityNotifiedAt !== undefined) update.community_notified_at = patch.communityNotifiedAt;
+  if (patch.startedAt !== undefined) update.started_at = patch.startedAt;
   if (patch.endedAt) update.ended_at = patch.endedAt;
   if (patch.recordingUrl) update.recording_url = patch.recordingUrl;
   if (patch.egressId) update.egress_id = patch.egressId;

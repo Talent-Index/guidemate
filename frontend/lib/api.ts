@@ -292,6 +292,8 @@ export interface LiveStreamRecord {
   title: string;
   status: StreamStatus;
   priceUsdc: number;
+  scheduledAt: string | null;
+  communityNotifiedAt: string | null;
   startedAt: string | null;
   endedAt: string | null;
   recordingUrl: string | null;
@@ -315,6 +317,16 @@ export function listRecordedStreams() {
   return request<{ streams: LiveStreamRecord[] }>("/api/streams/recorded");
 }
 
+export function listUpcomingStreams() {
+  return request<{ streams: LiveStreamRecord[] }>("/api/streams/upcoming");
+}
+
+export function listMyScheduledStreams(accessToken: string) {
+  return request<{ streams: LiveStreamRecord[] }>("/api/streams/mine/scheduled", {
+    headers: authHeaders(accessToken),
+  });
+}
+
 export function getStream(streamId: string) {
   return request<{ stream: LiveStreamRecord }>(`/api/streams/${streamId}`);
 }
@@ -331,6 +343,31 @@ export function startStream(
     method: "POST",
     headers: authHeaders(accessToken),
     body: JSON.stringify(input),
+  });
+}
+
+export function scheduleStream(
+  input: { title: string; scheduledAt: string; experienceId?: string; priceUsdc?: number },
+  accessToken: string
+) {
+  return request<{ stream: LiveStreamRecord }>("/api/streams/schedule", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
+}
+
+export function notifyStreamCommunity(streamId: string, accessToken: string) {
+  return request<{ stream: LiveStreamRecord }>(`/api/streams/${streamId}/notify`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+  });
+}
+
+export function startScheduledStream(streamId: string, accessToken: string) {
+  return request<{ stream: LiveStreamRecord; token: string }>(`/api/streams/${streamId}/start`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
   });
 }
 

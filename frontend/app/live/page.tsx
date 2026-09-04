@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
@@ -11,36 +11,76 @@ import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   listLiveStreams,
+  listMyScheduledStreams,
   listRecordedStreams,
+  listUpcomingStreams,
+  notifyStreamCommunity,
+  scheduleStream,
+  startScheduledStream,
   startStream,
   type LiveStreamRecord,
 } from "@/lib/api";
 import { Price } from "@/lib/fx";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 
+function formatWhen(iso: string) {
+  return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+function timeUntil(iso: string) {
+  const mins = Math.round((new Date(iso).getTime() - Date.now()) / 60000);
+  if (mins <= 0) return "starting soon";
+  if (mins < 60) return `in ${mins} min`;
+  const hours = Math.round(mins / 60);
+  return `in ~${hours} hour${hours === 1 ? "" : "s"}`;
+}
+
+function toDatetimeLocalValue(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export default function LiveBrowsePage() {
   const router = useRouter();
   const { session, profile } = useAuth();
   const [live, setLive] = useState<LiveStreamRecord[]>([]);
+  const [upcoming, setUpcoming] = useState<LiveStreamRecord[]>([]);
+  const [myScheduled, setMyScheduled] = useState<LiveStreamRecord[]>([]);
   const [recorded, setRecorded] = useState<LiveStreamRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("0");
+  const [scheduledAt, setScheduledAt] = useState(() =>
+    toDatetimeLocalValue(new Date(Date.now() + 2 * 60 * 60 * 1000))
+  );
   const [starting, setStarting] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
+  const [announcing, setAnnouncing] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
+  const [guideActionId, setGuideActionId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function refresh() {
       try {
-        const [liveRes, recordedRes] = await Promise.all([listLiveStreams(), listRecordedStreams()]);
+        const [liveRes, upcomingRes, recordedRes] = await Promise.all([
+          listLiveStreams(),
+          listUpcomingStreams(),
+          listRecordedStreams(),
+        ]);
         if (cancelled) return;
         setLive(liveRes.streams);
+        setUpcoming(upcomingRes.streams);
         setRecorded(recordedRes.streams);
         setError(null);
+
+        if (session?.access_token && profile?.role === "guide") {
+          const mine = await listMyScheduledStreams(session.access_token);
+          if (!cancelled) setMyScheduled(mine.streams);
+        }
       } catch (err) {
         if (!cancelled) setError((err as Error).message);
       } finally {
@@ -54,10 +94,9 @@ export default function LiveBrowsePage() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [session?.access_token, profile?.role]);
 
-  async function handleGoLive(e: FormEvent) {
-    e.preventDefault();
+  async function handleGoLive() {
     if (!session) return;
     setStarting(true);
     setStartError(null);
@@ -74,6 +113,89 @@ export default function LiveBrowsePage() {
     }
   }
 
+  async function handleSchedule() {
+    if (!session) return;
+    setScheduling(true);
+    setStartError(null);
+    try {
+      await scheduleStream(
+        {
+          title: title.trim(),
+          priceUsdc: Number(price) || 0,
+          scheduledAt: new Date(scheduledAt).toISOString(),
+        },
+        session.access_token
+      );
+      setTitle("");
+      const mine = await listMyScheduledStreams(session.access_token);
+      setMyScheduled(mine.streams);
+    } catch (err) {
+      setStartError((err as Error).message);
+    } finally {
+      setScheduling(false);
+    }
+  }
+
+  async function handleAnnounceInHour() {
+    if (!session || title.trim().length < 2) {
+      setStartError("Add a stream title first.");
+      return;
+    }
+    setAnnouncing(true);
+    setStartError(null);
+    try {
+      const when = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      const { stream } = await scheduleStream(
+        { title: title.trim(), priceUsdc: Number(price) || 0, scheduledAt: when },
+        session.access_token
+      );
+      await notifyStreamCommunity(stream.id, session.access_token);
+      setTitle("");
+      const [mine, upcomingRes] = await Promise.all([
+        listMyScheduledStreams(session.access_token),
+        listUpcomingStreams(),
+      ]);
+      setMyScheduled(mine.streams);
+      setUpcoming(upcomingRes.streams);
+    } catch (err) {
+      setStartError((err as Error).message);
+    } finally {
+      setAnnouncing(false);
+    }
+  }
+
+  async function handleNotify(streamId: string) {
+    if (!session) return;
+    setGuideActionId(streamId);
+    setStartError(null);
+    try {
+      await notifyStreamCommunity(streamId, session.access_token);
+      const [mine, upcomingRes] = await Promise.all([
+        listMyScheduledStreams(session.access_token),
+        listUpcomingStreams(),
+      ]);
+      setMyScheduled(mine.streams);
+      setUpcoming(upcomingRes.streams);
+    } catch (err) {
+      setStartError((err as Error).message);
+    } finally {
+      setGuideActionId(null);
+    }
+  }
+
+  async function handleStartEarly(streamId: string) {
+    if (!session) return;
+    setGuideActionId(streamId);
+    setStartError(null);
+    try {
+      const { stream } = await startScheduledStream(streamId, session.access_token);
+      router.push(`/live/${stream.id}`);
+    } catch (err) {
+      setStartError((err as Error).message);
+      setGuideActionId(null);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -81,21 +203,16 @@ export default function LiveBrowsePage() {
         <div className="hidden md:block">
           <h1 className="text-xl font-bold text-brand-blueDark">Live experiences</h1>
           <p className="mt-1 text-sm text-brand-muted">
-            Watch a guide stream from their phone. This list is empty until a signed-in guide starts a
-            stream with <span className="font-semibold text-brand-blueDark">Go live</span> - then it
-            appears here for everyone.
+            Watch guides live from their phone, or see what&apos;s coming up soon.
           </p>
         </div>
-        <p className="mt-3 text-sm text-brand-muted md:hidden">
-          This list is empty until a signed-in guide starts a stream - then it appears here for everyone.
-        </p>
       </div>
 
       {profile?.role === "guide" && (
         <Card>
-          <h2 className="text-lg font-bold text-brand-blueDark">Go live</h2>
+          <h2 className="text-lg font-bold text-brand-blueDark">Host a stream</h2>
           <p className="mt-1 text-sm text-brand-muted">
-            Starts a room immediately and opens your camera. Set a price for pay-per-view, or leave it at 0 for free.
+            Go live now, schedule for later, or tell the community you&apos;ll be on in about an hour.
           </p>
           {!session ? (
             <Link href="/auth/sign-in">
@@ -104,7 +221,7 @@ export default function LiveBrowsePage() {
               </Button>
             </Link>
           ) : (
-            <form onSubmit={handleGoLive} className="mt-4 grid gap-3 sm:grid-cols-[1fr_8rem_auto]">
+            <div className="mt-4 flex flex-col gap-4">
               <input
                 className="form-input-light"
                 placeholder="e.g. Umoja market walk, live"
@@ -112,22 +229,115 @@ export default function LiveBrowsePage() {
                 onChange={(e) => setTitle(e.target.value)}
                 required
               />
-              <input
-                className="form-input-light"
-                type="number"
-                min="0"
-                step="0.01"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                aria-label="Price in USDC"
-              />
-              <Button variant="primary" type="submit" disabled={starting || title.trim().length < 2}>
-                {starting ? "Starting..." : "Start stream"}
-              </Button>
-            </form>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <input
+                  className="form-input-light"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  aria-label="Price in USDC"
+                />
+                <input
+                  className="form-input-light"
+                  type="datetime-local"
+                  value={scheduledAt}
+                  onChange={(e) => setScheduledAt(e.target.value)}
+                  aria-label="Scheduled start time"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="primary"
+                  type="button"
+                  disabled={starting || title.trim().length < 2}
+                  onClick={handleGoLive}
+                >
+                  {starting ? "Starting..." : "Go live now"}
+                </Button>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  disabled={scheduling || title.trim().length < 2}
+                  onClick={handleSchedule}
+                >
+                  {scheduling ? "Scheduling..." : "Schedule stream"}
+                </Button>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  disabled={announcing || title.trim().length < 2}
+                  onClick={handleAnnounceInHour}
+                >
+                  {announcing ? "Announcing..." : "Notify: live in 1 hour"}
+                </Button>
+              </div>
+            </div>
           )}
           {startError && <p className="mt-2 text-sm text-red-600">{startError}</p>}
+
+          {myScheduled.length > 0 && (
+            <div className="mt-6 border-t border-brand-border pt-4">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-brand-muted">Your scheduled streams</h3>
+              <ul className="mt-3 flex flex-col gap-3">
+                {myScheduled.map((stream) => (
+                  <li
+                    key={stream.id}
+                    className="flex flex-col gap-2 rounded-lg border border-brand-border p-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="font-semibold text-brand-blueDark">{stream.title}</p>
+                      <p className="text-sm text-brand-muted">
+                        {stream.scheduledAt ? formatWhen(stream.scheduledAt) : "Time TBD"}
+                        {stream.communityNotifiedAt ? " · Announced to community" : ""}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {!stream.communityNotifiedAt && (
+                        <Button
+                          variant="secondary"
+                          type="button"
+                          disabled={guideActionId === stream.id}
+                          onClick={() => handleNotify(stream.id)}
+                        >
+                          Notify community
+                        </Button>
+                      )}
+                      <Button
+                        variant="primary"
+                        type="button"
+                        disabled={guideActionId === stream.id}
+                        onClick={() => handleStartEarly(stream.id)}
+                      >
+                        Start early
+                      </Button>
+                      <Link href={`/live/${stream.id}`}>
+                        <Button variant="secondary" type="button">View</Button>
+                      </Link>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </Card>
+      )}
+
+      {upcoming.length > 0 && (
+        <div>
+          <h2 className="text-lg font-bold text-brand-blueDark">Coming up</h2>
+          <p className="mt-1 text-sm text-brand-muted">Guides who announced they&apos;ll be live soon.</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {upcoming.map((stream) => (
+              <StreamCard
+                key={stream.id}
+                stream={stream}
+                badge={stream.scheduledAt ? timeUntil(stream.scheduledAt) : "Soon"}
+              />
+            ))}
+          </div>
+        </div>
       )}
 
       <div>
@@ -138,19 +348,8 @@ export default function LiveBrowsePage() {
           <Card className="mt-4">
             <p className="font-semibold text-brand-blueDark">Nobody is live right now</p>
             <p className="mt-2 text-sm text-brand-muted">
-              This page lists streams that a signed-in guide has started. Until someone clicks{" "}
-              <span className="font-semibold text-brand-blueDark">Start stream</span> on this page
-              (guide accounts only), the list stays empty on purpose.
+              Check back soon or look at the coming-up list above.
             </p>
-            {profile?.role !== "guide" && (
-              <p className="mt-2 text-sm text-brand-muted">
-                Want to host?{" "}
-                <Link href="/apply" className="font-semibold text-brand-accent hover:underline">
-                  Apply to be a guide
-                </Link>
-                , or use instant guide sign-up for the demo.
-              </p>
-            )}
           </Card>
         )}
         {!loading && (
@@ -177,7 +376,10 @@ export default function LiveBrowsePage() {
   );
 }
 
-function StreamCard({ stream }: { stream: LiveStreamRecord }) {
+function StreamCard({ stream, badge }: { stream: LiveStreamRecord; badge?: string }) {
+  const isLive = stream.status === "live";
+  const isScheduled = stream.status === "scheduled";
+
   return (
     <Card>
       <div className="flex items-start justify-between gap-2">
@@ -187,17 +389,20 @@ function StreamCard({ stream }: { stream: LiveStreamRecord }) {
             with {stream.guideName}
             {stream.experienceTitle ? ` · ${stream.experienceTitle}` : ""}
           </p>
+          {isScheduled && stream.scheduledAt && (
+            <p className="mt-1 text-xs text-brand-muted">{formatWhen(stream.scheduledAt)}</p>
+          )}
         </div>
         <Chip
-          tone={stream.status === "live" ? "paid" : "neutral"}
-          label={stream.status === "live" ? "Live" : "Recording"}
+          tone={isLive ? "paid" : "neutral"}
+          label={badge ?? (isLive ? "Live" : isScheduled ? "Scheduled" : "Recording")}
         />
       </div>
       <div className="mt-3">
         {stream.priceUsdc > 0 ? (
           <span className="inline-flex items-baseline gap-1.5">
             <Price amountUsdc={stream.priceUsdc} size="sm" align="start" />
-            <span className="text-sm text-brand-muted">to watch</span>
+            <span className="text-sm text-brand-muted">{isLive ? "to watch" : "planned price"}</span>
           </span>
         ) : (
           <p className="text-sm font-semibold text-brand-blueDark">Free</p>
@@ -205,7 +410,7 @@ function StreamCard({ stream }: { stream: LiveStreamRecord }) {
       </div>
       <Link href={`/live/${stream.id}`}>
         <Button variant="primary" className="mt-4 w-full">
-          {stream.status === "live" ? "Watch live" : "Play recording"}
+          {isLive ? "Watch live" : isScheduled ? "View details" : "Play recording"}
         </Button>
       </Link>
       <ViewGuideProfileButton guideId={stream.guideId} className="mt-2 block" fullWidth />

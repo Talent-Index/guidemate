@@ -108,6 +108,15 @@ function SignInIcon({ active }: { active: boolean }) {
   );
 }
 
+function SettingsIcon({ active }: { active: boolean }) {
+  return (
+    <IconFrame active={active}>
+      <circle cx="12" cy="12" r="2.6" fill={active ? "#111111" : "none"} />
+      <path d="M12 2.8v2.1M12 19.1v2.1M4.9 4.9l1.5 1.5M17.6 17.6l1.5 1.5M2.8 12h2.1M19.1 12h2.1M4.9 19.1l1.5-1.5M17.6 6.4l1.5-1.5" />
+    </IconFrame>
+  );
+}
+
 export function MobileTabBar() {
   const pathname = usePathname();
   const { user, profile } = useAuth();
@@ -146,8 +155,14 @@ export function MobileTabBar() {
       {
         href: "/tourist/bookings",
         label: "Bookings",
-        match: (p) => p.startsWith("/tourist"),
+        match: (p) => p.startsWith("/tourist/bookings"),
         icon: (a) => <BookingsIcon active={a} />,
+      },
+      {
+        href: "/tourist/settings",
+        label: "Settings",
+        match: (p) => p.startsWith("/tourist/settings"),
+        icon: (a) => <SettingsIcon active={a} />,
       },
     ];
   } else {

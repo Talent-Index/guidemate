@@ -76,6 +76,11 @@ export function NavBar() {
                   {profile.role === "guide" ? "Dashboard" : "Bookings"}
                 </Link>
               )}
+              {profile.role === "tourist" && (
+                <Link href="/tourist/settings" className={linkClass}>
+                  Settings
+                </Link>
+              )}
               <button type="button" onClick={handleSignOut} className={linkClass}>
                 Sign out
               </button>

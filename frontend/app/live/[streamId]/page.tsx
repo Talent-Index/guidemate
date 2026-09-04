@@ -20,7 +20,9 @@ import {
   getStream,
   joinStream,
   listStreamTips,
+  notifyStreamCommunity,
   recordStreamTip,
+  startScheduledStream,
   SNOWTRACE_TX_BASE,
   type LiveStreamRecord,
   type StreamTip,
@@ -45,6 +47,8 @@ export default function LiveStreamPage() {
   const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const [ending, setEnding] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [notifying, setNotifying] = useState(false);
   const [tipAmount, setTipAmount] = useState("1");
   const [payError, setPayError] = useState<string | null>(null);
 
@@ -153,6 +157,48 @@ export default function LiveStreamPage() {
     }
   }
 
+  async function handleStartEarly() {
+    if (!session) return;
+    setStarting(true);
+    setError(null);
+    try {
+      const { stream: updated, token: publishToken } = await startScheduledStream(streamId, session.access_token);
+      setStream(updated);
+      setToken(publishToken);
+      setRole("publisher");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  async function handleNotifyCommunity() {
+    if (!session) return;
+    setNotifying(true);
+    setError(null);
+    try {
+      const { stream: updated } = await notifyStreamCommunity(streamId, session.access_token);
+      setStream(updated);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setNotifying(false);
+    }
+  }
+
+  function formatWhen(iso: string) {
+    return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  }
+
+  function timeUntil(iso: string) {
+    const mins = Math.round((new Date(iso).getTime() - Date.now()) / 60000);
+    if (mins <= 0) return "starting soon";
+    if (mins < 60) return `in ${mins} min`;
+    const hours = Math.round(mins / 60);
+    return `in ~${hours} hour${hours === 1 ? "" : "s"}`;
+  }
+
   if (error && !stream) {
     return (
       <Card className="mx-auto max-w-md text-center">
@@ -189,8 +235,68 @@ export default function LiveStreamPage() {
     );
   }
 
+  if (stream.status === "scheduled") {
+    return (
+      <div className="mx-auto flex max-w-3xl flex-col gap-4 pb-24">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <Link href="/live" className="text-sm font-semibold text-brand-accent hover:underline">
+              ← All live streams
+            </Link>
+            <h1 className="mt-1 text-xl font-bold text-brand-blueDark">{stream.title}</h1>
+            <p className="text-sm text-brand-muted">
+              with {stream.guideName}
+              {stream.experienceTitle ? ` · ${stream.experienceTitle}` : ""}
+            </p>
+            <ViewGuideProfileButton guideId={stream.guideId} className="mt-3 inline-block" />
+          </div>
+          <Chip tone="neutral" label="Scheduled" />
+        </div>
+
+        <Card>
+          {stream.communityNotifiedAt ? (
+            <p className="text-sm font-semibold text-brand-success">
+              Announced to the community
+              {stream.scheduledAt ? ` · Goes live ${timeUntil(stream.scheduledAt)}` : ""}
+            </p>
+          ) : (
+            <p className="text-sm text-brand-muted">Not announced to the community yet.</p>
+          )}
+          {stream.scheduledAt && (
+            <p className="mt-2 text-sm text-brand-muted">Planned start: {formatWhen(stream.scheduledAt)}</p>
+          )}
+          {stream.priceUsdc > 0 && (
+            <p className="mt-2 text-sm text-brand-muted">
+              Planned price: <Price amountUsdc={stream.priceUsdc} size="sm" align="start" />
+            </p>
+          )}
+        </Card>
+
+        {isGuide && (
+          <Card>
+            <h2 className="text-sm font-bold text-brand-blueDark">Guide controls</h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {!stream.communityNotifiedAt && (
+                <Button variant="secondary" disabled={notifying} onClick={handleNotifyCommunity}>
+                  {notifying ? "Notifying..." : "Notify: live in 1 hour"}
+                </Button>
+              )}
+              <Button variant="primary" disabled={starting} onClick={handleStartEarly}>
+                {starting ? "Starting..." : "Start stream early"}
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+      </div>
+    );
+  }
+
+  const showEndBar = isGuide && stream.status === "live" && Boolean(token);
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className={`flex flex-col gap-4 ${showEndBar ? "pb-28" : ""}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link href="/live" className="text-sm font-semibold text-brand-accent hover:underline">
@@ -260,10 +366,21 @@ export default function LiveStreamPage() {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      {isGuide && token && (
-        <Button variant="secondary" disabled={ending} onClick={handleEnd}>
-          {ending ? "Ending..." : "End stream"}
-        </Button>
+      {showEndBar && (
+        <div
+          className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-40 border-t border-brand-border bg-[var(--gm-nav)]/95 px-4 py-3 backdrop-blur-md md:bottom-6 md:mx-auto md:max-w-lg md:rounded-full md:border md:shadow-lg"
+        >
+          <button
+            type="button"
+            disabled={ending}
+            onClick={handleEnd}
+            className="mx-auto flex w-full max-w-md items-center justify-center gap-2 rounded-full bg-red-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-60 md:w-full"
+            aria-label="End live stream"
+          >
+            <EndStreamIcon />
+            {ending ? "Ending stream..." : "End stream"}
+          </button>
+        </div>
       )}
 
       <Card>
@@ -323,5 +440,13 @@ export default function LiveStreamPage() {
         </p>
       )}
     </div>
+  );
+}
+
+function EndStreamIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
+      <rect x="6" y="6" width="12" height="12" rx="1.5" />
+    </svg>
   );
 }

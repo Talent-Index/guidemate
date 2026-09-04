@@ -11,7 +11,6 @@ import { StarRating } from "@/components/ui/StarRating";
 import { EndTripPanel } from "@/components/EndTripPanel";
 import { RatePanel } from "@/components/RatePanel";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
-import { TouristProfileCard } from "@/components/TouristProfileCard";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
@@ -82,8 +81,6 @@ export default function TouristBookingsPage() {
           Signed in as {profile?.fullName ?? session.user.email}
         </p>
       </div>
-
-      <TouristProfileCard />
 
       {loadingBookings && <ListRowSkeleton count={3} />}
       {error && <p className="text-sm text-red-600">{error}</p>}

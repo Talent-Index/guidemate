@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { completeBooking, completeBookingWithPin, listMyBookings, reportNoShow, submitTouristRating, type BookingRecord } from "@/lib/api";
 import { Price } from "@/lib/fx";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
-import { QrScanner } from "@/components/QrScanner";
+import { QrScanner, type QrScannerHandle } from "@/components/QrScanner";
 import { RatePanel } from "@/components/RatePanel";
 import { StarRating } from "@/components/ui/StarRating";
 import { ViewTouristProfileButton } from "@/components/ViewTouristProfileButton";
@@ -255,6 +255,7 @@ function EndTripPinForm({
   const [submitting, setSubmitting] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const scannerRef = useRef<QrScannerHandle>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -276,6 +277,7 @@ function EndTripPinForm({
     setError(null);
     try {
       const { booking } = await completeBooking(extractToken(raw));
+      await scannerRef.current?.stop();
       setScanning(false);
       onReleased(booking);
     } catch (err) {
@@ -297,21 +299,30 @@ function EndTripPinForm({
         disabled={submitting}
         onClick={() => {
           setError(null);
-          setScanning((open) => !open);
+          if (scanning) {
+            void scannerRef.current?.stop();
+            setScanning(false);
+            return;
+          }
+          setScanning(true);
+          void scannerRef.current?.start();
         }}
       >
         {scanning ? "Hide camera" : "Scan tourist QR"}
       </Button>
 
-      {scanning && (
-        <div className="mt-3 overflow-hidden rounded-2xl border border-brand-border p-2">
-          {submitting ? (
-            <p className="py-6 text-center text-sm text-brand-muted">Verifying and releasing escrow...</p>
-          ) : (
-            <QrScanner elementId={`guide-scan-${bookingId}`} onScan={(text) => void handleScan(text)} />
-          )}
-        </div>
-      )}
+      <div className={scanning ? "mt-3 overflow-hidden rounded-2xl border border-brand-border p-2" : "hidden"}>
+        {submitting ? (
+          <p className="py-6 text-center text-sm text-brand-muted">Verifying and releasing escrow...</p>
+        ) : (
+          <QrScanner
+            ref={scannerRef}
+            autoStart={false}
+            elementId={`guide-scan-${bookingId}`}
+            onScan={(text) => void handleScan(text)}
+          />
+        )}
+      </div>
 
       <form onSubmit={handleSubmit} className="mt-5">
         <label htmlFor={`end-trip-pin-${bookingId}`} className="text-xs font-semibold uppercase tracking-wide text-brand-muted">

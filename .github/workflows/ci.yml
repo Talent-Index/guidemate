@@ -1,0 +1,64 @@
+name: CI / Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build backend
+        run: npm run build:backend
+
+      - name: Build frontend
+        run: npm run build:frontend
+        env:
+          NEXT_PUBLIC_API_BASE_URL: https://guidemate-backend.onrender.com
+          NEXT_PUBLIC_SUPABASE_URL: https://oeyynnedpmuhfqxkecyt.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9leXlubmVkcG11aGZxeGtlY3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5NDg3NTQsImV4cCI6MjEwMzUyNDc1NH0.RV0GAn_EEMn5Gyh5HlqnJOR8JmEc-ltzNAkLjGdS7_g
+          NEXT_PUBLIC_MOCK_USDC_ADDRESS: "0x76EC76a347115afa9a3490a256bA13447cfBd8c5"
+          NEXT_PUBLIC_FUJI_RPC_URL: https://api.avax-test.network/ext/bc/C/rpc
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy backend (guidemate-backend)
+        env:
+          DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "::warning::RENDER_DEPLOY_HOOK_BACKEND not set — skipping backend deploy"
+            exit 0
+          fi
+          echo "Triggering Render deploy for guidemate-backend..."
+          curl -fsS "$DEPLOY_HOOK"
+
+      - name: Deploy frontend (yourguidemate)
+        env:
+          DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "::warning::RENDER_DEPLOY_HOOK_FRONTEND not set — skipping frontend deploy"
+            exit 0
+          fi
+          echo "Triggering Render deploy for yourguidemate..."
+          curl -fsS "$DEPLOY_HOOK"

@@ -3,13 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { BrandLogo } from "@/components/ui/BrandLogo";
-import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { homeForRole } from "@/lib/auth/home";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 export function NavBar() {
-  const pathname = usePathname();
   const { loading, user, profile } = useAuth();
   const [hidden, setHidden] = useState(false);
   const lastY = useRef(0);
@@ -116,23 +114,8 @@ export function NavBar() {
           <ThemeToggle />
         </nav>
 
-        <div className="flex items-center gap-2 md:hidden">
+        <div className="flex items-center md:hidden">
           <ThemeToggle />
-          {user && profile && settingsHref ? (
-            <Link
-              href={settingsHref}
-              className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-800 dark:text-white"
-            >
-              Settings
-            </Link>
-          ) : pathname === "/" ? (
-            <Link
-              href="/auth/sign-in"
-              className="bg-brand-amber px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#111111]"
-            >
-              Sign in
-            </Link>
-          ) : null}
         </div>
       </div>
     </header>

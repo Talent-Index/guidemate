@@ -111,9 +111,14 @@ export default function GuideDashboardPage() {
   }, [session]);
 
   useEffect(() => {
-    if (window.location.hash === "#settings") {
-      setActiveTab("settings");
+    function syncSettingsTab() {
+      if (window.location.hash === "#settings") {
+        setActiveTab("settings");
+      }
     }
+    syncSettingsTab();
+    window.addEventListener("hashchange", syncSettingsTab);
+    return () => window.removeEventListener("hashchange", syncSettingsTab);
   }, []);
 
   useEffect(() => {

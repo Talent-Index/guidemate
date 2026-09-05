@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import type { ReactNode } from "react";
 
@@ -117,11 +118,11 @@ function MessagesIcon({ active }: { active: boolean }) {
   );
 }
 
-function SettingsIcon({ active }: { active: boolean }) {
+function ProfileIcon({ active }: { active: boolean }) {
   return (
     <IconFrame active={active}>
-      <circle cx="12" cy="12" r="2.6" fill={active ? "#111111" : "none"} />
-      <path d="M12 2.8v2.1M12 19.1v2.1M4.9 4.9l1.5 1.5M17.6 17.6l1.5 1.5M2.8 12h2.1M19.1 12h2.1M4.9 19.1l1.5-1.5M17.6 6.4l1.5-1.5" />
+      <circle cx="12" cy="8.2" r="3.2" />
+      <path d="M5.4 19.4c.6-3.4 3.2-5 6.6-5s6 1.6 6.6 5" />
     </IconFrame>
   );
 }
@@ -129,6 +130,35 @@ function SettingsIcon({ active }: { active: boolean }) {
 export function MobileTabBar() {
   const pathname = usePathname();
   const { user, profile } = useAuth();
+  const [hash, setHash] = useState("");
+
+  useEffect(() => {
+    const syncHash = () => setHash(window.location.hash);
+    syncHash();
+    window.addEventListener("hashchange", syncHash);
+    return () => window.removeEventListener("hashchange", syncHash);
+  }, [pathname]);
+
+  const settingsHref =
+    profile?.role === "guide"
+      ? "/guide/dashboard#settings"
+      : profile?.role === "tourist"
+        ? "/tourist/settings"
+        : profile?.role === "admin"
+          ? "/admin#account"
+          : null;
+
+  const profileTab: Tab | null = settingsHref
+    ? {
+        href: settingsHref,
+        label: "Settings",
+        match: (p) =>
+          p.startsWith("/tourist/settings") ||
+          (p.startsWith("/guide/dashboard") && hash === "#settings") ||
+          (p.startsWith("/admin") && hash === "#account"),
+        icon: (a) => <ProfileIcon active={a} />,
+      }
+    : null;
 
   let tabs: Tab[];
   if (profile?.role === "guide") {
@@ -143,21 +173,23 @@ export function MobileTabBar() {
       {
         href: "/guide/dashboard",
         label: "Dashboard",
-        match: (p) => p.startsWith("/guide/dashboard"),
+        match: (p) => p.startsWith("/guide/dashboard") && hash !== "#settings",
         icon: (a) => <DashIcon active={a} />,
       },
       { href: "/live", label: "Live", match: (p) => p.startsWith("/live"), icon: (a) => <LiveIcon active={a} /> },
     ];
+    if (profileTab) tabs.push(profileTab);
   } else if (profile?.role === "admin") {
     tabs = [
       {
         href: "/admin/applications",
         label: "Dashboard",
-        match: (p) => p.startsWith("/admin"),
+        match: (p) => p.startsWith("/admin") && hash !== "#account",
         icon: (a) => <DashIcon active={a} />,
       },
       { href: "/live", label: "Live", match: (p) => p.startsWith("/live"), icon: (a) => <LiveIcon active={a} /> },
     ];
+    if (profileTab) tabs.push(profileTab);
   } else if (user && profile?.role === "tourist") {
     tabs = [
       {
@@ -179,13 +211,8 @@ export function MobileTabBar() {
         match: (p) => p.startsWith("/chat"),
         icon: (a) => <MessagesIcon active={a} />,
       },
-      {
-        href: "/tourist/settings",
-        label: "Settings",
-        match: (p) => p.startsWith("/tourist/settings"),
-        icon: (a) => <SettingsIcon active={a} />,
-      },
     ];
+    if (profileTab) tabs.push(profileTab);
   } else {
     tabs = [
       { href: "/", label: "Home", match: (p) => p === "/", icon: (a) => <HomeIcon active={a} /> },

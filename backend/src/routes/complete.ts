@@ -4,7 +4,7 @@ import { z } from "zod";
 import { bookingIdToBytes32, requireChain } from "../chain.js";
 import { getBooking, updateBooking, type BookingRecord } from "../bookings.js";
 import { verifyBookingToken, verifyCompletionPin } from "../qr.js";
-import { simulateMpesaPayout } from "../payout.js";
+import { recordWalletTransaction } from "../ledger.js";
 import { getUserIdFromAuthHeader } from "../supabase.js";
 
 export const completeRouter = Router();
@@ -54,7 +54,7 @@ completeRouter.post("/", async (req, res) => {
   }
 
   try {
-    const updated = await releaseAndPay(booking);
+    const updated = await releaseAndCredit(booking);
     res.json({ booking: updated });
   } catch (err) {
     console.error("[complete] failed", err);
@@ -62,7 +62,7 @@ completeRouter.post("/", async (req, res) => {
   }
 });
 
-async function releaseAndPay(booking: BookingRecord): Promise<BookingRecord> {
+async function releaseAndCredit(booking: BookingRecord): Promise<BookingRecord> {
   const { escrow, usdc } = requireChain();
   const bytes32Id = bookingIdToBytes32(booking.bookingId);
   const decimals = await usdc.decimals();
@@ -82,7 +82,7 @@ async function releaseAndPay(booking: BookingRecord): Promise<BookingRecord> {
         };
       }
     } catch {
-      // not our event, ignore
+      // not our event
     }
   }
 
@@ -92,10 +92,19 @@ async function releaseAndPay(booking: BookingRecord): Promise<BookingRecord> {
     splits,
   });
 
-  const payout = await simulateMpesaPayout(splits.guideAmount, booking.guidePhone ?? "");
-  const updated = await updateBooking(booking.bookingId, { status: "paid", payout });
+  await recordWalletTransaction({
+    profileId: booking.guideId,
+    type: "booking_release",
+    amountUsdc: splits.guideAmount,
+    referenceType: "booking",
+    referenceId: booking.bookingId,
+    txHash: receipt?.hash ?? tx.hash,
+    metadata: { splits },
+  });
+
+  const updated = await updateBooking(booking.bookingId, { status: "paid" });
   if (!updated) {
-    throw new Error("booking update failed after payout");
+    throw new Error("booking update failed after release");
   }
   return updated;
 }

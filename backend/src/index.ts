@@ -13,6 +13,8 @@ import { streamsRouter } from "./routes/streams.js";
 import { walletRouter } from "./routes/wallet.js";
 import { adminRouter } from "./routes/admin.js";
 import { fxRouter } from "./routes/fx.js";
+import { paymentsRouter } from "./routes/payments.js";
+import { chatRouter } from "./routes/chat.js";
 
 const DEFAULT_CORS_ORIGINS = [
   "https://yourguidemate.top",
@@ -51,6 +53,8 @@ app.use("/api/guides", guidesRouter);
 app.use("/api/tourists", touristsRouter);
 app.use("/api/streams", streamsRouter);
 app.use("/api/wallet", walletRouter);
+app.use("/api/payments", paymentsRouter);
+app.use("/api/chat", chatRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/fx", fxRouter);
 

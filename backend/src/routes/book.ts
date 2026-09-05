@@ -5,6 +5,9 @@ import { z } from "zod";
 import { getExperienceById } from "../experiences.js";
 import { bookingIdToBytes32, requireChain } from "../chain.js";
 import { saveBooking } from "../bookings.js";
+import { ensureConversation } from "../chat.js";
+import { recordWalletTransaction } from "../ledger.js";
+import { getCompletedPaymentIntent } from "./payments.js";
 import { signBookingToken } from "../qr.js";
 import { getUserIdFromAuthHeader } from "../supabase.js";
 
@@ -14,9 +17,11 @@ const bookSchema = z.object({
   request: z.string().min(3),
   experienceId: z.string().uuid(),
   matchReason: z.string().optional().default("Matched by Guidemate AI agent."),
-  // Only set for the secondary concierge/B2B flow - a real hotel is charging the guest.
   hotelName: z.string().optional(),
   hotelWallet: z.string().optional(),
+  paymentMethod: z.enum(["demo", "mpesa", "custodial", "external"]).optional().default("demo"),
+  paymentIntentId: z.string().uuid().optional(),
+  txHash: z.string().optional(),
 });
 
 bookRouter.post("/", async (req, res) => {
@@ -25,7 +30,8 @@ bookRouter.post("/", async (req, res) => {
     return res.status(400).json({ error: parsed.error.flatten() });
   }
 
-  const { request, experienceId, matchReason, hotelName, hotelWallet } = parsed.data;
+  const { request, experienceId, matchReason, hotelName, hotelWallet, paymentMethod, paymentIntentId } =
+    parsed.data;
 
   const experience = await getExperienceById(experienceId);
   if (!experience) {
@@ -38,19 +44,30 @@ bookRouter.post("/", async (req, res) => {
   try {
     const { signer, escrow, usdc } = requireChain();
     const touristId = await getUserIdFromAuthHeader(req.headers.authorization);
+    if (!touristId && paymentMethod !== "demo") {
+      return res.status(401).json({ error: "sign in required for this payment method" });
+    }
+
+    if (paymentMethod === "mpesa") {
+      if (!paymentIntentId) {
+        return res.status(400).json({ error: "paymentIntentId required for M-Pesa payments" });
+      }
+      const intent = await getCompletedPaymentIntent(paymentIntentId, touristId!);
+      if (!intent || intent.reference_id !== experienceId) {
+        return res.status(402).json({ error: "M-Pesa payment not completed for this experience" });
+      }
+    }
 
     const bookingId = randomUUID();
     const bytes32Id = bookingIdToBytes32(bookingId);
     const decimals = await usdc.decimals();
     const amountUnits = parseUnits(experience.priceUsdc.toString(), decimals);
-
-    // Direct tourist-to-guide bookings have no hotel in the loop - route that
-    // 10% share to the protocol treasury instead of requiring a hotel address.
     const resolvedHotelWallet = hotelWallet ?? (await escrow.protocolTreasury());
 
-    // Simulates the tourist's card/wallet charge being instantly converted to stablecoin.
-    const mintTx = await usdc.mint(await signer.getAddress(), amountUnits);
-    await mintTx.wait();
+    if (paymentMethod === "demo" || paymentMethod === "mpesa" || paymentMethod === "custodial") {
+      const mintTx = await usdc.mint(await signer.getAddress(), amountUnits);
+      await mintTx.wait();
+    }
 
     const lockTx = await escrow.createBooking(
       bytes32Id,
@@ -72,7 +89,22 @@ bookRouter.post("/", async (req, res) => {
       matchReason,
       amountUsdc: experience.priceUsdc,
       lockTxHash: receipt?.hash ?? lockTx.hash,
+      paymentMethod,
+      paymentRef: paymentIntentId ?? undefined,
     });
+
+    if (touristId) {
+      await recordWalletTransaction({
+        profileId: touristId,
+        type: "escrow_lock",
+        amountUsdc: -experience.priceUsdc,
+        referenceType: "booking",
+        referenceId: bookingId,
+        txHash: receipt?.hash ?? lockTx.hash,
+        metadata: { paymentMethod },
+      });
+      await ensureConversation(bookingId, touristId, experience.guide.id);
+    }
 
     res.status(201).json({
       booking: record,

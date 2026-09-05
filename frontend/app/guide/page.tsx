@@ -11,6 +11,7 @@ import { Price } from "@/lib/fx";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { QrScanner, type QrScannerHandle } from "@/components/QrScanner";
 import { RatePanel } from "@/components/RatePanel";
+import { ChatPanel } from "@/components/ChatPanel";
 import { StarRating } from "@/components/ui/StarRating";
 import { ViewTouristProfileButton } from "@/components/ViewTouristProfileButton";
 
@@ -141,6 +142,12 @@ export default function GuideActiveTourPage() {
                 onReleased={(updated) =>
                   setBookings((prev) => prev.map((b) => (b.bookingId === updated.bookingId ? updated : b)))
                 }
+              />
+
+              <ChatPanel
+                bookingId={booking.bookingId}
+                accessToken={session.access_token}
+                currentUserId={session.user.id}
               />
 
               <div className="w-full border-t border-brand-border pt-4">

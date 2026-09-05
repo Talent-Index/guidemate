@@ -234,3 +234,119 @@ export async function listStreamTips(streamId: string): Promise<StreamTip[]> {
     createdAt: row.created_at,
   }));
 }
+
+export interface StreamComment {
+  id: string;
+  profileId: string | null;
+  displayName: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface StreamReaction {
+  id: string;
+  profileId: string | null;
+  type: "like" | "flower";
+  createdAt: string;
+}
+
+export async function addStreamComment(input: {
+  streamId: string;
+  profileId: string | null;
+  displayName: string;
+  body: string;
+}): Promise<StreamComment> {
+  const { data, error } = await supabaseAdmin
+    .from("stream_comments")
+    .insert({
+      stream_id: input.streamId,
+      profile_id: input.profileId,
+      display_name: input.displayName,
+      body: input.body.trim(),
+    })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return {
+    id: data.id,
+    profileId: data.profile_id,
+    displayName: data.display_name,
+    body: data.body,
+    createdAt: data.created_at,
+  };
+}
+
+export async function listStreamComments(streamId: string, limit = 50): Promise<StreamComment[]> {
+  const { data } = await supabaseAdmin
+    .from("stream_comments")
+    .select("id, profile_id, display_name, body, created_at")
+    .eq("stream_id", streamId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    profileId: row.profile_id,
+    displayName: row.display_name,
+    body: row.body,
+    createdAt: row.created_at,
+  }));
+}
+
+export async function addStreamReaction(input: {
+  streamId: string;
+  profileId: string | null;
+  type: "like" | "flower";
+}): Promise<StreamReaction> {
+  const { data, error } = await supabaseAdmin
+    .from("stream_reactions")
+    .insert({
+      stream_id: input.streamId,
+      profile_id: input.profileId,
+      type: input.type,
+    })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return {
+    id: data.id,
+    profileId: data.profile_id,
+    type: data.type,
+    createdAt: data.created_at,
+  };
+}
+
+export async function countStreamReactions(streamId: string): Promise<number> {
+  const { count } = await supabaseAdmin
+    .from("stream_reactions")
+    .select("*", { count: "exact", head: true })
+    .eq("stream_id", streamId);
+  return count ?? 0;
+}
+
+export async function grantStreamAccess(input: {
+  streamId: string;
+  profileId: string | null;
+  paymentMethod: "wallet" | "mpesa" | "external";
+  paymentRef?: string;
+}): Promise<void> {
+  await supabaseAdmin.from("stream_access").upsert(
+    {
+      stream_id: input.streamId,
+      profile_id: input.profileId,
+      payment_method: input.paymentMethod,
+      payment_ref: input.paymentRef ?? null,
+    },
+    { onConflict: "stream_id,profile_id" }
+  );
+}
+
+export async function hasStreamAccess(streamId: string, profileId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("stream_access")
+    .select("id")
+    .eq("stream_id", streamId)
+    .eq("profile_id", profileId)
+    .maybeSingle();
+  return Boolean(data);
+}
+

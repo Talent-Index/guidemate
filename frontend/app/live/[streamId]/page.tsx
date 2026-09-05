@@ -18,13 +18,19 @@ import mockUsdcAbi from "@/lib/abi/MockUSDC.json";
 import {
   endStream,
   getStream,
+  getStreamStats,
+  initiateMpesaPayment,
   joinStream,
+  listStreamComments,
   listStreamTips,
   notifyStreamCommunity,
+  postStreamComment,
+  postStreamReaction,
   recordStreamTip,
   startScheduledStream,
   SNOWTRACE_TX_BASE,
   type LiveStreamRecord,
+  type StreamComment,
   type StreamTip,
 } from "@/lib/api";
 import { Price } from "@/lib/fx";
@@ -51,6 +57,11 @@ export default function LiveStreamPage() {
   const [notifying, setNotifying] = useState(false);
   const [tipAmount, setTipAmount] = useState("1");
   const [payError, setPayError] = useState<string | null>(null);
+  const [mpesaPhone, setMpesaPhone] = useState("");
+  const [comments, setComments] = useState<StreamComment[]>([]);
+  const [commentBody, setCommentBody] = useState("");
+  const [stats, setStats] = useState({ viewerCount: 0, reactionCount: 0 });
+  const [flowers, setFlowers] = useState(0);
 
   const isGuide = Boolean(session && stream && session.user.id === stream.guideId);
   const needsPayment = Boolean(stream && stream.status === "live" && stream.priceUsdc > 0 && !isGuide && !token);
@@ -81,11 +92,11 @@ export default function LiveStreamPage() {
     };
   }, [streamId, refreshTips]);
 
-  async function handleJoin(txHash?: string) {
+  async function handleJoin(opts?: { txHash?: string; paymentIntentId?: string }) {
     setJoining(true);
     setError(null);
     try {
-      const result = await joinStream(streamId, session?.access_token, txHash);
+      const result = await joinStream(streamId, session?.access_token, opts);
       setToken(result.token);
       setRole(result.role);
       setStream(result.stream);
@@ -116,7 +127,62 @@ export default function LiveStreamPage() {
     setPayError(null);
     try {
       const hash = await transferUsdc(stream.guideWallet as `0x${string}`, stream.priceUsdc);
-      await handleJoin(hash);
+      await handleJoin({ txHash: hash });
+    } catch (err) {
+      setPayError((err as Error).message);
+    }
+  }
+
+  async function handleMpesaPayToWatch() {
+    if (!session || !stream) return;
+    if (!mpesaPhone.trim()) {
+      setPayError("Enter your M-Pesa phone number");
+      return;
+    }
+    setPayError(null);
+    try {
+      const payment = await initiateMpesaPayment(
+        {
+          purpose: "stream_ppv",
+          referenceId: stream.id,
+          amountUsdc: stream.priceUsdc,
+          phone: mpesaPhone.trim(),
+        },
+        session.access_token
+      );
+      await handleJoin({ paymentIntentId: payment.intentId });
+    } catch (err) {
+      setPayError((err as Error).message);
+    }
+  }
+
+  useEffect(() => {
+    if (!stream || stream.status !== "live") return;
+    const refresh = () => {
+      getStreamStats(streamId).then(setStats).catch(() => {});
+      listStreamComments(streamId).then((r) => setComments(r.comments)).catch(() => {});
+    };
+    refresh();
+    const interval = setInterval(refresh, 5000);
+    return () => clearInterval(interval);
+  }, [streamId, stream?.status]);
+
+  async function handleTapFlower() {
+    setFlowers((f) => f + 1);
+    try {
+      await postStreamReaction(streamId, "flower", session?.access_token);
+    } catch {
+      // best effort
+    }
+  }
+
+  async function handlePostComment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!commentBody.trim()) return;
+    try {
+      const { comment } = await postStreamComment(streamId, commentBody.trim(), session?.access_token);
+      setComments((prev) => [...prev, comment]);
+      setCommentBody("");
     } catch (err) {
       setPayError((err as Error).message);
     }
@@ -322,7 +388,20 @@ export default function LiveStreamPage() {
       )}
 
       {token && LIVEKIT_URL ? (
-        <div className="overflow-hidden rounded-card border border-brand-border" data-lk-theme="default">
+        <div className="relative overflow-hidden rounded-card border border-brand-border" data-lk-theme="default">
+          <div
+            className="absolute inset-0 z-10 md:pointer-events-none"
+            onClick={handleTapFlower}
+            aria-hidden
+          />
+          <div className="pointer-events-none absolute left-3 top-3 z-20 flex gap-2">
+            <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white">
+              {stats.viewerCount} watching
+            </span>
+            <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white">
+              {stats.reactionCount + flowers} flowers
+            </span>
+          </div>
           <LiveKitRoom
             serverUrl={LIVEKIT_URL}
             token={token}
@@ -334,6 +413,13 @@ export default function LiveStreamPage() {
             <VideoConference />
             <RoomAudioRenderer />
           </LiveKitRoom>
+          <div className="absolute bottom-0 left-0 right-0 z-20 max-h-32 overflow-y-auto bg-gradient-to-t from-black/70 to-transparent px-3 pb-3 pt-8">
+            {comments.slice(-5).map((c) => (
+              <p key={c.id} className="text-xs text-white">
+                <span className="font-semibold">{c.displayName}</span> {c.body}
+              </p>
+            ))}
+          </div>
         </div>
       ) : needsPayment ? (
         <Card>
@@ -341,15 +427,31 @@ export default function LiveStreamPage() {
             Pay-per-view
             <Price amountUsdc={stream.priceUsdc} size="sm" align="start" />
           </h2>
-          <p className="mt-1 text-sm text-brand-muted">
-            This stream is paid. Transfer MockUSDC on Fuji straight to the guide&apos;s wallet, then you&apos;ll get a
-            viewer token.
-          </p>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <WalletConnectButton />
-            <Button variant="primary" disabled={!address || writing || joining} onClick={handlePayToWatch}>
-              {writing || joining ? "Paying..." : `Pay ${stream.priceUsdc} USDC & watch`}
-            </Button>
+          <p className="mt-1 text-sm text-brand-muted">Pay with M-Pesa or crypto wallet to watch.</p>
+          <div className="mt-4 space-y-3">
+            <div>
+              <label className="text-sm font-medium">M-Pesa phone</label>
+              <input
+                className="form-input-light mt-1 w-full"
+                value={mpesaPhone}
+                onChange={(e) => setMpesaPhone(e.target.value)}
+                placeholder="+2547..."
+              />
+              <Button
+                variant="primary"
+                className="mt-2 w-full"
+                disabled={!session || joining}
+                onClick={handleMpesaPayToWatch}
+              >
+                {joining ? "Processing…" : `Pay with M-Pesa & watch`}
+              </Button>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <WalletConnectButton />
+              <Button variant="secondary" disabled={!address || writing || joining} onClick={handlePayToWatch}>
+                {writing || joining ? "Paying..." : `Pay ${stream.priceUsdc} USDC`}
+              </Button>
+            </div>
           </div>
           {payError && <p className="mt-2 text-sm text-red-600">{payError}</p>}
         </Card>
@@ -382,6 +484,21 @@ export default function LiveStreamPage() {
           </button>
         </div>
       )}
+
+      <Card>
+        <h2 className="text-sm font-bold text-brand-blueDark">Live chat</h2>
+        <form onSubmit={handlePostComment} className="mt-2 flex gap-2">
+          <input
+            className="form-input-light flex-1 text-sm"
+            placeholder="Say something…"
+            value={commentBody}
+            onChange={(e) => setCommentBody(e.target.value)}
+          />
+          <Button type="submit" variant="secondary" disabled={!commentBody.trim()}>
+            Send
+          </Button>
+        </form>
+      </Card>
 
       <Card>
         <h2 className="text-sm font-bold text-brand-blueDark">Tip the guide</h2>

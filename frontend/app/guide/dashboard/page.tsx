@@ -16,8 +16,9 @@ import { ViewTouristProfileButton } from "@/components/ViewTouristProfileButton"
 import { listMyBookings, provisionWallet, submitTouristRating, type BookingRecord } from "@/lib/api";
 import { Price } from "@/lib/fx";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
+import { WalletPanel } from "@/components/WalletPanel";
 
-type DashboardTab = "experiences" | "history" | "settings";
+type DashboardTab = "experiences" | "history" | "wallet" | "settings";
 
 interface ExperienceRow {
   id: string;
@@ -350,6 +351,9 @@ export default function GuideDashboardPage() {
           <TabButton active={activeTab === "history"} onClick={() => setActiveTab("history")}>
             Past tours
           </TabButton>
+          <TabButton active={activeTab === "wallet"} onClick={() => setActiveTab("wallet")}>
+            Wallet
+          </TabButton>
         </div>
         <button
           type="button"
@@ -643,6 +647,18 @@ export default function GuideDashboardPage() {
           ))}
         </div>
       </Card>
+      )}
+
+      {activeTab === "wallet" && session && (
+        <div className="flex flex-col gap-4">
+          <Card>
+            <h2 className="text-lg font-bold text-brand-blueDark">Your wallet</h2>
+            <p className="mt-1 text-sm text-brand-muted">
+              Earnings from tours and live streams land here. Withdraw to your M-Pesa number anytime.
+            </p>
+          </Card>
+          <WalletPanel accessToken={session.access_token} canWithdraw phone={phone} />
+        </div>
       )}
 
       {activeTab === "history" && (

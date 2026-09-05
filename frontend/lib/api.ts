@@ -133,6 +133,9 @@ export function createBooking(
     matchReason: string;
     hotelName?: string;
     hotelWallet?: string;
+    paymentMethod?: "demo" | "mpesa" | "custodial" | "external";
+    paymentIntentId?: string;
+    txHash?: string;
   },
   accessToken?: string
 ) {
@@ -374,14 +377,14 @@ export function startScheduledStream(streamId: string, accessToken: string) {
 export function joinStream(
   streamId: string,
   accessToken?: string,
-  txHash?: string
+  opts?: { txHash?: string; paymentIntentId?: string }
 ) {
   return request<{ token: string; stream: LiveStreamRecord; role: "publisher" | "viewer" }>(
     `/api/streams/${streamId}/join-token`,
     {
       method: "POST",
       headers: authHeaders(accessToken),
-      body: JSON.stringify(txHash ? { txHash } : {}),
+      body: JSON.stringify(opts ?? {}),
     }
   );
 }
@@ -398,6 +401,179 @@ export function provisionWallet(accessToken: string) {
     method: "POST",
     headers: authHeaders(accessToken),
   });
+}
+
+export interface WalletTransaction {
+  id: string;
+  profileId: string;
+  type: string;
+  amountUsdc: number;
+  amountKes: number | null;
+  referenceType: string | null;
+  referenceId: string | null;
+  txHash: string | null;
+  mpesaRef: string | null;
+  status: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface WalletSummary {
+  address: string | null;
+  balanceUsdc: number;
+  balanceKes: number;
+  transactions: WalletTransaction[];
+}
+
+export function getWallet(accessToken: string) {
+  return request<WalletSummary>("/api/wallet", { headers: authHeaders(accessToken) });
+}
+
+export function withdrawWallet(amountUsdc: number, accessToken: string, phone?: string) {
+  return request<{ withdrawalId: string; reference: string; kesAmount: number }>("/api/wallet/withdraw", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ amountUsdc, phone }),
+  });
+}
+
+export function initiateMpesaPayment(
+  input: { purpose: "booking" | "stream_ppv" | "stream_tip"; referenceId: string; amountUsdc: number; phone: string },
+  accessToken: string
+) {
+  return request<{
+    intentId: string;
+    checkoutRequestId: string;
+    mpesaReceipt: string;
+    amountKes: number;
+    amountUsdc: number;
+    status: string;
+  }>("/api/payments/mpesa/initiate", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
+}
+
+export interface ChatMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  body: string;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export function getChat(bookingId: string, accessToken: string) {
+  return request<{ conversation: { id: string; bookingId: string }; messages: ChatMessage[] }>(
+    `/api/chat/${bookingId}`,
+    { headers: authHeaders(accessToken) }
+  );
+}
+
+export function sendChatMessage(bookingId: string, body: string, accessToken: string) {
+  return request<{ message: ChatMessage }>(`/api/chat/${bookingId}/messages`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ body }),
+  });
+}
+
+export interface StreamComment {
+  id: string;
+  profileId: string | null;
+  displayName: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface StreamStats {
+  viewerCount: number;
+  reactionCount: number;
+  tipCount: number;
+  tipTotalUsdc: number;
+}
+
+export function listStreamComments(streamId: string) {
+  return request<{ comments: StreamComment[] }>(`/api/streams/${streamId}/comments`);
+}
+
+export function postStreamComment(streamId: string, body: string, accessToken?: string) {
+  return request<{ comment: StreamComment }>(`/api/streams/${streamId}/comments`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ body }),
+  });
+}
+
+export function postStreamReaction(streamId: string, type: "like" | "flower", accessToken?: string) {
+  return request<{ reaction: unknown; total: number }>(`/api/streams/${streamId}/reactions`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ type }),
+  });
+}
+
+export function getStreamStats(streamId: string) {
+  return request<StreamStats>(`/api/streams/${streamId}/stats`);
+}
+
+export interface AnalyticsOverview {
+  guides: number;
+  tourists: number;
+  admins: number;
+  bookingsTotal: number;
+  bookingsLocked: number;
+  bookingsPaid: number;
+  bookingsRefunded: number;
+  gmvUsdc: number;
+  platformRevenueUsdc: number;
+  guideEarningsUsdc: number;
+  streamsTotal: number;
+  streamsLive: number;
+  streamTipsUsdc: number;
+  waitlistCount: number;
+  pendingApplications: number;
+}
+
+export function getAdminOverview(accessToken: string, from?: string, to?: string) {
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const qs = params.toString();
+  return request<{ overview: AnalyticsOverview }>(`/api/admin/analytics/overview${qs ? `?${qs}` : ""}`, {
+    headers: authHeaders(accessToken),
+  });
+}
+
+export function getAdminTransactions(accessToken: string, opts?: { limit?: number; type?: string }) {
+  const params = new URLSearchParams();
+  if (opts?.limit) params.set("limit", String(opts.limit));
+  if (opts?.type) params.set("type", opts.type);
+  const qs = params.toString();
+  return request<{ transactions: WalletTransaction[] }>(`/api/admin/transactions${qs ? `?${qs}` : ""}`, {
+    headers: authHeaders(accessToken),
+  });
+}
+
+export function getAdminReportUrl(from?: string, to?: string) {
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const qs = params.toString();
+  return `${API_BASE}/api/admin/reports/export${qs ? `?${qs}` : ""}`;
+}
+
+export async function downloadAdminReport(accessToken: string, from?: string, to?: string) {
+  const url = getAdminReportUrl(from, to);
+  const res = await fetch(url, { headers: authHeaders(accessToken) });
+  if (!res.ok) throw new Error("Failed to download report");
+  const blob = await res.blob();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "guidemate-report.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 export function approveApplication(id: string, accessToken: string) {

@@ -1,5 +1,10 @@
-import { createCipheriv, randomBytes } from "node:crypto";
-import { Wallet } from "ethers";
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { Contract, formatUnits, parseUnits, Wallet } from "ethers";
+import mockUsdcAbi from "./abi/MockUSDC.json" with { type: "json" };
+import { provider, requireChain } from "./chain.js";
+import { listWalletTransactions, recordWalletTransaction } from "./ledger.js";
+import { getRampProvider } from "./ramp/index.js";
+import { usdcToKes } from "./fx.js";
 import { supabaseAdmin } from "./supabase.js";
 
 function encryptionKey(): Buffer {
@@ -13,7 +18,6 @@ function encryptionKey(): Buffer {
   return Buffer.from(hex, "hex");
 }
 
-/// AES-256-GCM: iv (12) + auth tag (16) + ciphertext, all hex, colon-separated.
 function encryptPrivateKey(privateKey: string): string {
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
@@ -22,10 +26,26 @@ function encryptPrivateKey(privateKey: string): string {
   return `${iv.toString("hex")}:${tag.toString("hex")}:${encrypted.toString("hex")}`;
 }
 
-/// Generates a receive-only custodial wallet for a guide, stores the encrypted
-/// private key, and writes the address onto profiles.wallet_address.
-/// Idempotent: if the profile already has a wallet_address, that address is returned.
-export async function provisionGuideWallet(profileId: string): Promise<string> {
+function decryptPrivateKey(encrypted: string): string {
+  const [ivHex, tagHex, dataHex] = encrypted.split(":");
+  if (!ivHex || !tagHex || !dataHex) throw new Error("invalid encrypted key format");
+  const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), Buffer.from(ivHex, "hex"));
+  decipher.setAuthTag(Buffer.from(tagHex, "hex"));
+  const decrypted = Buffer.concat([decipher.update(Buffer.from(dataHex, "hex")), decipher.final()]);
+  return decrypted.toString("utf8");
+}
+
+async function getEncryptedKey(profileId: string): Promise<string | null> {
+  const { data, error } = await supabaseAdmin
+    .from("guide_wallet_keys")
+    .select("encrypted_private_key")
+    .eq("profile_id", profileId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data?.encrypted_private_key as string) ?? null;
+}
+
+export async function provisionCustodialWallet(profileId: string): Promise<string> {
   const { data: profile, error: profileError } = await supabaseAdmin
     .from("profiles")
     .select("wallet_address")
@@ -50,4 +70,99 @@ export async function provisionGuideWallet(profileId: string): Promise<string> {
   if (updateError) throw new Error(updateError.message);
 
   return wallet.address;
+}
+
+/** @deprecated use provisionCustodialWallet */
+export const provisionGuideWallet = provisionCustodialWallet;
+
+export async function getWalletAddress(profileId: string): Promise<string | null> {
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("wallet_address")
+    .eq("id", profileId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data?.wallet_address as string) ?? null;
+}
+
+export async function getWalletBalance(profileId: string): Promise<number> {
+  const address = await getWalletAddress(profileId);
+  if (!address) return 0;
+  const { usdc } = requireChain();
+  const decimals = await usdc.decimals();
+  const balance = await usdc.balanceOf(address);
+  return Number(formatUnits(balance, decimals));
+}
+
+export async function getWalletSummary(profileId: string) {
+  const address = await getWalletAddress(profileId);
+  const balanceUsdc = address ? await getWalletBalance(profileId) : 0;
+  const balanceKes = await usdcToKes(balanceUsdc);
+  const transactions = await listWalletTransactions(profileId, 50);
+  return { address, balanceUsdc, balanceKes, transactions };
+}
+
+export async function withdrawToMpesa(
+  profileId: string,
+  amountUsdc: number,
+  phone: string
+): Promise<{ withdrawalId: string; reference: string; kesAmount: number }> {
+  if (amountUsdc <= 0) throw new Error("amount must be positive");
+  const balance = await getWalletBalance(profileId);
+  if (amountUsdc > balance) throw new Error("insufficient wallet balance");
+
+  const ramp = getRampProvider();
+  const quote = await ramp.getQuote(amountUsdc, "off");
+  const kesAmount = quote.kes - quote.fee;
+
+  const { data: withdrawal, error: insertError } = await supabaseAdmin
+    .from("withdrawal_requests")
+    .insert({
+      profile_id: profileId,
+      amount_usdc: amountUsdc,
+      kes_amount: kesAmount,
+      phone,
+      status: "processing",
+    })
+    .select()
+    .single();
+  if (insertError) throw new Error(insertError.message);
+
+  const { reference } = await ramp.createOffRamp({
+    withdrawalId: withdrawal.id,
+    phone,
+    amountUsdc,
+    kesAmount,
+  });
+
+  await supabaseAdmin
+    .from("withdrawal_requests")
+    .update({ status: "completed", ramp_ref: reference, completed_at: new Date().toISOString() })
+    .eq("id", withdrawal.id);
+
+  await recordWalletTransaction({
+    profileId,
+    type: "mpesa_withdraw",
+    amountUsdc: -amountUsdc,
+    amountKes: kesAmount,
+    referenceType: "withdrawal",
+    referenceId: withdrawal.id,
+    mpesaRef: reference,
+    status: "completed",
+  });
+
+  return { withdrawalId: withdrawal.id, reference, kesAmount };
+}
+
+export async function signUsdcTransfer(profileId: string, to: string, amountUsdc: number): Promise<string> {
+  const encrypted = await getEncryptedKey(profileId);
+  if (!encrypted) throw new Error("no custodial wallet for profile");
+  const { usdc } = requireChain();
+  const decimals = await usdc.decimals();
+  const amountUnits = parseUnits(amountUsdc.toString(), decimals);
+  const wallet = new Wallet(decryptPrivateKey(encrypted), provider);
+  const token = new Contract(await usdc.getAddress(), mockUsdcAbi, wallet);
+  const tx = await token.transfer(to, amountUnits);
+  const receipt = await tx.wait();
+  return receipt?.hash ?? tx.hash;
 }

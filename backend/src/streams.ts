@@ -163,6 +163,56 @@ export async function listGuideScheduledStreams(guideId: string): Promise<LiveSt
   return data.map(toStreamRecord);
 }
 
+export async function listGuideStreams(guideId: string, limit = 50): Promise<LiveStreamRecord[]> {
+  const { data, error } = await supabaseAdmin
+    .from("live_streams")
+    .select(SELECT)
+    .eq("guide_id", guideId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+  return data.map(toStreamRecord);
+}
+
+export interface StreamAggregateStats {
+  tipCount: number;
+  tipTotalUsdc: number;
+  reactionCount: number;
+  commentCount: number;
+}
+
+export async function aggregateStreamStats(streamIds: string[]): Promise<Map<string, StreamAggregateStats>> {
+  const stats = new Map<string, StreamAggregateStats>();
+  if (streamIds.length === 0) return stats;
+
+  for (const id of streamIds) {
+    stats.set(id, { tipCount: 0, tipTotalUsdc: 0, reactionCount: 0, commentCount: 0 });
+  }
+
+  const [{ data: tips }, { data: reactions }, { data: comments }] = await Promise.all([
+    supabaseAdmin.from("stream_tips").select("stream_id, amount_usdc").in("stream_id", streamIds),
+    supabaseAdmin.from("stream_reactions").select("stream_id").in("stream_id", streamIds),
+    supabaseAdmin.from("stream_comments").select("stream_id").in("stream_id", streamIds),
+  ]);
+
+  for (const row of tips ?? []) {
+    const entry = stats.get(row.stream_id);
+    if (!entry) continue;
+    entry.tipCount += 1;
+    entry.tipTotalUsdc += Number(row.amount_usdc);
+  }
+  for (const row of reactions ?? []) {
+    const entry = stats.get(row.stream_id);
+    if (entry) entry.reactionCount += 1;
+  }
+  for (const row of comments ?? []) {
+    const entry = stats.get(row.stream_id);
+    if (entry) entry.commentCount += 1;
+  }
+
+  return stats;
+}
+
 export interface UpdateStreamPatch {
   status?: StreamStatus;
   scheduledAt?: string | null;

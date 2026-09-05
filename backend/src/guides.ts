@@ -99,3 +99,115 @@ export async function getGuidePublicProfile(guideId: string): Promise<GuidePubli
     })),
   };
 }
+
+export interface GuideStreamInsight {
+  id: string;
+  title: string;
+  status: "scheduled" | "live" | "ended";
+  priceUsdc: number;
+  experienceTitle: string | null;
+  scheduledAt: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  recordingUrl: string | null;
+  createdAt: string;
+  tipCount: number;
+  tipTotalUsdc: number;
+  reactionCount: number;
+  commentCount: number;
+}
+
+export interface GuideInsights {
+  overview: {
+    confirmedBookings: number;
+    completedTours: number;
+    refundedTours: number;
+    scheduledStreams: number;
+    pastStreams: number;
+    tourEarningsUsdc: number;
+    streamEarningsUsdc: number;
+    ratingAvg: number;
+    ratingCount: number;
+  };
+  upcomingStreams: Array<{
+    id: string;
+    title: string;
+    status: "scheduled";
+    priceUsdc: number;
+    experienceTitle: string | null;
+    scheduledAt: string | null;
+    communityNotifiedAt: string | null;
+  }>;
+  pastStreams: GuideStreamInsight[];
+}
+
+export async function getGuideInsights(guideId: string): Promise<GuideInsights | undefined> {
+  const { data: profile, error } = await supabaseAdmin
+    .from("profiles")
+    .select("id, role, rating_avg, rating_count")
+    .eq("id", guideId)
+    .maybeSingle();
+  if (error || !profile || profile.role !== "guide") return undefined;
+
+  const { listBookings } = await import("./bookings.js");
+  const { aggregateStreamStats, listGuideStreams } = await import("./streams.js");
+
+  const [bookings, streams] = await Promise.all([listBookings({ guideId }), listGuideStreams(guideId)]);
+  const streamStats = await aggregateStreamStats(streams.map((s) => s.id));
+
+  const locked = bookings.filter((b) => b.status === "locked");
+  const paid = bookings.filter((b) => b.status === "paid");
+  const refunded = bookings.filter((b) => b.status === "refunded");
+
+  const tourEarningsUsdc = paid.reduce(
+    (sum, b) => sum + (b.splits?.guideAmount ?? Number((b.amountUsdc * 0.85).toFixed(2))),
+    0
+  );
+
+  const pastStreamRows = streams.filter((s) => s.status === "ended");
+  const pastStreams: GuideStreamInsight[] = pastStreamRows.map((s) => {
+    const stats = streamStats.get(s.id) ?? { tipCount: 0, tipTotalUsdc: 0, reactionCount: 0, commentCount: 0 };
+    return {
+      id: s.id,
+      title: s.title,
+      status: s.status,
+      priceUsdc: s.priceUsdc,
+      experienceTitle: s.experienceTitle,
+      scheduledAt: s.scheduledAt,
+      startedAt: s.startedAt,
+      endedAt: s.endedAt,
+      recordingUrl: s.recordingUrl,
+      createdAt: s.createdAt,
+      ...stats,
+    };
+  });
+
+  const streamEarningsUsdc = pastStreams.reduce((sum, s) => sum + s.tipTotalUsdc, 0);
+  const upcomingStreams = streams
+    .filter((s) => s.status === "scheduled")
+    .map((s) => ({
+      id: s.id,
+      title: s.title,
+      status: "scheduled" as const,
+      priceUsdc: s.priceUsdc,
+      experienceTitle: s.experienceTitle,
+      scheduledAt: s.scheduledAt,
+      communityNotifiedAt: s.communityNotifiedAt,
+    }));
+
+  return {
+    overview: {
+      confirmedBookings: locked.length,
+      completedTours: paid.length,
+      refundedTours: refunded.length,
+      scheduledStreams: upcomingStreams.length,
+      pastStreams: pastStreams.length,
+      tourEarningsUsdc: Number(tourEarningsUsdc.toFixed(2)),
+      streamEarningsUsdc: Number(streamEarningsUsdc.toFixed(2)),
+      ratingAvg: Number(profile.rating_avg ?? 0),
+      ratingCount: Number(profile.rating_count ?? 0),
+    },
+    upcomingStreams,
+    pastStreams,
+  };
+}

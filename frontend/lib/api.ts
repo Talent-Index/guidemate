@@ -276,6 +276,55 @@ export function getGuideProfile(guideId: string) {
   return request<{ guide: GuidePublicProfile }>(`/api/guides/${guideId}`);
 }
 
+export interface GuideInsightsOverview {
+  confirmedBookings: number;
+  completedTours: number;
+  refundedTours: number;
+  scheduledStreams: number;
+  pastStreams: number;
+  tourEarningsUsdc: number;
+  streamEarningsUsdc: number;
+  ratingAvg: number;
+  ratingCount: number;
+}
+
+export interface GuideStreamInsight {
+  id: string;
+  title: string;
+  status: StreamStatus;
+  priceUsdc: number;
+  experienceTitle: string | null;
+  scheduledAt: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  recordingUrl: string | null;
+  createdAt: string;
+  tipCount: number;
+  tipTotalUsdc: number;
+  reactionCount: number;
+  commentCount: number;
+}
+
+export interface GuideInsights {
+  overview: GuideInsightsOverview;
+  upcomingStreams: Array<{
+    id: string;
+    title: string;
+    status: "scheduled";
+    priceUsdc: number;
+    experienceTitle: string | null;
+    scheduledAt: string | null;
+    communityNotifiedAt: string | null;
+  }>;
+  pastStreams: GuideStreamInsight[];
+}
+
+export function getGuideInsights(accessToken: string) {
+  return request<{ insights: GuideInsights }>("/api/guides/me/insights", {
+    headers: authHeaders(accessToken),
+  });
+}
+
 export interface TouristPublicReview {
   stars: number;
   comment: string | null;

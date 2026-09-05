@@ -11,7 +11,8 @@ export function SiteChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isHome = pathname === "/";
   const isChatThread = pathname.startsWith("/chat/") && pathname !== "/chat";
-  const hideTabs = isHome || pathname.startsWith("/auth/") || isChatThread;
+const isLiveRoom = /^\/live\/[^/]+$/.test(pathname);
+  const hideTabs = isHome || pathname.startsWith("/auth/") || isChatThread || isLiveRoom;
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--gm-canvas)]">
@@ -20,7 +21,7 @@ export function SiteChrome({ children }: { children: ReactNode }) {
         className={`flex-1 ${
           isHome
             ? "pt-0"
-            : isChatThread
+            : isChatThread || isLiveRoom
               ? "mx-auto flex w-full max-w-3xl flex-col px-4 pb-4 pt-20 md:max-w-3xl md:pb-8 md:pt-24"
               : "mx-auto w-full px-4 pb-8 pt-24 md:max-w-5xl max-md:pb-28"
         }`}

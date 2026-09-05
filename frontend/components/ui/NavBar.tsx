@@ -38,7 +38,7 @@ export function NavBar() {
 
   const settingsHref =
     profile?.role === "guide"
-      ? "/guide/dashboard#settings"
+      ? "/guide/settings"
       : profile?.role === "tourist"
         ? "/tourist/settings"
         : profile?.role === "admin"

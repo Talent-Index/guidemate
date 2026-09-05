@@ -9,14 +9,18 @@ function randomRef(): string {
 }
 
 export class SimulateRampProvider implements RampProvider {
-  async createOnRamp(req: OnRampRequest): Promise<{ checkoutRequestId: string }> {
+  async createOnRamp(req: OnRampRequest): Promise<{ checkoutRequestId: string; referenceId: string; async: boolean }> {
     await new Promise((r) => setTimeout(r, 600));
-    return { checkoutRequestId: `STK-${req.intentId.slice(0, 8).toUpperCase()}` };
+    return {
+      checkoutRequestId: `STK-${req.intentId.slice(0, 8).toUpperCase()}`,
+      referenceId: req.intentId,
+      async: false,
+    };
   }
 
-  async createOffRamp(req: OffRampRequest): Promise<{ reference: string }> {
+  async createOffRamp(req: OffRampRequest): Promise<{ reference: string; async: boolean }> {
     await new Promise((r) => setTimeout(r, 800));
-    return { reference: randomRef() };
+    return { reference: randomRef(), async: false };
   }
 
   async getQuote(usdc: number, _direction: "on" | "off"): Promise<RampQuote> {

@@ -168,10 +168,13 @@ export default function AdminApplicationsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-bold text-brand-blueDark">Admin dashboard</h1>
+        <h1 className="text-xl font-bold text-brand-blueDark">Applications</h1>
         <p className="mt-1 text-sm text-brand-muted">
           Guide applications from /apply, and people who joined the waitlist.
         </p>
+        <Link href="/admin" className="mt-2 inline-block text-sm font-semibold text-brand-accent hover:underline">
+          ← Back to dashboard
+        </Link>
       </div>
 
       <div className="flex flex-wrap gap-2">

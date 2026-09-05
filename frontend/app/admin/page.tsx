@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { SignOutSection } from "@/components/SignOutSection";
 import {
   getAdminOverview,
   getAdminTransactions,
@@ -50,9 +49,9 @@ export default function AdminDashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <MobilePageBanner eyebrow="Admin" title="Analytics" />
+        <MobilePageBanner eyebrow="Admin" title="Dashboard" />
         <div className="hidden md:block">
-          <h1 className="text-xl font-bold text-brand-blueDark">Platform analytics</h1>
+          <h1 className="text-xl font-bold text-brand-blueDark">Admin dashboard</h1>
           <p className="text-sm text-brand-muted">Monitor users, bookings, revenue, and transactions.</p>
         </div>
       </div>
@@ -120,9 +119,6 @@ export default function AdminDashboardPage() {
         </div>
       </Card>
 
-      <div id="account">
-        <SignOutSection />
-      </div>
     </div>
   );
 }

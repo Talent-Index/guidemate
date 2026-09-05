@@ -42,7 +42,7 @@ export function NavBar() {
       : profile?.role === "tourist"
         ? "/tourist/settings"
         : profile?.role === "admin"
-          ? "/admin#account"
+          ? "/admin/settings"
           : null;
 
   return (
@@ -67,10 +67,10 @@ export function NavBar() {
               {profile.role === "admin" && (
                 <>
                   <Link href="/admin" className={linkClass}>
-                    Analytics
+                    Dashboard
                   </Link>
                   <Link href="/admin/applications" className={linkClass}>
-                    Dashboard
+                    Applications
                   </Link>
                 </>
               )}

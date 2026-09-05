@@ -31,6 +31,20 @@ function SignUpForm() {
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
+  async function handleGoogleSignUp() {
+    setError(null);
+    localStorage.setItem(
+      `guidemate_pending_profile_${email || "google"}`,
+      JSON.stringify({ role, fullName: fullName || "User", phone: phone || null })
+    );
+    const supabase = createClient();
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (oauthError) setError(oauthError.message);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (role === "guide" && !acceptedTerms) {
@@ -199,6 +213,21 @@ function SignUpForm() {
           className="w-full bg-brand-amber py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-brand-blueDark transition hover:bg-brand-amberDark disabled:opacity-50"
         >
           {loading ? "Creating account..." : "Create account"}
+        </button>
+
+        <div className="my-4 flex items-center gap-3">
+          <div className="h-px flex-1 bg-brand-border" />
+          <span className="text-xs text-brand-muted">or</span>
+          <div className="h-px flex-1 bg-brand-border" />
+        </div>
+
+        <button
+          type="button"
+          disabled={role === "guide" && !acceptedTerms}
+          onClick={handleGoogleSignUp}
+          className="w-full border border-brand-border bg-white py-3.5 text-xs font-bold uppercase tracking-[0.15em] text-brand-blueDark transition hover:border-brand-accent disabled:opacity-50"
+        >
+          Continue with Google
         </button>
       </form>
     </FormShell>

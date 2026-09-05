@@ -551,7 +551,7 @@ export default function GuideDashboardPage() {
               Earnings from tours and live streams land here. Withdraw to your M-Pesa number anytime.
             </p>
           </Card>
-          <WalletPanel accessToken={session.access_token} canWithdraw phone={phone} />
+          <WalletPanel accessToken={session.access_token} canWithdraw phone={profile?.phone} />
         </div>
       )}
 

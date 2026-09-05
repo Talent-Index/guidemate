@@ -141,7 +141,7 @@ export function MobileTabBar() {
 
   const settingsHref =
     profile?.role === "guide"
-      ? "/guide/dashboard#settings"
+      ? "/guide/settings"
       : profile?.role === "tourist"
         ? "/tourist/settings"
         : profile?.role === "admin"
@@ -154,7 +154,7 @@ export function MobileTabBar() {
         label: "Settings",
         match: (p) =>
           p.startsWith("/tourist/settings") ||
-          (p.startsWith("/guide/dashboard") && hash === "#settings") ||
+          p.startsWith("/guide/settings") ||
           (p.startsWith("/admin") && hash === "#account"),
         icon: (a) => <ProfileIcon active={a} />,
       }
@@ -173,7 +173,7 @@ export function MobileTabBar() {
       {
         href: "/guide/dashboard",
         label: "Dashboard",
-        match: (p) => p.startsWith("/guide/dashboard") && hash !== "#settings",
+        match: (p) => p.startsWith("/guide/dashboard"),
         icon: (a) => <DashIcon active={a} />,
       },
       { href: "/live", label: "Live", match: (p) => p.startsWith("/live"), icon: (a) => <LiveIcon active={a} /> },

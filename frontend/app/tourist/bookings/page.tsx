@@ -10,6 +10,7 @@ import { ListRowSkeleton } from "@/components/ui/Skeleton";
 import { StarRating } from "@/components/ui/StarRating";
 import { EndTripPanel } from "@/components/EndTripPanel";
 import { RatePanel } from "@/components/RatePanel";
+import { ChatPanel } from "@/components/ChatPanel";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -103,6 +104,7 @@ export default function TouristBookingsPage() {
                 key={booking.bookingId}
                 booking={booking}
                 sessionToken={session.access_token}
+                currentUserId={session.user.id}
                 onRated={(rating) =>
                   setBookings((prev) =>
                     prev.map((b) => (b.bookingId === booking.bookingId ? { ...b, rating } : b))
@@ -123,6 +125,7 @@ export default function TouristBookingsPage() {
                 key={booking.bookingId}
                 booking={booking}
                 sessionToken={session.access_token}
+                currentUserId={session.user.id}
                 onRated={(rating) =>
                   setBookings((prev) =>
                     prev.map((b) => (b.bookingId === booking.bookingId ? { ...b, rating } : b))
@@ -140,10 +143,12 @@ export default function TouristBookingsPage() {
 function TripCard({
   booking,
   sessionToken,
+  currentUserId,
   onRated,
 }: {
   booking: BookingRecord;
   sessionToken: string;
+  currentUserId: string;
   onRated: (rating: NonNullable<BookingRecord["rating"]>) => void;
 }) {
   return (
@@ -178,7 +183,14 @@ function TripCard({
             <p className="mt-2 text-sm text-red-700">Cancelled or marked as a no-show</p>
           )}
           {booking.status === "locked" && (
-            <EndTripPanel bookingId={booking.bookingId} accessToken={sessionToken} />
+            <>
+              <EndTripPanel bookingId={booking.bookingId} accessToken={sessionToken} />
+              <ChatPanel
+                bookingId={booking.bookingId}
+                accessToken={sessionToken}
+                currentUserId={currentUserId}
+              />
+            </>
           )}
           {booking.status === "paid" && (
             <>

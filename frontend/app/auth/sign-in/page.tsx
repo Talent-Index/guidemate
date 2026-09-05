@@ -8,11 +8,37 @@ import { createClient } from "@/lib/supabase/client";
 import { homeForRole, type AccountRole } from "@/lib/auth/home";
 import { provisionWallet } from "@/lib/api";
 
-function intendedRole(meta: Record<string, unknown> | undefined, pendingRole?: string): "guide" | "tourist" {
-  const fromMeta = meta?.role;
-  if (fromMeta === "guide" || fromMeta === "tourist") return fromMeta;
-  if (pendingRole === "guide" || pendingRole === "tourist") return pendingRole;
-  return "tourist";
+async function finishOAuthProfile(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  email: string,
+  meta: Record<string, unknown> | undefined
+) {
+  let { data: profile } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
+  if (!profile) {
+    const pendingRaw = localStorage.getItem(`guidemate_pending_profile_${email}`);
+    const pending = pendingRaw
+      ? (JSON.parse(pendingRaw) as { role: "guide" | "tourist"; fullName: string; phone: string | null })
+      : null;
+    const role = meta?.role === "guide" || pending?.role === "guide" ? "guide" : "tourist";
+    const fullName =
+      (typeof meta?.full_name === "string" && meta.full_name) || pending?.fullName || email;
+    const phone = (typeof meta?.phone === "string" && meta.phone) || pending?.phone || null;
+    const { data: created, error: profileError } = await supabase
+      .from("profiles")
+      .insert({ id: userId, role, full_name: fullName, phone })
+      .select("role")
+      .single();
+    if (profileError) {
+      const { data: existing } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
+      if (!existing) throw profileError;
+      profile = existing;
+    } else {
+      profile = created;
+    }
+    localStorage.removeItem(`guidemate_pending_profile_${email}`);
+  }
+  return profile;
 }
 
 export default function SignInPage() {
@@ -21,6 +47,20 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function handleGoogleSignIn() {
+    setError(null);
+    setLoading(true);
+    const supabase = createClient();
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (oauthError) {
+      setError(oauthError.message);
+      setLoading(false);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -34,36 +74,9 @@ export default function SignInPage() {
       if (signInError) throw signInError;
 
       const userId = data.user.id;
-      let { data: profile } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
-
-      if (!profile) {
-        const pendingRaw = localStorage.getItem(`guidemate_pending_profile_${email}`);
-        const pending = pendingRaw
-          ? (JSON.parse(pendingRaw) as { role: "guide" | "tourist"; fullName: string; phone: string | null })
-          : null;
-        const meta = data.user.user_metadata as Record<string, unknown> | undefined;
-        const role = intendedRole(meta, pending?.role);
-        const fullName =
-          (typeof meta?.full_name === "string" && meta.full_name) || pending?.fullName || email;
-        const phone =
-          (typeof meta?.phone === "string" && meta.phone) || pending?.phone || null;
-
-        const { data: created, error: profileError } = await supabase
-          .from("profiles")
-          .insert({ id: userId, role, full_name: fullName, phone })
-          .select("role")
-          .single();
-        if (profileError) {
-          const { data: existing } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
-          if (!existing) throw profileError;
-          profile = existing;
-        } else {
-          profile = created;
-        }
-        localStorage.removeItem(`guidemate_pending_profile_${email}`);
-        if (profile?.role === "guide") {
-          await provisionWallet(data.session.access_token);
-        }
+      const profile = await finishOAuthProfile(supabase, userId, email, data.user.user_metadata as Record<string, unknown>);
+      if (profile?.role === "guide") {
+        await provisionWallet(data.session.access_token);
       }
 
       router.push(homeForRole((profile?.role ?? "tourist") as AccountRole));
@@ -113,6 +126,21 @@ export default function SignInPage() {
           className="w-full bg-brand-amber py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-brand-blueDark transition hover:bg-brand-amberDark disabled:opacity-50"
         >
           {loading ? "Signing in..." : "Sign in"}
+        </button>
+
+        <div className="my-4 flex items-center gap-3">
+          <div className="h-px flex-1 bg-brand-border" />
+          <span className="text-xs text-brand-muted">or</span>
+          <div className="h-px flex-1 bg-brand-border" />
+        </div>
+
+        <button
+          type="button"
+          disabled={loading}
+          onClick={handleGoogleSignIn}
+          className="w-full border border-brand-border bg-white py-3.5 text-xs font-bold uppercase tracking-[0.15em] text-brand-blueDark transition hover:border-brand-accent disabled:opacity-50"
+        >
+          Continue with Google
         </button>
       </form>
     </FormShell>

@@ -14,8 +14,29 @@ import { walletRouter } from "./routes/wallet.js";
 import { adminRouter } from "./routes/admin.js";
 import { fxRouter } from "./routes/fx.js";
 
+const DEFAULT_CORS_ORIGINS = [
+  "https://yourguidemate.top",
+  "https://www.yourguidemate.top",
+  "https://guidemate-frontend-1p2g.onrender.com",
+  "http://localhost:3000",
+];
+
+function corsOrigins(): string[] {
+  const fromEnv = process.env.CORS_ORIGINS?.split(",").map((o) => o.trim()).filter(Boolean);
+  return fromEnv?.length ? fromEnv : DEFAULT_CORS_ORIGINS;
+}
+
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (corsOrigins().includes(origin)) return callback(null, true);
+      callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  })
+);
 app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ ok: true, service: "guidemate-backend" }));

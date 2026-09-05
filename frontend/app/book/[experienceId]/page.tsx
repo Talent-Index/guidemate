@@ -12,7 +12,7 @@ import { BookingConfirmation } from "@/components/BookingConfirmation";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
-import { createBooking, initiateMpesaPayment, type BookingRecord } from "@/lib/api";
+import { createBooking, initiateMpesaPayment, pollMpesaPayment, type BookingRecord } from "@/lib/api";
 import { Price } from "@/lib/fx";
 
 interface ExperienceDetail {
@@ -90,6 +90,9 @@ export default function BookExperiencePage() {
           },
           session.access_token
         );
+        if (payment.status === "processing") {
+          await pollMpesaPayment(payment.intentId, session.access_token);
+        }
         paymentIntentId = payment.intentId;
       }
 

@@ -5,12 +5,11 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
-import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
+import { ExperiencePhotoStrip, experiencePhotoUrls } from "@/components/ui/ExperiencePhotoStrip";
 import { ListRowSkeleton } from "@/components/ui/Skeleton";
 import { StarRating } from "@/components/ui/StarRating";
 import { EndTripPanel } from "@/components/EndTripPanel";
 import { RatePanel } from "@/components/RatePanel";
-import { ChatPanel } from "@/components/ChatPanel";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -34,7 +33,17 @@ export default function TouristBookingsPage() {
       try {
         const { bookings: latest } = await listMyBookings(session!.access_token);
         if (!cancelled) {
-          setBookings(latest);
+          setBookings((prev) => {
+            const unchanged =
+              prev.length === latest.length &&
+              prev.every(
+                (b, i) =>
+                  b.bookingId === latest[i]?.bookingId &&
+                  b.status === latest[i]?.status &&
+                  b.rating?.stars === latest[i]?.rating?.stars
+              );
+            return unchanged ? prev : latest;
+          });
           setError(null);
         }
       } catch (err) {
@@ -104,7 +113,6 @@ export default function TouristBookingsPage() {
                 key={booking.bookingId}
                 booking={booking}
                 sessionToken={session.access_token}
-                currentUserId={session.user.id}
                 onRated={(rating) =>
                   setBookings((prev) =>
                     prev.map((b) => (b.bookingId === booking.bookingId ? { ...b, rating } : b))
@@ -125,7 +133,6 @@ export default function TouristBookingsPage() {
                 key={booking.bookingId}
                 booking={booking}
                 sessionToken={session.access_token}
-                currentUserId={session.user.id}
                 onRated={(rating) =>
                   setBookings((prev) =>
                     prev.map((b) => (b.bookingId === booking.bookingId ? { ...b, rating } : b))
@@ -143,22 +150,19 @@ export default function TouristBookingsPage() {
 function TripCard({
   booking,
   sessionToken,
-  currentUserId,
   onRated,
 }: {
   booking: BookingRecord;
   sessionToken: string;
-  currentUserId: string;
   onRated: (rating: NonNullable<BookingRecord["rating"]>) => void;
 }) {
   return (
     <Card className="overflow-hidden p-0">
       <div className="flex flex-col gap-4 p-6 sm:flex-row sm:gap-5">
-        <ExperiencePhoto
-          src={booking.experienceImageUrl}
+        <ExperiencePhotoStrip
+          urls={experiencePhotoUrls(booking)}
           alt={booking.experienceTitle ?? "Experience"}
-          className="aspect-[16/10] w-full shrink-0 rounded-lg max-md:rounded-2xl sm:aspect-square sm:w-32"
-          sizes="128px"
+          className="max-w-[9rem] shrink-0 sm:max-w-none"
         />
         <div className="flex-1">
           <div className="flex flex-wrap items-start justify-between gap-2">
@@ -185,11 +189,12 @@ function TripCard({
           {booking.status === "locked" && (
             <>
               <EndTripPanel bookingId={booking.bookingId} accessToken={sessionToken} />
-              <ChatPanel
-                bookingId={booking.bookingId}
-                accessToken={sessionToken}
-                currentUserId={currentUserId}
-              />
+              <Link
+                href={`/chat/${booking.bookingId}`}
+                className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-brand-border bg-white px-4 py-2.5 text-sm font-semibold text-brand-blueDark transition hover:border-brand-accent/40"
+              >
+                Message {booking.guideName}
+              </Link>
             </>
           )}
           {booking.status === "paid" && (

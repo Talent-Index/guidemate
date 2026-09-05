@@ -7,6 +7,7 @@ export interface OnRampRequest {
   amountUsdc: number;
   purpose: PaymentPurpose;
   referenceId: string;
+  accountName?: string;
 }
 
 export interface OffRampRequest {
@@ -14,16 +15,32 @@ export interface OffRampRequest {
   phone: string;
   amountUsdc: number;
   kesAmount: number;
+  accountName?: string;
+  senderAddress?: string;
 }
 
 export interface RampQuote {
   kes: number;
   fee: number;
   rate: number;
+  rateId?: string;
+}
+
+export interface OnRampResult {
+  checkoutRequestId: string;
+  referenceId: string;
+  /** When true, wait for Kotani webhook / poll before completing payment */
+  async: boolean;
+}
+
+export interface OffRampResult {
+  reference: string;
+  escrowAddress?: string;
+  async: boolean;
 }
 
 export interface RampProvider {
-  createOnRamp(req: OnRampRequest): Promise<{ checkoutRequestId: string }>;
-  createOffRamp(req: OffRampRequest): Promise<{ reference: string }>;
+  createOnRamp(req: OnRampRequest): Promise<OnRampResult>;
+  createOffRamp(req: OffRampRequest): Promise<OffRampResult>;
   getQuote(usdc: number, direction: "on" | "off"): Promise<RampQuote>;
 }

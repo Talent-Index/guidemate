@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { formatUnits } from "ethers";
 import { z } from "zod";
-import { bookingIdToBytes32, requireChain } from "../chain.js";
+import { bookingIdToBytes32, escrowForLockTx, requireChain } from "../chain.js";
 import { getBooking, updateBooking, type BookingRecord } from "../bookings.js";
 import { verifyBookingToken, verifyCompletionPin } from "../qr.js";
 import { recordWalletTransaction } from "../ledger.js";
@@ -58,14 +58,36 @@ completeRouter.post("/", async (req, res) => {
     res.json({ booking: updated });
   } catch (err) {
     console.error("[complete] failed", err);
-    res.status(500).json({ error: (err as Error).message ?? "release failed" });
+    res.status(500).json({ error: friendlyChainError(err) });
   }
 });
 
+function friendlyChainError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  const reverted = message.match(/execution reverted:\s*"([^"]+)"/i);
+  if (reverted?.[1]) {
+    if (reverted[1] === "booking not found") {
+      return "Escrow record not found on-chain for this booking. Create a new booking and try again.";
+    }
+    return reverted[1];
+  }
+  if (message.includes("incorrect end-trip PIN")) return message;
+  return message.split("\n")[0] ?? "release failed";
+}
+
 async function releaseAndCredit(booking: BookingRecord): Promise<BookingRecord> {
-  const { escrow, usdc } = requireChain();
+  const { usdc } = requireChain();
+  const escrow = await escrowForLockTx(booking.lockTxHash);
   const bytes32Id = bookingIdToBytes32(booking.bookingId);
   const decimals = await usdc.decimals();
+
+  const onChain = await escrow.getBooking(bytes32Id);
+  if (!onChain.exists) {
+    throw new Error("Escrow record not found on-chain for this booking. Create a new booking and try again.");
+  }
+  if (onChain.released) {
+    throw new Error("Payment was already released for this booking.");
+  }
 
   const tx = await escrow.release(bytes32Id);
   const receipt = await tx.wait();

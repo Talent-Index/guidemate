@@ -68,6 +68,7 @@ export interface BookingRecord {
   experienceId: string | null;
   experienceTitle: string | null;
   experienceImageUrl: string | null;
+  experienceImageUrls: string[];
   experienceLocation: string | null;
   experienceDurationMinutes: number | null;
   hotelName: string | null;
@@ -193,9 +194,19 @@ export function reportNoShow(bookingId: string, accessToken: string) {
   });
 }
 
+export function getCompletionQrValue(qrToken: string): string {
+  const publicBase = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+  if (publicBase && !/localhost|127\.0\.0\.1/.test(publicBase)) {
+    return `${publicBase}/verify?token=${encodeURIComponent(qrToken)}`;
+  }
+  // Local dev: localhost URLs fail when scanned with a phone camera — encode the raw token
+  // so the guide's in-app scanner (Tour → Scan tourist QR) can read it.
+  return qrToken;
+}
+
+/** @deprecated use getCompletionQrValue */
 export function getVerifyUrl(qrToken: string) {
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  return `${origin}/verify?token=${encodeURIComponent(qrToken)}`;
+  return getCompletionQrValue(qrToken);
 }
 
 export function submitRating(
@@ -430,7 +441,7 @@ export function getWallet(accessToken: string) {
 }
 
 export function withdrawWallet(amountUsdc: number, accessToken: string, phone?: string) {
-  return request<{ withdrawalId: string; reference: string; kesAmount: number }>("/api/wallet/withdraw", {
+  return request<{ withdrawalId: string; reference: string; kesAmount: number; pending?: true }>("/api/wallet/withdraw", {
     method: "POST",
     headers: authHeaders(accessToken),
     body: JSON.stringify({ amountUsdc, phone }),
@@ -444,15 +455,49 @@ export function initiateMpesaPayment(
   return request<{
     intentId: string;
     checkoutRequestId: string;
-    mpesaReceipt: string;
+    mpesaReceipt?: string;
     amountKes: number;
     amountUsdc: number;
-    status: string;
+    status: "completed" | "processing" | "failed";
+    message?: string;
   }>("/api/payments/mpesa/initiate", {
     method: "POST",
     headers: authHeaders(accessToken),
     body: JSON.stringify(input),
   });
+}
+
+export function getMpesaPaymentStatus(intentId: string, accessToken: string) {
+  return request<{
+    intentId: string;
+    status: string;
+    mpesaReceipt: string | null;
+    amountKes: number;
+    amountUsdc: number;
+    purpose: string;
+    referenceId: string;
+  }>(`/api/payments/mpesa/${intentId}`, { headers: authHeaders(accessToken) });
+}
+
+export async function pollMpesaPayment(
+  intentId: string,
+  accessToken: string,
+  opts?: { timeoutMs?: number; intervalMs?: number }
+): Promise<{ status: string; mpesaReceipt: string | null }> {
+  const timeoutMs = opts?.timeoutMs ?? 120_000;
+  const intervalMs = opts?.intervalMs ?? 2500;
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const status = await getMpesaPaymentStatus(intentId, accessToken);
+    if (status.status === "completed") {
+      return { status: status.status, mpesaReceipt: status.mpesaReceipt };
+    }
+    if (status.status === "failed" || status.status === "cancelled") {
+      throw new Error("M-Pesa payment was not completed");
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  throw new Error("Timed out waiting for M-Pesa payment — check your phone and try again");
 }
 
 export interface ChatMessage {

@@ -81,6 +81,11 @@ export function NavBar() {
                   {profile.role === "guide" ? "Dashboard" : "Bookings"}
                 </Link>
               )}
+              {profile.role !== "admin" && (
+                <Link href="/chat" className={linkClass}>
+                  Messages
+                </Link>
+              )}
               {profile.role === "tourist" && (
                 <Link href="/tourist/settings" className={linkClass}>
                   Settings

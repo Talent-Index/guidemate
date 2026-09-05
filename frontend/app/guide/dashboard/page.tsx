@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
-import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
+import { ExperiencePhotoStrip, experiencePhotoUrls } from "@/components/ui/ExperiencePhotoStrip";
 import { ListRowSkeleton } from "@/components/ui/Skeleton";
 import { StarRating } from "@/components/ui/StarRating";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -30,6 +30,7 @@ interface ExperienceRow {
   duration_minutes: number;
   location: string | null;
   image_url: string | null;
+  image_urls: string[];
   is_active: boolean;
 }
 
@@ -44,6 +45,14 @@ async function uploadExperiencePhoto(file: File, guideId: string): Promise<strin
   if (error) throw error;
   const { data } = supabase.storage.from("experience-photos").getPublicUrl(path);
   return data.publicUrl;
+}
+
+async function uploadExperiencePhotos(files: File[], guideId: string): Promise<string[]> {
+  const urls: string[] = [];
+  for (const file of files) {
+    urls.push(await uploadExperiencePhoto(file, guideId));
+  }
+  return urls;
 }
 
 export default function GuideDashboardPage() {
@@ -74,8 +83,8 @@ export default function GuideDashboardPage() {
   const [price, setPrice] = useState("");
   const [duration, setDuration] = useState("");
   const [location, setLocation] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [savingExperience, setSavingExperience] = useState(false);
   const [experienceError, setExperienceError] = useState<string | null>(null);
 
@@ -128,7 +137,7 @@ export default function GuideDashboardPage() {
     const supabase = createClient();
     const { data } = await supabase
       .from("experiences")
-      .select("id, title, description, tags, category, price_usdc, duration_minutes, location, image_url, is_active")
+      .select("id, title, description, tags, category, price_usdc, duration_minutes, location, image_url, image_urls, is_active")
       .eq("guide_id", guideId)
       .order("created_at", { ascending: false });
     setExperiences((data as ExperienceRow[]) ?? []);
@@ -165,11 +174,12 @@ export default function GuideDashboardPage() {
     }
   }
 
-  function handleImageFileSelected(file: File | null) {
-    setImageFile(file);
-    setImagePreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return file ? URL.createObjectURL(file) : null;
+  function handleImageFilesSelected(fileList: FileList | null) {
+    const files = fileList ? Array.from(fileList) : [];
+    setImageFiles(files);
+    setImagePreviews((prev) => {
+      prev.forEach((url) => URL.revokeObjectURL(url));
+      return files.map((file) => URL.createObjectURL(file));
     });
   }
 
@@ -179,7 +189,7 @@ export default function GuideDashboardPage() {
     setSavingExperience(true);
     setExperienceError(null);
     try {
-      const imageUrl = imageFile ? await uploadExperiencePhoto(imageFile, session.user.id) : null;
+      const imageUrls = imageFiles.length > 0 ? await uploadExperiencePhotos(imageFiles, session.user.id) : [];
 
       const supabase = createClient();
       const { error } = await supabase.from("experiences").insert({
@@ -194,7 +204,8 @@ export default function GuideDashboardPage() {
         price_usdc: Number(price),
         duration_minutes: Number(duration),
         location: location || null,
-        image_url: imageUrl,
+        image_url: imageUrls[0] ?? null,
+        image_urls: imageUrls,
       });
       if (error) throw error;
       setTitle("");
@@ -204,7 +215,7 @@ export default function GuideDashboardPage() {
       setPrice("");
       setDuration("");
       setLocation("");
-      handleImageFileSelected(null);
+      handleImageFilesSelected(null);
       setShowForm(false);
       await loadExperiences(session.user.id);
     } catch (err) {
@@ -214,14 +225,19 @@ export default function GuideDashboardPage() {
     }
   }
 
-  async function handlePhotoChange(exp: ExperienceRow, file: File | null) {
-    if (!session || !file) return;
+  async function handlePhotosAdd(exp: ExperienceRow, fileList: FileList | null) {
+    if (!session || !fileList?.length) return;
     setPhotoError(null);
     setPhotoUpdatingId(exp.id);
     try {
-      const imageUrl = await uploadExperiencePhoto(file, session.user.id);
+      const newUrls = await uploadExperiencePhotos(Array.from(fileList), session.user.id);
+      const existing = exp.image_urls?.length ? exp.image_urls : exp.image_url ? [exp.image_url] : [];
+      const deduped = [...new Set([...existing, ...newUrls])];
       const supabase = createClient();
-      const { error } = await supabase.from("experiences").update({ image_url: imageUrl }).eq("id", exp.id);
+      const { error } = await supabase
+        .from("experiences")
+        .update({ image_urls: deduped, image_url: deduped[0] ?? null })
+        .eq("id", exp.id);
       if (error) throw error;
       await loadExperiences(session.user.id);
     } catch (err) {
@@ -546,23 +562,26 @@ export default function GuideDashboardPage() {
               </Field>
             </div>
             <div className="sm:col-span-2">
-              <Field label="Photo">
-                <div className="flex items-center gap-3">
-                  {imagePreview && (
-                    // Local blob preview only - next/image can't optimize blob: URLs, so a plain
-                    // <img> is used here (the stored photo elsewhere always goes through ExperiencePhoto).
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={imagePreview} alt="Preview" className="h-16 w-24 shrink-0 rounded-lg object-cover" />
+              <Field label="Photos">
+                <div className="flex flex-col gap-3">
+                  {imagePreviews.length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {imagePreviews.map((preview, i) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img key={preview} src={preview} alt={`Preview ${i + 1}`} className="h-16 w-24 shrink-0 rounded-lg object-cover" />
+                      ))}
+                    </div>
                   )}
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => handleImageFileSelected(e.target.files?.[0] ?? null)}
+                    multiple
+                    onChange={(e) => handleImageFilesSelected(e.target.files)}
                     className="block w-full text-sm text-brand-muted file:mr-3 file:rounded-full file:border-0 file:bg-brand-accent/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-brand-accent hover:file:bg-brand-accent/20"
                   />
                 </div>
                 <p className="mt-1 text-xs text-brand-muted">
-                  Give tourists a clue what they&apos;re booking. Optional, can be added later.
+                  Add one or more photos. Hold Ctrl/Cmd to select multiple.
                 </p>
               </Field>
             </div>
@@ -585,7 +604,7 @@ export default function GuideDashboardPage() {
           {experiences.map((exp) => (
             <div key={exp.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3 max-md:rounded-3xl">
               <div className="flex items-center gap-3">
-                <ExperiencePhoto src={exp.image_url} alt={exp.title} className="h-14 w-20 shrink-0 rounded-lg" />
+                <ExperiencePhotoStrip urls={experiencePhotoUrls(exp)} alt={exp.title} />
                 <div>
                   <p className="font-semibold text-brand-blueDark">{exp.title}</p>
                   <p className="text-xs text-brand-muted">
@@ -597,13 +616,17 @@ export default function GuideDashboardPage() {
                     </span>
                   </p>
                   <label className="mt-1 inline-block cursor-pointer text-xs font-semibold text-brand-accent hover:underline">
-                    {photoUpdatingId === exp.id ? "Uploading..." : exp.image_url ? "Change photo" : "Add photo"}
+                    {photoUpdatingId === exp.id ? "Uploading..." : "Add photos"}
                     <input
                       type="file"
                       accept="image/*"
+                      multiple
                       className="hidden"
                       disabled={photoUpdatingId === exp.id}
-                      onChange={(e) => handlePhotoChange(exp, e.target.files?.[0] ?? null)}
+                      onChange={(e) => {
+                        handlePhotosAdd(exp, e.target.files);
+                        e.target.value = "";
+                      }}
                     />
                   </label>
                   <select

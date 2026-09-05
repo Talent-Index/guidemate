@@ -3,7 +3,7 @@ import { Contract, formatUnits, parseUnits, Wallet } from "ethers";
 import mockUsdcAbi from "./abi/MockUSDC.json" with { type: "json" };
 import { provider, requireChain } from "./chain.js";
 import { listWalletTransactions, recordWalletTransaction } from "./ledger.js";
-import { getRampProvider } from "./ramp/index.js";
+import { getRampProvider, isSimulatedRamp } from "./ramp/index.js";
 import { usdcToKes } from "./fx.js";
 import { supabaseAdmin } from "./supabase.js";
 
@@ -106,14 +106,21 @@ export async function withdrawToMpesa(
   profileId: string,
   amountUsdc: number,
   phone: string
-): Promise<{ withdrawalId: string; reference: string; kesAmount: number }> {
+): Promise<{ withdrawalId: string; reference: string; kesAmount: number; pending?: true }> {
   if (amountUsdc <= 0) throw new Error("amount must be positive");
   const balance = await getWalletBalance(profileId);
   if (amountUsdc > balance) throw new Error("insufficient wallet balance");
 
   const ramp = getRampProvider();
   const quote = await ramp.getQuote(amountUsdc, "off");
-  const kesAmount = quote.kes - quote.fee;
+  const kesAmount = quote.kes;
+
+  const address = await getWalletAddress(profileId);
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("full_name")
+    .eq("id", profileId)
+    .maybeSingle();
 
   const { data: withdrawal, error: insertError } = await supabaseAdmin
     .from("withdrawal_requests")
@@ -128,30 +135,46 @@ export async function withdrawToMpesa(
     .single();
   if (insertError) throw new Error(insertError.message);
 
-  const { reference } = await ramp.createOffRamp({
+  const offRamp = await ramp.createOffRamp({
     withdrawalId: withdrawal.id,
     phone,
     amountUsdc,
     kesAmount,
+    accountName: (profile?.full_name as string) ?? "Guide",
+    senderAddress: address ?? undefined,
   });
 
-  await supabaseAdmin
-    .from("withdrawal_requests")
-    .update({ status: "completed", ramp_ref: reference, completed_at: new Date().toISOString() })
-    .eq("id", withdrawal.id);
+  if (offRamp.escrowAddress && !isSimulatedRamp()) {
+    const txHash = await signUsdcTransfer(profileId, offRamp.escrowAddress, amountUsdc);
+    await supabaseAdmin.from("withdrawal_requests").update({ tx_hash: txHash }).eq("id", withdrawal.id);
+  }
 
-  await recordWalletTransaction({
-    profileId,
-    type: "mpesa_withdraw",
-    amountUsdc: -amountUsdc,
-    amountKes: kesAmount,
-    referenceType: "withdrawal",
-    referenceId: withdrawal.id,
-    mpesaRef: reference,
-    status: "completed",
-  });
+  if (isSimulatedRamp() || !offRamp.async) {
+    await supabaseAdmin
+      .from("withdrawal_requests")
+      .update({ status: "completed", ramp_ref: offRamp.reference, completed_at: new Date().toISOString() })
+      .eq("id", withdrawal.id);
 
-  return { withdrawalId: withdrawal.id, reference, kesAmount };
+    await recordWalletTransaction({
+      profileId,
+      type: "mpesa_withdraw",
+      amountUsdc: -amountUsdc,
+      amountKes: kesAmount,
+      referenceType: "withdrawal",
+      referenceId: withdrawal.id,
+      mpesaRef: offRamp.reference,
+      status: "completed",
+    });
+
+    return { withdrawalId: withdrawal.id, reference: offRamp.reference, kesAmount };
+  }
+
+  return {
+    withdrawalId: withdrawal.id,
+    reference: offRamp.reference,
+    kesAmount,
+    pending: true as const,
+  };
 }
 
 export async function signUsdcTransfer(profileId: string, to: string, amountUsdc: number): Promise<string> {

@@ -30,6 +30,7 @@ export interface BookingRecord {
   experienceId: string | null;
   experienceTitle: string | null;
   experienceImageUrl: string | null;
+  experienceImageUrls: string[];
   experienceLocation: string | null;
   experienceDurationMinutes: number | null;
   hotelName: string | null;
@@ -56,12 +57,19 @@ export interface BookingRecord {
   createdAt: string;
 }
 
+function normalizeExperienceImageUrls(experience: { image_urls?: string[] | null; image_url?: string | null } | null | undefined): string[] {
+  if (!experience) return [];
+  if (Array.isArray(experience.image_urls) && experience.image_urls.length > 0) return experience.image_urls;
+  if (experience.image_url) return [experience.image_url];
+  return [];
+}
+
 const SELECT = `
   id, tourist_id, guide_id, experience_id, request_text, match_reason, amount_usdc, status,
   guide_wallet, hotel_name, hotel_wallet, lock_tx_hash, release_tx_hash, refund_tx_hash,
   guide_split, hotel_split, protocol_split, payout, refund, created_at,
   guide:guide_id ( full_name, phone ),
-  experience:experience_id ( title, image_url, location, duration_minutes )
+  experience:experience_id ( title, image_url, image_urls, location, duration_minutes )
 `;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -80,6 +88,7 @@ function toBookingRecord(
     experienceId: row.experience_id,
     experienceTitle: row.experience?.title ?? null,
     experienceImageUrl: row.experience?.image_url ?? null,
+    experienceImageUrls: normalizeExperienceImageUrls(row.experience),
     experienceLocation: row.experience?.location ?? null,
     experienceDurationMinutes: row.experience?.duration_minutes ?? null,
     hotelName: row.hotel_name,

@@ -13,7 +13,7 @@ import { streamsRouter } from "./routes/streams.js";
 import { walletRouter } from "./routes/wallet.js";
 import { adminRouter } from "./routes/admin.js";
 import { fxRouter } from "./routes/fx.js";
-import { paymentsRouter } from "./routes/payments.js";
+import { paymentsRouter, kotaniWebhookHandler } from "./routes/payments.js";
 import { chatRouter } from "./routes/chat.js";
 
 const DEFAULT_CORS_ORIGINS = [
@@ -34,11 +34,23 @@ app.use(
     origin(origin, callback) {
       if (!origin) return callback(null, true);
       if (corsOrigins().includes(origin)) return callback(null, true);
+      // Next.js picks 3001, 3002, etc. when 3000 is already taken
+      if (process.env.NODE_ENV !== "production" && /^http:\/\/localhost:\d+$/.test(origin)) {
+        return callback(null, true);
+      }
       callback(new Error(`CORS blocked for origin: ${origin}`));
     },
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   })
 );
+
+// Kotani webhooks must verify HMAC against the raw request body before JSON parsing.
+app.post(
+  "/api/payments/mpesa/webhook",
+  express.raw({ type: "application/json" }),
+  kotaniWebhookHandler
+);
+
 app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ ok: true, service: "guidemate-backend" }));
@@ -59,6 +71,6 @@ app.use("/api/admin", adminRouter);
 app.use("/api/fx", fxRouter);
 
 const port = Number(process.env.PORT ?? 4000);
-app.listen(port, () => {
-  console.log(`Guidemate backend listening on http://localhost:${port}`);
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Guidemate backend listening on http://0.0.0.0:${port}`);
 });

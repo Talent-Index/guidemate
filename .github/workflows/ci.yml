@@ -36,6 +36,8 @@ jobs:
           NEXT_PUBLIC_MOCK_USDC_ADDRESS: "0x76EC76a347115afa9a3490a256bA13447cfBd8c5"
           NEXT_PUBLIC_FUJI_RPC_URL: https://api.avax-test.network/ext/bc/C/rpc
 
+  # Optional fallback if Render GitHub webhooks fail: add repository secrets
+  # RENDER_DEPLOY_HOOK_BACKEND and RENDER_DEPLOY_HOOK_FRONTEND (from Render → Settings → Deploy Hook).
   deploy:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -46,7 +48,7 @@ jobs:
           DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}
         run: |
           if [ -z "$DEPLOY_HOOK" ]; then
-            echo "::warning::RENDER_DEPLOY_HOOK_BACKEND not set — skipping backend deploy"
+            echo "RENDER_DEPLOY_HOOK_BACKEND not set — relying on Render autoDeployTrigger: checksPass"
             exit 0
           fi
           echo "Triggering Render deploy for guidemate-backend..."
@@ -57,7 +59,7 @@ jobs:
           DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}
         run: |
           if [ -z "$DEPLOY_HOOK" ]; then
-            echo "::warning::RENDER_DEPLOY_HOOK_FRONTEND not set — skipping frontend deploy"
+            echo "RENDER_DEPLOY_HOOK_FRONTEND not set — relying on Render autoDeployTrigger: checksPass"
             exit 0
           fi
           echo "Triggering Render deploy for yourguidemate..."

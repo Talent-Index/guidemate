@@ -5,6 +5,8 @@ services:
     runtime: node
     plan: free
     region: oregon
+    branch: main
+    autoDeployTrigger: checksPass
     rootDir: backend
     buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
@@ -62,6 +64,8 @@ services:
     runtime: node
     plan: free
     region: oregon
+    branch: main
+    autoDeployTrigger: checksPass
     rootDir: frontend
     buildCommand: npm install --include=dev && npm run build
     startCommand: npm start

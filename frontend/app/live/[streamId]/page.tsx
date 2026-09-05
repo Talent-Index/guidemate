@@ -411,18 +411,21 @@ export default function LiveStreamPage() {
 
       {token && LIVEKIT_URL ? (
         <div className="relative overflow-hidden rounded-card border border-brand-border" data-lk-theme="default">
-          <div
-            className="absolute inset-0 z-10 md:pointer-events-none"
-            onClick={handleTapFlower}
-            aria-hidden
-          />
-          <div className="pointer-events-none absolute left-3 top-3 z-20 flex gap-2">
+          <div className="pointer-events-none absolute left-3 top-3 z-20 flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white">
               {stats.viewerCount} watching
             </span>
             <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white">
               {stats.reactionCount + flowers} flowers
             </span>
+            <button
+              type="button"
+              onClick={handleTapFlower}
+              className="pointer-events-auto rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-black/80"
+              aria-label="Send a flower"
+            >
+              🌸 Flower
+            </button>
           </div>
           <LiveKitRoom
             serverUrl={LIVEKIT_URL}
@@ -435,7 +438,7 @@ export default function LiveStreamPage() {
             <VideoConference />
             <RoomAudioRenderer />
           </LiveKitRoom>
-          <div className="absolute bottom-0 left-0 right-0 z-20 max-h-32 overflow-y-auto bg-gradient-to-t from-black/70 to-transparent px-3 pb-3 pt-8">
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 max-h-32 overflow-y-auto bg-gradient-to-t from-black/70 to-transparent px-3 pb-16 pt-8 md:pb-3">
             {comments.slice(-5).map((c) => (
               <p key={c.id} className="text-xs text-white">
                 <span className="font-semibold">{c.displayName}</span> {c.body}

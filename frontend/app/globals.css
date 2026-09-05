@@ -122,3 +122,10 @@ html.dark .shadow-card {
   }
 }
 
+/* Keep LiveKit mic/camera controls above comment overlays and tappable on mobile */
+[data-lk-theme] .lk-control-bar,
+[data-lk-theme] .lk-button-group-menu {
+  position: relative;
+  z-index: 30;
+  pointer-events: auto;
+}

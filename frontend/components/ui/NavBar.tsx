@@ -64,9 +64,14 @@ export function NavBar() {
                 </Link>
               )}
               {profile.role === "admin" && (
-                <Link href="/admin/applications" className={linkClass}>
-                  Dashboard
-                </Link>
+                <>
+                  <Link href="/admin" className={linkClass}>
+                    Analytics
+                  </Link>
+                  <Link href="/admin/applications" className={linkClass}>
+                    Dashboard
+                  </Link>
+                </>
               )}
               <Link href="/live" className={linkClass}>
                 Live

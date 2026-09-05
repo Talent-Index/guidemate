@@ -108,6 +108,15 @@ function SignInIcon({ active }: { active: boolean }) {
   );
 }
 
+function MessagesIcon({ active }: { active: boolean }) {
+  return (
+    <IconFrame active={active}>
+      <path d="M5 5.8h14a1.4 1.4 0 0 1 1.4 1.4v7.2a1.4 1.4 0 0 1-1.4 1.4H9.4L5 20.2V7.2A1.4 1.4 0 0 1 5 5.8z" />
+      {active ? null : <path d="M8 10h8M8 13h5" />}
+    </IconFrame>
+  );
+}
+
 function SettingsIcon({ active }: { active: boolean }) {
   return (
     <IconFrame active={active}>
@@ -125,6 +134,12 @@ export function MobileTabBar() {
   if (profile?.role === "guide") {
     tabs = [
       { href: "/guide", label: "Tour", match: (p) => p === "/guide" || p.startsWith("/tourists"), icon: (a) => <TourIcon active={a} /> },
+      {
+        href: "/chat",
+        label: "Messages",
+        match: (p) => p.startsWith("/chat"),
+        icon: (a) => <MessagesIcon active={a} />,
+      },
       {
         href: "/guide/dashboard",
         label: "Dashboard",
@@ -157,6 +172,12 @@ export function MobileTabBar() {
         label: "Bookings",
         match: (p) => p.startsWith("/tourist/bookings"),
         icon: (a) => <BookingsIcon active={a} />,
+      },
+      {
+        href: "/chat",
+        label: "Messages",
+        match: (p) => p.startsWith("/chat"),
+        icon: (a) => <MessagesIcon active={a} />,
       },
       {
         href: "/tourist/settings",

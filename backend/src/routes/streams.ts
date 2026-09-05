@@ -9,18 +9,26 @@ import {
   stopRecording,
 } from "../livekit.js";
 import {
+  addStreamComment,
+  addStreamReaction,
   addStreamTip,
+  countStreamReactions,
   createStream,
   getStreamById,
+  grantStreamAccess,
+  hasStreamAccess,
   listGuideScheduledStreams,
   listLiveStreams,
   listRecordedStreams,
+  listStreamComments,
   listStreamTips,
   listUpcomingStreams,
   scheduleStream,
   updateStream,
 } from "../streams.js";
-import { getUserIdFromAuthHeader } from "../supabase.js";
+import { recordWalletTransaction } from "../ledger.js";
+import { getCompletedPaymentIntent } from "./payments.js";
+import { getUserIdFromAuthHeader, supabaseAdmin } from "../supabase.js";
 
 export const streamsRouter = Router();
 
@@ -176,10 +184,8 @@ streamsRouter.get("/:id/tips", async (req, res) => {
 });
 
 const joinTokenSchema = z.object({
-  // Recorded proof of a pay-per-view payment (direct wallet-to-wallet USDC
-  // transfer to the guide) - trust-based, same as tips: we log it, we don't
-  // re-verify the transfer on-chain in this pass.
   txHash: z.string().optional(),
+  paymentIntentId: z.string().uuid().optional(),
 });
 
 streamsRouter.post("/:id/join-token", async (req, res) => {
@@ -197,14 +203,44 @@ streamsRouter.post("/:id/join-token", async (req, res) => {
   const userId = await getUserIdFromAuthHeader(req.headers.authorization);
   const isGuide = Boolean(userId && userId === stream.guideId);
 
-  if (!isGuide && stream.priceUsdc > 0 && !parsed.data.txHash) {
-    return res.status(402).json({ error: "this is a pay-per-view stream - pay the guide first, then retry with txHash" });
+  if (!isGuide && stream.priceUsdc > 0) {
+    const hasAccess = userId ? await hasStreamAccess(stream.id, userId) : false;
+    if (!hasAccess && !parsed.data.txHash && !parsed.data.paymentIntentId) {
+      return res.status(402).json({
+        error: "this is a pay-per-view stream - pay first, then retry with txHash or paymentIntentId",
+      });
+    }
   }
 
   try {
+    if (!isGuide && stream.priceUsdc > 0 && parsed.data.paymentIntentId && userId) {
+      const intent = await getCompletedPaymentIntent(parsed.data.paymentIntentId, userId);
+      if (!intent || intent.reference_id !== stream.id) {
+        return res.status(402).json({ error: "M-Pesa payment not completed for this stream" });
+      }
+      await grantStreamAccess({
+        streamId: stream.id,
+        profileId: userId,
+        paymentMethod: "mpesa",
+        paymentRef: parsed.data.paymentIntentId,
+      });
+      await addStreamTip({
+        streamId: stream.id,
+        tipperId: userId,
+        tipperWallet: null,
+        amountUsdc: stream.priceUsdc,
+        txHash: `mpesa-${parsed.data.paymentIntentId}`,
+      });
+      await recordWalletTransaction({
+        profileId: stream.guideId,
+        type: "stream_ppv",
+        amountUsdc: stream.priceUsdc,
+        referenceType: "stream",
+        referenceId: stream.id,
+        mpesaRef: parsed.data.paymentIntentId,
+      });
+    }
 
-    // The broadcasting guide can always re-join with publish rights (e.g. after
-    // a refresh) without paying their own stream.
     if (!isGuide && stream.priceUsdc > 0 && parsed.data.txHash) {
       await addStreamTip({
         streamId: stream.id,
@@ -213,6 +249,14 @@ streamsRouter.post("/:id/join-token", async (req, res) => {
         amountUsdc: stream.priceUsdc,
         txHash: parsed.data.txHash,
       });
+      if (userId) {
+        await grantStreamAccess({
+          streamId: stream.id,
+          profileId: userId,
+          paymentMethod: "external",
+          paymentRef: parsed.data.txHash,
+        });
+      }
     }
 
     const identity = userId ?? `viewer-${randomUUID()}`;
@@ -356,4 +400,83 @@ streamsRouter.post("/:id/tip", async (req, res) => {
     console.error("[streams] tip failed", err);
     res.status(500).json({ error: (err as Error).message ?? "failed to record tip" });
   }
+});
+
+streamsRouter.get("/:id/comments", async (req, res) => {
+  const comments = await listStreamComments(req.params.id);
+  res.json({ comments: comments.reverse() });
+});
+
+const commentSchema = z.object({ body: z.string().min(1).max(500) });
+
+streamsRouter.post("/:id/comments", async (req, res) => {
+  const userId = await getUserIdFromAuthHeader(req.headers.authorization);
+  const parsed = commentSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const stream = await getStreamById(req.params.id);
+  if (!stream) return res.status(404).json({ error: "stream not found" });
+
+  let displayName = "Viewer";
+  if (userId) {
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name")
+      .eq("id", userId)
+      .maybeSingle();
+    displayName = (profile?.full_name as string) ?? "Viewer";
+  }
+
+  try {
+    const comment = await addStreamComment({
+      streamId: stream.id,
+      profileId: userId ?? null,
+      displayName,
+      body: parsed.data.body,
+    });
+    res.status(201).json({ comment });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+streamsRouter.post("/:id/reactions", async (req, res) => {
+  const userId = await getUserIdFromAuthHeader(req.headers.authorization);
+  const type = req.body?.type === "like" ? "like" : "flower";
+  const stream = await getStreamById(req.params.id);
+  if (!stream) return res.status(404).json({ error: "stream not found" });
+
+  try {
+    const reaction = await addStreamReaction({ streamId: stream.id, profileId: userId ?? null, type });
+    const total = await countStreamReactions(stream.id);
+    res.status(201).json({ reaction, total });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+streamsRouter.get("/:id/stats", async (req, res) => {
+  const stream = await getStreamById(req.params.id);
+  if (!stream) return res.status(404).json({ error: "stream not found" });
+
+  let viewerCount = 0;
+  try {
+    const { roomService } = requireLiveKit();
+    const participants = await roomService.listParticipants(stream.roomName);
+    viewerCount = participants.length;
+  } catch {
+    // LiveKit may be unavailable
+  }
+
+  const [reactionCount, tips] = await Promise.all([
+    countStreamReactions(stream.id),
+    listStreamTips(stream.id),
+  ]);
+
+  res.json({
+    viewerCount,
+    reactionCount,
+    tipCount: tips.length,
+    tipTotalUsdc: tips.reduce((s, t) => s + t.amountUsdc, 0),
+  });
 });

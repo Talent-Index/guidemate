@@ -11,7 +11,6 @@ import { Price } from "@/lib/fx";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { QrScanner, type QrScannerHandle } from "@/components/QrScanner";
 import { RatePanel } from "@/components/RatePanel";
-import { ChatPanel } from "@/components/ChatPanel";
 import { StarRating } from "@/components/ui/StarRating";
 import { ViewTouristProfileButton } from "@/components/ViewTouristProfileButton";
 
@@ -144,11 +143,12 @@ export default function GuideActiveTourPage() {
                 }
               />
 
-              <ChatPanel
-                bookingId={booking.bookingId}
-                accessToken={session.access_token}
-                currentUserId={session.user.id}
-              />
+              <Link
+                href={`/chat/${booking.bookingId}`}
+                className="inline-flex w-full items-center justify-center rounded-full border border-brand-border bg-white px-4 py-2.5 text-sm font-semibold text-brand-blueDark transition hover:border-brand-accent/40"
+              >
+                Message {booking.touristName ?? "tourist"}
+              </Link>
 
               <div className="w-full border-t border-brand-border pt-4">
                 {Date.now() - new Date(booking.createdAt).getTime() >= NO_SHOW_GRACE_PERIOD_MS ? (

@@ -20,6 +20,7 @@ import {
   getStream,
   getStreamStats,
   initiateMpesaPayment,
+  pollMpesaPayment,
   joinStream,
   listStreamComments,
   listStreamTips,
@@ -150,6 +151,9 @@ export default function LiveStreamPage() {
         },
         session.access_token
       );
+      if (payment.status === "processing") {
+        await pollMpesaPayment(payment.intentId, session.access_token);
+      }
       await handleJoin({ paymentIntentId: payment.intentId });
     } catch (err) {
       setPayError((err as Error).message);

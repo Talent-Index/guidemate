@@ -1,0 +1,2 @@
+-- Applied via Supabase MCP on guidemate project (oeyynnedpmuhfqxkecyt)
+-- Wallet ledger, M-Pesa payments, chat, live stream engagement tables

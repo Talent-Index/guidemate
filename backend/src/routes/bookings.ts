@@ -3,7 +3,7 @@ import { formatUnits } from "ethers";
 import { getBooking, listBookings, updateBooking, type RefundInfo } from "../bookings.js";
 import { completionPin, signBookingToken } from "../qr.js";
 import { getUserIdFromAuthHeader } from "../supabase.js";
-import { bookingIdToBytes32, requireChain } from "../chain.js";
+import { bookingIdToBytes32, escrowForLockTx, requireChain } from "../chain.js";
 
 export const bookingsRouter = Router();
 
@@ -97,7 +97,8 @@ bookingsRouter.post("/:id/no-show", async (req, res) => {
   }
 
   try {
-    const { escrow, usdc } = requireChain();
+    const { usdc } = requireChain();
+    const escrow = await escrowForLockTx(booking.lockTxHash);
     const bytes32Id = bookingIdToBytes32(booking.bookingId);
     const decimals = await usdc.decimals();
 

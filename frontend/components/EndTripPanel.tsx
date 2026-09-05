@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/Button";
-import { getCompletionCode, getVerifyUrl } from "@/lib/api";
+import { getCompletionCode, getCompletionQrValue } from "@/lib/api";
 
 export function EndTripPanel({ bookingId, accessToken }: { bookingId: string; accessToken?: string }) {
   const [open, setOpen] = useState(false);
@@ -45,7 +45,7 @@ export function EndTripPanel({ bookingId, accessToken }: { bookingId: string; ac
     <div className="mt-3 rounded-lg border border-brand-border bg-brand-bg p-4">
       <p className="text-sm font-semibold text-brand-blueDark">End trip</p>
       <p className="mt-1 text-xs text-brand-muted">
-        Show this screen to your guide. They enter the PIN on their phone, or scan the QR, to release escrow.
+        Show the PIN or QR to your guide. They release payment from the Guidemate app (Tour → Scan tourist QR).
       </p>
 
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
@@ -59,9 +59,9 @@ export function EndTripPanel({ bookingId, accessToken }: { bookingId: string; ac
       {qrToken && (
         <div className="mt-4 flex flex-col items-center gap-2">
           <div className="bg-[#ffffff] p-3">
-            <QRCodeSVG value={getVerifyUrl(qrToken)} size={160} />
+            <QRCodeSVG value={getCompletionQrValue(qrToken)} size={160} />
           </div>
-          <p className="text-xs text-brand-muted">Or let your guide scan this QR</p>
+          <p className="text-xs text-brand-muted">Guide scans this inside Guidemate — not with the phone camera app</p>
         </div>
       )}
 

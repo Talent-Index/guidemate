@@ -36,7 +36,22 @@ export function requireChain() {
         "after deploying contracts (see contracts/script/Deploy.s.sol)."
     );
   }
-  return { signer, escrow, usdc };
+  return { signer, escrow, usdc, provider };
+}
+
+/** Use the escrow contract from the booking's lock tx (handles contract redeploys). */
+export async function escrowForLockTx(lockTxHash: string | null | undefined) {
+  const { signer, escrow, provider } = requireChain();
+  if (!lockTxHash) return escrow;
+
+  const receipt = await provider.getTransactionReceipt(lockTxHash);
+  if (!receipt?.to) return escrow;
+
+  const lockedOn = receipt.to.toLowerCase();
+  const configured = String(escrow.target).toLowerCase();
+  if (lockedOn === configured) return escrow;
+
+  return new Contract(receipt.to, escrowAbi, signer);
 }
 
 /// Deterministic bytes32 booking id derived from a UUID-ish string, so the

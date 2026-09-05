@@ -194,9 +194,19 @@ export function reportNoShow(bookingId: string, accessToken: string) {
   });
 }
 
+export function getCompletionQrValue(qrToken: string): string {
+  const publicBase = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+  if (publicBase && !/localhost|127\.0\.0\.1/.test(publicBase)) {
+    return `${publicBase}/verify?token=${encodeURIComponent(qrToken)}`;
+  }
+  // Local dev: localhost URLs fail when scanned with a phone camera — encode the raw token
+  // so the guide's in-app scanner (Tour → Scan tourist QR) can read it.
+  return qrToken;
+}
+
+/** @deprecated use getCompletionQrValue */
 export function getVerifyUrl(qrToken: string) {
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  return `${origin}/verify?token=${encodeURIComponent(qrToken)}`;
+  return getCompletionQrValue(qrToken);
 }
 
 export function submitRating(

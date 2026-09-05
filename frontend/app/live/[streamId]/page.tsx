@@ -17,6 +17,7 @@ import { wagmiConfig } from "@/lib/wagmi";
 import mockUsdcAbi from "@/lib/abi/MockUSDC.json";
 import {
   endStream,
+  friendlyPaymentError,
   getStream,
   getStreamStats,
   initiateMpesaPayment,
@@ -55,6 +56,7 @@ export default function LiveStreamPage() {
   const [tips, setTips] = useState<StreamTip[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
+  const [paying, setPaying] = useState(false);
   const [ending, setEnding] = useState(false);
   const [starting, setStarting] = useState(false);
   const [notifying, setNotifying] = useState(false);
@@ -109,9 +111,6 @@ export default function LiveStreamPage() {
     } catch (err) {
       const message = (err as Error).message;
       setError(message);
-      if (opts?.txHash || opts?.paymentIntentId) {
-        toast(message, "error");
-      }
     } finally {
       setJoining(false);
     }
@@ -129,29 +128,34 @@ export default function LiveStreamPage() {
     return hash;
   }
 
+  function showPayError(message: string) {
+    const friendly = friendlyPaymentError(message);
+    setPayError(friendly);
+    toast(friendly, "error");
+  }
+
   async function handlePayToWatch() {
-    if (!stream?.guideWallet) {
-      setPayError("This guide has not set a payout wallet yet.");
-      return;
-    }
+    if (!stream?.guideWallet || paying) return;
     setPayError(null);
+    setPaying(true);
     try {
       const hash = await transferUsdc(stream.guideWallet as `0x${string}`, stream.priceUsdc);
       await handleJoin({ txHash: hash });
     } catch (err) {
-      const message = (err as Error).message;
-      setPayError(message);
-      toast(message, "error");
+      showPayError((err as Error).message);
+    } finally {
+      setPaying(false);
     }
   }
 
   async function handleMpesaPayToWatch() {
-    if (!session || !stream) return;
+    if (!session || !stream || paying) return;
     if (!mpesaPhone.trim()) {
       setPayError("Enter your M-Pesa phone number");
       return;
     }
     setPayError(null);
+    setPaying(true);
     try {
       const payment = await initiateMpesaPayment(
         {
@@ -167,9 +171,9 @@ export default function LiveStreamPage() {
       }
       await handleJoin({ paymentIntentId: payment.intentId });
     } catch (err) {
-      const message = (err as Error).message;
-      setPayError(message);
-      toast(message, "error");
+      showPayError((err as Error).message);
+    } finally {
+      setPaying(false);
     }
   }
 
@@ -223,9 +227,7 @@ export default function LiveStreamPage() {
       await refreshTips();
       toast(`Tip sent — ${amount} USDC`, "success");
     } catch (err) {
-      const message = (err as Error).message;
-      setPayError(message);
-      toast(message, "error");
+      showPayError((err as Error).message);
     }
   }
 
@@ -460,16 +462,16 @@ export default function LiveStreamPage() {
               <Button
                 variant="primary"
                 className="mt-2 w-full"
-                disabled={!session || joining}
+                disabled={!session || paying || joining}
                 onClick={handleMpesaPayToWatch}
               >
-                {joining ? "Processing…" : `Pay with M-Pesa & watch`}
+                {paying || joining ? "Processing…" : `Pay with M-Pesa & watch`}
               </Button>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <WalletConnectButton />
-              <Button variant="secondary" disabled={!address || writing || joining} onClick={handlePayToWatch}>
-                {writing || joining ? "Paying..." : `Pay ${stream.priceUsdc} USDC`}
+              <Button variant="secondary" disabled={!address || writing || paying || joining} onClick={handlePayToWatch}>
+                {writing || paying || joining ? "Paying..." : `Pay ${stream.priceUsdc} USDC`}
               </Button>
             </div>
           </div>

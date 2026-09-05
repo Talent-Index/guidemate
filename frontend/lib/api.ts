@@ -112,6 +112,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
+/** Map provider-specific payment errors to clearer user-facing copy. */
+export function friendlyPaymentError(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes("onramp") && lower.includes("not enabled")) {
+    return "M-Pesa is not available yet. Pay with a USDC wallet instead, or try again later.";
+  }
+  return message;
+}
+
 function authHeaders(accessToken?: string): HeadersInit {
   return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 }

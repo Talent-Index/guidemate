@@ -12,7 +12,7 @@ import { BookingConfirmation } from "@/components/BookingConfirmation";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
-import { createBooking, initiateMpesaPayment, pollMpesaPayment, type BookingRecord } from "@/lib/api";
+import { createBooking, initiateMpesaPayment, pollMpesaPayment, friendlyPaymentError, type BookingRecord } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import { Price } from "@/lib/fx";
 
@@ -114,7 +114,7 @@ export default function BookExperiencePage() {
         "success"
       );
     } catch (err) {
-      const message = (err as Error).message;
+      const message = friendlyPaymentError((err as Error).message);
       setBookingError(message);
       toast(message, "error");
     } finally {

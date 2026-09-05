@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
 
 export type ToastTone = "success" | "error" | "info";
 
@@ -24,8 +24,15 @@ function toneStyles(tone: ToastTone) {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const recentRef = useRef<Map<string, number>>(new Map());
 
   const toast = useCallback((message: string, tone: ToastTone = "info") => {
+    const key = `${tone}:${message}`;
+    const now = Date.now();
+    const lastShown = recentRef.current.get(key);
+    if (lastShown != null && now - lastShown < 3000) return;
+    recentRef.current.set(key, now);
+
     const id = crypto.randomUUID();
     setToasts((prev) => [...prev, { id, message, tone }]);
     window.setTimeout(() => {

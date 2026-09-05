@@ -7,6 +7,7 @@ import { wagmiConfig } from "@/lib/wagmi";
 import { ThemeProvider } from "@/lib/theme";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 import { CurrencyProvider } from "@/lib/fx";
+import { ToastProvider } from "@/components/ui/Toast";
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
@@ -16,7 +17,9 @@ export function Providers({ children }: { children: ReactNode }) {
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <CurrencyProvider>{children}</CurrencyProvider>
+            <ToastProvider>
+              <CurrencyProvider>{children}</CurrencyProvider>
+            </ToastProvider>
           </AuthProvider>
         </QueryClientProvider>
       </WagmiProvider>

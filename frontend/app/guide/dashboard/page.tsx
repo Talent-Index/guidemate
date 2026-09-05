@@ -17,6 +17,8 @@ import { listMyBookings, provisionWallet, submitTouristRating, type BookingRecor
 import { Price } from "@/lib/fx";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { WalletPanel } from "@/components/WalletPanel";
+import { SignOutSection } from "@/components/SignOutSection";
+import { useToast } from "@/components/ui/Toast";
 
 type DashboardTab = "experiences" | "history" | "wallet" | "settings";
 
@@ -57,6 +59,7 @@ async function uploadExperiencePhotos(files: File[], guideId: string): Promise<s
 
 export default function GuideDashboardPage() {
   const { loading: authLoading, session, profile, refreshProfile } = useAuth();
+  const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState<DashboardTab>("experiences");
 
@@ -106,6 +109,12 @@ export default function GuideDashboardPage() {
     if (session) void loadExperiences(session.user.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
+
+  useEffect(() => {
+    if (window.location.hash === "#settings") {
+      setActiveTab("settings");
+    }
+  }, []);
 
   useEffect(() => {
     if (!session) return;
@@ -167,6 +176,7 @@ export default function GuideDashboardPage() {
       if (error) throw error;
       await refreshProfile();
       setProfileSaved(true);
+      toast("Profile saved", "success");
     } catch (err) {
       setProfileError((err as Error).message);
     } finally {
@@ -218,6 +228,7 @@ export default function GuideDashboardPage() {
       handleImageFilesSelected(null);
       setShowForm(false);
       await loadExperiences(session.user.id);
+      toast("Experience published", "success");
     } catch (err) {
       setExperienceError((err as Error).message);
     } finally {
@@ -481,6 +492,10 @@ export default function GuideDashboardPage() {
             {savingProfile ? "Saving..." : "Save profile"}
           </Button>
         </form>
+
+        <div className="mt-6">
+          <SignOutSection />
+        </div>
       </Card>
       )}
 

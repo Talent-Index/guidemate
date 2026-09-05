@@ -13,6 +13,7 @@ import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import { createBooking, initiateMpesaPayment, pollMpesaPayment, type BookingRecord } from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
 import { Price } from "@/lib/fx";
 
 interface ExperienceDetail {
@@ -39,6 +40,7 @@ type PaymentMethod = "demo" | "mpesa" | "custodial" | "external";
 export default function BookExperiencePage() {
   const params = useParams<{ experienceId: string }>();
   const { loading: authLoading, session, profile } = useAuth();
+  const { toast } = useToast();
 
   const [experience, setExperience] = useState<ExperienceDetail | null>(null);
   const [loadingExperience, setLoadingExperience] = useState(true);
@@ -107,8 +109,14 @@ export default function BookExperiencePage() {
         session.access_token
       );
       setBooking(created);
+      toast(
+        paymentMethod === "mpesa" ? "M-Pesa payment received — booking confirmed" : "Booking confirmed",
+        "success"
+      );
     } catch (err) {
-      setBookingError((err as Error).message);
+      const message = (err as Error).message;
+      setBookingError(message);
+      toast(message, "error");
     } finally {
       setBookingLoading(false);
     }

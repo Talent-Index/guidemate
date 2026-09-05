@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { SignOutSection } from "@/components/SignOutSection";
 import {
   getAdminOverview,
   getAdminTransactions,
@@ -118,6 +119,10 @@ export default function AdminDashboardPage() {
           </table>
         </div>
       </Card>
+
+      <div id="account">
+        <SignOutSection />
+      </div>
     </div>
   );
 }

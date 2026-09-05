@@ -36,6 +36,7 @@ import {
 } from "@/lib/api";
 import { Price } from "@/lib/fx";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
+import { useToast } from "@/components/ui/Toast";
 
 const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? "";
 const USDC_ADDRESS = (process.env.NEXT_PUBLIC_MOCK_USDC_ADDRESS ?? "") as `0x${string}`;
@@ -44,6 +45,7 @@ export default function LiveStreamPage() {
   const params = useParams<{ streamId: string }>();
   const streamId = params.streamId;
   const { session, profile } = useAuth();
+  const { toast } = useToast();
   const { address } = useAccount();
   const { writeContractAsync, isPending: writing } = useWriteContract();
 
@@ -101,8 +103,15 @@ export default function LiveStreamPage() {
       setToken(result.token);
       setRole(result.role);
       setStream(result.stream);
+      if (opts?.txHash || opts?.paymentIntentId) {
+        toast("Payment received — you can watch now", "success");
+      }
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      if (opts?.txHash || opts?.paymentIntentId) {
+        toast(message, "error");
+      }
     } finally {
       setJoining(false);
     }
@@ -130,7 +139,9 @@ export default function LiveStreamPage() {
       const hash = await transferUsdc(stream.guideWallet as `0x${string}`, stream.priceUsdc);
       await handleJoin({ txHash: hash });
     } catch (err) {
-      setPayError((err as Error).message);
+      const message = (err as Error).message;
+      setPayError(message);
+      toast(message, "error");
     }
   }
 
@@ -156,7 +167,9 @@ export default function LiveStreamPage() {
       }
       await handleJoin({ paymentIntentId: payment.intentId });
     } catch (err) {
-      setPayError((err as Error).message);
+      const message = (err as Error).message;
+      setPayError(message);
+      toast(message, "error");
     }
   }
 
@@ -208,8 +221,11 @@ export default function LiveStreamPage() {
         session?.access_token
       );
       await refreshTips();
+      toast(`Tip sent — ${amount} USDC`, "success");
     } catch (err) {
-      setPayError((err as Error).message);
+      const message = (err as Error).message;
+      setPayError(message);
+      toast(message, "error");
     }
   }
 

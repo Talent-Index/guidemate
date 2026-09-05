@@ -11,6 +11,7 @@ import {
   type WalletSummary,
   SNOWTRACE_TX_BASE,
 } from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
 
 export function WalletPanel({
   accessToken,
@@ -21,6 +22,7 @@ export function WalletPanel({
   canWithdraw?: boolean;
   phone?: string | null;
 }) {
+  const { toast } = useToast();
   const [wallet, setWallet] = useState<WalletSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [provisioning, setProvisioning] = useState(false);
@@ -52,8 +54,11 @@ export function WalletPanel({
       await provisionWallet(accessToken);
       await refresh();
       setMessage("Wallet created.");
+      toast("Wallet created", "success");
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast(message, "error");
     } finally {
       setProvisioning(false);
     }
@@ -67,14 +72,20 @@ export function WalletPanel({
     try {
       const result = await withdrawWallet(amount, accessToken, phone ?? undefined);
       if (result.pending) {
-        setMessage(`Withdrawal initiated — KES ${result.kesAmount.toLocaleString()} will arrive on M-Pesa shortly · Ref ${result.reference}`);
+        const msg = `Withdrawal initiated — KES ${result.kesAmount.toLocaleString()} will arrive on M-Pesa shortly`;
+        setMessage(msg);
+        toast(msg, "success");
       } else {
-        setMessage(`KES ${result.kesAmount.toLocaleString()} sent to M-Pesa · Ref ${result.reference}`);
+        const msg = `KES ${result.kesAmount.toLocaleString()} sent to M-Pesa`;
+        setMessage(`${msg} · Ref ${result.reference}`);
+        toast(msg, "success");
       }
       setWithdrawAmount("");
       await refresh();
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast(message, "error");
     } finally {
       setWithdrawing(false);
     }

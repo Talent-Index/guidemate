@@ -7,6 +7,7 @@ import { TouristProfileCard } from "@/components/TouristProfileCard";
 import { WalletPanel } from "@/components/WalletPanel";
 import { WalletConnectButton } from "@/components/WalletConnectButton";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
+import { SignOutSection } from "@/components/SignOutSection";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 export default function TouristSettingsPage() {
@@ -63,6 +64,8 @@ export default function TouristSettingsPage() {
           </Card>
         </div>
       )}
+
+      <SignOutSection />
     </div>
   );
 }

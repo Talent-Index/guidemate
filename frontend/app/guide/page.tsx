@@ -7,6 +7,7 @@ import { Chip } from "@/components/ui/Chip";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { completeBooking, completeBookingWithPin, listMyBookings, reportNoShow, submitTouristRating, type BookingRecord } from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
 import { Price } from "@/lib/fx";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { QrScanner, type QrScannerHandle } from "@/components/QrScanner";
@@ -18,6 +19,7 @@ const NO_SHOW_GRACE_PERIOD_MS = 30 * 60 * 1000;
 
 export default function GuideActiveTourPage() {
   const { loading: authLoading, session, profile } = useAuth();
+  const { toast } = useToast();
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [reportingId, setReportingId] = useState<string | null>(null);
@@ -258,6 +260,7 @@ function EndTripPinForm({
   accessToken: string;
   onReleased: (booking: BookingRecord) => void;
 }) {
+  const { toast } = useToast();
   const [pin, setPin] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -271,9 +274,12 @@ function EndTripPinForm({
     setError(null);
     try {
       const { booking } = await completeBookingWithPin(bookingId, pin, accessToken);
+      toast("Payment released to your wallet", "success");
       onReleased(booking);
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast(message, "error");
     } finally {
       setSubmitting(false);
     }
@@ -286,9 +292,12 @@ function EndTripPinForm({
       const { booking } = await completeBooking(extractToken(raw));
       await scannerRef.current?.stop();
       setScanning(false);
+      toast("Payment released to your wallet", "success");
       onReleased(booking);
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast(message, "error");
     } finally {
       setSubmitting(false);
     }

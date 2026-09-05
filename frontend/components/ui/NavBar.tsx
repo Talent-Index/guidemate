@@ -3,15 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { BrandLogo } from "@/components/ui/BrandLogo";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { homeForRole } from "@/lib/auth/home";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 export function NavBar() {
-  const router = useRouter();
   const pathname = usePathname();
-  const { loading, user, profile, signOut } = useAuth();
+  const { loading, user, profile } = useAuth();
   const [hidden, setHidden] = useState(false);
   const lastY = useRef(0);
 
@@ -36,13 +35,17 @@ export function NavBar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  async function handleSignOut() {
-    await signOut();
-    router.push("/");
-  }
-
   const linkClass =
     "text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-800 transition hover:text-black dark:text-white dark:hover:text-white";
+
+  const settingsHref =
+    profile?.role === "guide"
+      ? "/guide/dashboard#settings"
+      : profile?.role === "tourist"
+        ? "/tourist/settings"
+        : profile?.role === "admin"
+          ? "/admin#account"
+          : null;
 
   return (
     <header
@@ -86,14 +89,11 @@ export function NavBar() {
                   Messages
                 </Link>
               )}
-              {profile.role === "tourist" && (
-                <Link href="/tourist/settings" className={linkClass}>
+              {settingsHref && (
+                <Link href={settingsHref} className={linkClass}>
                   Settings
                 </Link>
               )}
-              <button type="button" onClick={handleSignOut} className={linkClass}>
-                Sign out
-              </button>
             </div>
           ) : (
             <div className="flex items-center">
@@ -118,14 +118,13 @@ export function NavBar() {
 
         <div className="flex items-center gap-2 md:hidden">
           <ThemeToggle />
-          {user && profile ? (
-            <button
-              type="button"
-              onClick={handleSignOut}
+          {user && profile && settingsHref ? (
+            <Link
+              href={settingsHref}
               className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-800 dark:text-white"
             >
-              Sign out
-            </button>
+              Settings
+            </Link>
           ) : pathname === "/" ? (
             <Link
               href="/auth/sign-in"

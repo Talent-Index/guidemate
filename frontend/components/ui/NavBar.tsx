@@ -114,7 +114,15 @@ export function NavBar() {
           <ThemeToggle />
         </nav>
 
-        <div className="flex items-center md:hidden">
+        <div className="flex items-center gap-2 md:hidden">
+          {!loading && !user && (
+            <Link
+              href="/auth/sign-in"
+              className="bg-brand-amber px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[#111111] transition hover:bg-brand-amberDark"
+            >
+              Sign in
+            </Link>
+          )}
           <ThemeToggle />
         </div>
       </div>

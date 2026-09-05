@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
@@ -13,14 +14,15 @@ import { createClient } from "@/lib/supabase/client";
 import { EXPERIENCE_CATEGORIES } from "@/lib/categories";
 import { RatePanel } from "@/components/RatePanel";
 import { ViewTouristProfileButton } from "@/components/ViewTouristProfileButton";
-import { listMyBookings, provisionWallet, submitTouristRating, type BookingRecord } from "@/lib/api";
+import { listMyBookings, getGuideInsights, submitTouristRating, type BookingRecord, type GuideInsights } from "@/lib/api";
 import { Price } from "@/lib/fx";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { WalletPanel } from "@/components/WalletPanel";
-import { SignOutSection } from "@/components/SignOutSection";
+import { ShareLinkButton } from "@/components/ShareLinkButton";
+import { getExperienceSharePath, getStreamSharePath } from "@/lib/share";
 import { useToast } from "@/components/ui/Toast";
 
-type DashboardTab = "experiences" | "history" | "wallet" | "settings";
+type DashboardTab = "experiences" | "insights" | "wallet";
 
 interface ExperienceRow {
   id: string;
@@ -58,7 +60,8 @@ async function uploadExperiencePhotos(files: File[], guideId: string): Promise<s
 }
 
 export default function GuideDashboardPage() {
-  const { loading: authLoading, session, profile, refreshProfile } = useAuth();
+  const router = useRouter();
+  const { loading: authLoading, session, profile } = useAuth();
   const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState<DashboardTab>("experiences");
@@ -66,14 +69,9 @@ export default function GuideDashboardPage() {
   const [guideBookings, setGuideBookings] = useState<BookingRecord[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [bookingsError, setBookingsError] = useState<string | null>(null);
-
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [bio, setBio] = useState("");
-  const [languages, setLanguages] = useState("");
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [profileError, setProfileError] = useState<string | null>(null);
-  const [profileSaved, setProfileSaved] = useState(false);
+  const [insights, setInsights] = useState<GuideInsights | null>(null);
+  const [loadingInsights, setLoadingInsights] = useState(false);
+  const [insightsError, setInsightsError] = useState<string | null>(null);
 
   const [experiences, setExperiences] = useState<ExperienceRow[]>([]);
   const [loadingExperiences, setLoadingExperiences] = useState(true);
@@ -93,17 +91,6 @@ export default function GuideDashboardPage() {
 
   const [photoUpdatingId, setPhotoUpdatingId] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  const [provisioningWallet, setProvisioningWallet] = useState(false);
-  const [provisionError, setProvisionError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (profile) {
-      setFullName(profile.fullName ?? "");
-      setPhone(profile.phone ?? "");
-      setBio(profile.bio ?? "");
-      setLanguages(profile.languages.join(", "));
-    }
-  }, [profile]);
 
   useEffect(() => {
     if (session) void loadExperiences(session.user.id);
@@ -111,15 +98,20 @@ export default function GuideDashboardPage() {
   }, [session]);
 
   useEffect(() => {
-    function syncSettingsTab() {
-      if (window.location.hash === "#settings") {
-        setActiveTab("settings");
-      }
+    if (!session || activeTab !== "insights") return;
+    setLoadingInsights(true);
+    setInsightsError(null);
+    getGuideInsights(session.access_token)
+      .then(({ insights: data }) => setInsights(data))
+      .catch((err) => setInsightsError((err as Error).message))
+      .finally(() => setLoadingInsights(false));
+  }, [session, activeTab]);
+
+  useEffect(() => {
+    if (window.location.hash === "#settings") {
+      router.replace("/guide/settings");
     }
-    syncSettingsTab();
-    window.addEventListener("hashchange", syncSettingsTab);
-    return () => window.removeEventListener("hashchange", syncSettingsTab);
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (!session) return;
@@ -156,37 +148,6 @@ export default function GuideDashboardPage() {
       .order("created_at", { ascending: false });
     setExperiences((data as ExperienceRow[]) ?? []);
     setLoadingExperiences(false);
-  }
-
-  async function handleSaveProfile(e: FormEvent) {
-    e.preventDefault();
-    if (!session) return;
-    setSavingProfile(true);
-    setProfileError(null);
-    setProfileSaved(false);
-    try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          full_name: fullName,
-          phone,
-          bio,
-          languages: languages
-            .split(",")
-            .map((l) => l.trim())
-            .filter(Boolean),
-        })
-        .eq("id", session.user.id);
-      if (error) throw error;
-      await refreshProfile();
-      setProfileSaved(true);
-      toast("Profile saved", "success");
-    } catch (err) {
-      setProfileError((err as Error).message);
-    } finally {
-      setSavingProfile(false);
-    }
   }
 
   function handleImageFilesSelected(fileList: FileList | null) {
@@ -375,134 +336,17 @@ export default function GuideDashboardPage() {
         </Card>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-2">
-          <TabButton active={activeTab === "experiences"} onClick={() => setActiveTab("experiences")}>
-            Experiences
-          </TabButton>
-          <TabButton active={activeTab === "history"} onClick={() => setActiveTab("history")}>
-            Past tours
-          </TabButton>
-          <TabButton active={activeTab === "wallet"} onClick={() => setActiveTab("wallet")}>
-            Wallet
-          </TabButton>
-        </div>
-        <button
-          type="button"
-          onClick={() => setActiveTab("settings")}
-          className={`flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
-            activeTab === "settings"
-              ? "border-brand-accent bg-brand-accent/10 text-brand-accent"
-              : "border-brand-border text-brand-muted hover:border-brand-accent hover:text-brand-accent"
-          }`}
-        >
-          ⚙️ Settings
-        </button>
+      <div className="flex flex-wrap gap-2">
+        <TabButton active={activeTab === "experiences"} onClick={() => setActiveTab("experiences")}>
+          Experiences
+        </TabButton>
+        <TabButton active={activeTab === "insights"} onClick={() => setActiveTab("insights")}>
+          Insights
+        </TabButton>
+        <TabButton active={activeTab === "wallet"} onClick={() => setActiveTab("wallet")}>
+          Wallet
+        </TabButton>
       </div>
-
-      {activeTab === "settings" && (
-      <Card>
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <h1 className="text-xl font-bold text-brand-blueDark">Your guide profile</h1>
-            <p className="mt-1 text-sm text-brand-muted">
-              This is what tourists see, and where your M-Pesa payout number and on-chain wallet are set.
-            </p>
-          </div>
-          <StarRating
-            value={profile.ratingAvg}
-            count={profile.ratingCount}
-            size="md"
-            className="rounded-full bg-brand-bg px-3 py-1.5"
-          />
-        </div>
-
-        <div className="mt-6 rounded-2xl border border-brand-border p-4 text-sm">
-          <p className="font-semibold text-brand-blueDark">Terms</p>
-          <p className="mt-2 text-brand-muted">
-            Guidemate takes <span className="font-semibold text-brand-blueDark">15%</span> of your listed rate. You
-            keep 85% when the trip is completed. If a tourist cancels, the platform charges a{" "}
-            <span className="font-semibold text-brand-blueDark">20% inconvenience fee</span> so your time is
-            respected.
-          </p>
-          <Link href="/guide/terms" className="mt-2 inline-block font-semibold text-brand-accent">
-            Read full guide terms
-          </Link>
-        </div>
-
-        <form className="mt-4 grid gap-3 sm:grid-cols-2" onSubmit={handleSaveProfile}>
-          <Field label="Full name">
-            <input className={inputClass} value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-          </Field>
-          <Field label="M-Pesa phone number">
-            <input
-              className={inputClass}
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+254712345678"
-              required
-            />
-          </Field>
-          <Field label="Languages (comma separated)">
-            <input
-              className={inputClass}
-              value={languages}
-              onChange={(e) => setLanguages(e.target.value)}
-              placeholder="English, Swahili"
-            />
-          </Field>
-          <Field label="Payout wallet address">
-            <input
-              className={inputClass}
-              value={profile.walletAddress ?? ""}
-              readOnly
-              placeholder="Not provisioned yet"
-            />
-          </Field>
-          {!profile.walletAddress && (
-            <div className="sm:col-span-2">
-              {provisionError && <p className="mb-2 text-sm text-red-600">{provisionError}</p>}
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={provisioningWallet}
-                onClick={async () => {
-                  if (!session) return;
-                  setProvisioningWallet(true);
-                  setProvisionError(null);
-                  try {
-                    await provisionWallet(session.access_token);
-                    await refreshProfile();
-                  } catch (err) {
-                    setProvisionError((err as Error).message);
-                  } finally {
-                    setProvisioningWallet(false);
-                  }
-                }}
-              >
-                {provisioningWallet ? "Provisioning..." : "Provision wallet"}
-              </Button>
-            </div>
-          )}
-          <div className="sm:col-span-2">
-            <Field label="Bio">
-              <textarea className={inputClass} rows={3} value={bio} onChange={(e) => setBio(e.target.value)} />
-            </Field>
-          </div>
-
-          {profileError && <p className="text-sm text-red-600 sm:col-span-2">{profileError}</p>}
-          {profileSaved && <p className="text-sm text-brand-success sm:col-span-2">Profile saved.</p>}
-
-          <Button variant="primary" type="submit" disabled={savingProfile} className="w-fit sm:col-span-2">
-            {savingProfile ? "Saving..." : "Save profile"}
-          </Button>
-        </form>
-
-        <div className="mt-6">
-          <SignOutSection />
-        </div>
-      </Card>
-      )}
 
       {activeTab === "experiences" && (
       <Card>
@@ -663,7 +507,14 @@ export default function GuideDashboardPage() {
                   </select>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <ShareLinkButton
+                  path={getExperienceSharePath(exp.id)}
+                  label="Share"
+                  shareTitle={exp.title}
+                  shareText={`Book ${exp.title} on Guidemate`}
+                  className="px-4 py-2 text-xs"
+                />
                 <span
                   className={`rounded-full px-2 py-1 text-xs font-semibold ${
                     exp.is_active ? "bg-brand-successBg text-brand-success" : "bg-brand-bg text-brand-muted"
@@ -704,20 +555,161 @@ export default function GuideDashboardPage() {
         </div>
       )}
 
-      {activeTab === "history" && (
-      <Card>
-        <div>
-          <h2 className="text-lg font-bold text-brand-blueDark">Past tours</h2>
-          <p className="text-sm text-brand-muted">Completed tours and whether the payout has actually landed.</p>
-        </div>
+      {activeTab === "insights" && (
+      <div className="flex flex-col gap-4">
+        <Card>
+          <div>
+            <h2 className="text-lg font-bold text-brand-blueDark">Your performance</h2>
+            <p className="text-sm text-brand-muted">Bookings, live streams, and earnings at a glance.</p>
+          </div>
 
-        <div className="mt-4 flex flex-col gap-3">
-          {loadingBookings && <ListRowSkeleton count={3} />}
-          {bookingsError && <p className="text-sm text-red-600">{bookingsError}</p>}
-          {!loadingBookings && !bookingsError && pastBookings.length === 0 && (
-            <p className="text-sm text-brand-muted">No completed tours yet - they&apos;ll show up here once a booking is verified.</p>
+          {loadingInsights && !insights && <div className="mt-4"><ListRowSkeleton count={2} /></div>}
+          {insightsError && <p className="mt-4 text-sm text-red-600">{insightsError}</p>}
+
+          {insights && (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <InsightStat label="Confirmed bookings" value={insights.overview.confirmedBookings} />
+              <InsightStat label="Completed tours" value={insights.overview.completedTours} />
+              <InsightStat label="Past live streams" value={insights.overview.pastStreams} />
+              <InsightStat label="Tour earnings" value={`${insights.overview.tourEarningsUsdc} USDC`} />
+              <InsightStat label="Stream tips" value={`${insights.overview.streamEarningsUsdc} USDC`} />
+              <InsightStat
+                label="Rating"
+                value={
+                  insights.overview.ratingCount > 0
+                    ? `${insights.overview.ratingAvg.toFixed(1)} (${insights.overview.ratingCount})`
+                    : "No ratings yet"
+                }
+              />
+            </div>
           )}
-          {pastBookings.map((b) => (
+        </Card>
+
+        {upcoming.length > 0 && (
+          <Card>
+            <h3 className="text-sm font-bold uppercase tracking-wide text-brand-muted">Confirmed bookings</h3>
+            <p className="mt-1 text-sm text-brand-muted">Paid and waiting for the tour — open Active tour to verify.</p>
+            <div className="mt-4 flex flex-col gap-3">
+              {upcoming.map((b) => (
+                <div
+                  key={b.bookingId}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3 max-md:rounded-3xl"
+                >
+                  <div>
+                    <p className="font-semibold text-brand-blueDark">{b.experienceTitle ?? "Tour"}</p>
+                    <p className="text-sm text-brand-muted">
+                      {b.touristName?.trim() || "Guest"}
+                      {b.touristPhone ? ` · ${b.touristPhone}` : ""}
+                    </p>
+                    <p className="text-xs text-brand-muted">
+                      Booked {new Date(b.createdAt).toLocaleDateString()} ·{" "}
+                      <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
+                    </p>
+                  </div>
+                  <Chip tone={b.status} />
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {insights && insights.upcomingStreams.length > 0 && (
+          <Card>
+            <h3 className="text-sm font-bold uppercase tracking-wide text-brand-muted">Upcoming live streams</h3>
+            <div className="mt-4 flex flex-col gap-3">
+              {insights.upcomingStreams.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3 max-md:rounded-3xl"
+                >
+                  <div>
+                    <p className="font-semibold text-brand-blueDark">{s.title}</p>
+                    {s.experienceTitle && <p className="text-sm text-brand-muted">{s.experienceTitle}</p>}
+                    <p className="text-xs text-brand-muted">
+                      {s.scheduledAt ? new Date(s.scheduledAt).toLocaleString() : "Scheduled"}
+                      {s.priceUsdc > 0 ? (
+                        <>
+                          {" "}
+                          · <Price amountUsdc={s.priceUsdc} size="sm" align="start" className="inline-flex" />
+                        </>
+                      ) : null}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <ShareLinkButton
+                      path={getStreamSharePath(s.id)}
+                      label="Share"
+                      shareTitle={s.title}
+                      shareText={`Join my live stream: ${s.title}`}
+                      className="px-4 py-2 text-xs"
+                    />
+                    <Link href={`/live/${s.id}`}>
+                      <Button variant="secondary">Open</Button>
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {insights && insights.pastStreams.length > 0 && (
+          <Card>
+            <h3 className="text-sm font-bold uppercase tracking-wide text-brand-muted">Past live streams</h3>
+            <div className="mt-4 flex flex-col gap-3">
+              {insights.pastStreams.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3 max-md:rounded-3xl"
+                >
+                  <div>
+                    <p className="font-semibold text-brand-blueDark">{s.title}</p>
+                    {s.experienceTitle && <p className="text-sm text-brand-muted">{s.experienceTitle}</p>}
+                    <p className="text-xs text-brand-muted">
+                      {s.endedAt ? new Date(s.endedAt).toLocaleDateString() : new Date(s.createdAt).toLocaleDateString()}
+                      {" · "}
+                      {s.tipCount} tips ({s.tipTotalUsdc} USDC)
+                      {" · "}
+                      {s.reactionCount} flowers
+                      {s.commentCount > 0 ? ` · ${s.commentCount} comments` : ""}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {s.recordingUrl && (
+                      <a href={s.recordingUrl} target="_blank" rel="noreferrer">
+                        <Button variant="secondary">Recording</Button>
+                      </a>
+                    )}
+                    <ShareLinkButton
+                      path={getStreamSharePath(s.id)}
+                      label="Share"
+                      shareTitle={s.title}
+                      shareText={`Watch ${s.title} on Guidemate`}
+                      className="px-4 py-2 text-xs"
+                    />
+                    <Link href={`/live/${s.id}`}>
+                      <Button variant="secondary">View</Button>
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        <Card>
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wide text-brand-muted">Past tours</h3>
+            <p className="mt-1 text-sm text-brand-muted">Completed tours and payout status.</p>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3">
+            {loadingBookings && <ListRowSkeleton count={3} />}
+            {bookingsError && <p className="text-sm text-red-600">{bookingsError}</p>}
+            {!loadingBookings && !bookingsError && pastBookings.length === 0 && (
+              <p className="text-sm text-brand-muted">No completed tours yet — they&apos;ll show up here once verified.</p>
+            )}
+            {pastBookings.map((b) => (
             <div key={b.bookingId} className="rounded-lg border border-brand-border p-3 max-md:rounded-3xl">
               <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -783,7 +775,17 @@ export default function GuideDashboardPage() {
           ))}
         </div>
       </Card>
+      </div>
       )}
+    </div>
+  );
+}
+
+function InsightStat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-2xl border border-brand-border bg-brand-bg/40 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">{label}</p>
+      <p className="mt-1 text-xl font-bold text-brand-blueDark">{value}</p>
     </div>
   );
 }

@@ -122,10 +122,25 @@ html.dark .shadow-card {
   }
 }
 
-/* Keep LiveKit mic/camera controls above comment overlays and tappable on mobile */
+/* Keep LiveKit mic/camera controls above overlays and tappable on mobile */
 [data-lk-theme] .lk-control-bar,
 [data-lk-theme] .lk-button-group-menu {
   position: relative;
   z-index: 30;
   pointer-events: auto;
+}
+
+[data-lk-theme] .lk-chat,
+[data-lk-theme] .lk-settings-menu-modal {
+  display: none !important;
+}
+
+.gm-stream-grid .lk-participant-tile {
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.gm-stream-grid .lk-grid-layout {
+  gap: 0.5rem;
+  padding: 0.5rem;
 }

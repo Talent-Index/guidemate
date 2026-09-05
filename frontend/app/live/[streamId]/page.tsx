@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { LiveKitRoom, VideoConference, RoomAudioRenderer } from "@livekit/components-react";
-import "@livekit/components-styles";
+import { StreamRoom } from "@/components/StreamRoom";
 import { parseUnits } from "viem";
 import { useAccount, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
@@ -37,7 +36,10 @@ import {
 } from "@/lib/api";
 import { Price } from "@/lib/fx";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
+import { ShareLinkButton } from "@/components/ShareLinkButton";
+import { getStreamSharePath } from "@/lib/share";
 import { useToast } from "@/components/ui/Toast";
+import "@livekit/components-styles";
 
 const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? "";
 const USDC_ADDRESS = (process.env.NEXT_PUBLIC_MOCK_USDC_ADDRESS ?? "") as `0x${string}`;
@@ -313,6 +315,14 @@ export default function LiveStreamPage() {
           <h1 className="mt-2 text-xl font-bold text-brand-blueDark">{stream.title}</h1>
           <p className="text-sm text-brand-muted">with {stream.guideName}</p>
           <ViewGuideProfileButton guideId={stream.guideId} className="mt-3 inline-block" />
+          <div className="mt-4">
+            <ShareLinkButton
+              path={getStreamSharePath(stream.id)}
+              label="Share stream link"
+              shareTitle={stream.title}
+              shareText={`Watch ${stream.title} on Guidemate`}
+            />
+          </div>
           {stream.recordingUrl ? (
             <video className="mt-4 w-full rounded-lg bg-black" src={stream.recordingUrl} controls playsInline />
           ) : (
@@ -338,7 +348,16 @@ export default function LiveStreamPage() {
             </p>
             <ViewGuideProfileButton guideId={stream.guideId} className="mt-3 inline-block" />
           </div>
-          <Chip tone="neutral" label="Scheduled" />
+          <div className="flex flex-wrap items-center gap-2">
+            <ShareLinkButton
+              path={getStreamSharePath(stream.id)}
+              label="Share"
+              shareTitle={stream.title}
+              shareText={`Join my live stream: ${stream.title}`}
+              className="px-4 py-2 text-xs"
+            />
+            <Chip tone="neutral" label="Scheduled" />
+          </div>
         </div>
 
         <Card>
@@ -363,7 +382,16 @@ export default function LiveStreamPage() {
         {isGuide && (
           <Card>
             <h2 className="text-sm font-bold text-brand-blueDark">Guide controls</h2>
+            <p className="mt-1 text-sm text-brand-muted">
+              Share this link so people can join when you go live.
+            </p>
             <div className="mt-3 flex flex-wrap gap-2">
+              <ShareLinkButton
+                path={getStreamSharePath(stream.id)}
+                label="Share link"
+                shareTitle={stream.title}
+                shareText={`Join my live stream: ${stream.title}`}
+              />
               {!stream.communityNotifiedAt && (
                 <Button variant="secondary" disabled={notifying} onClick={handleNotifyCommunity}>
                   {notifying ? "Notifying..." : "Notify: live in 1 hour"}
@@ -397,7 +425,20 @@ export default function LiveStreamPage() {
           </p>
           <ViewGuideProfileButton guideId={stream.guideId} className="mt-3 inline-block" />
         </div>
-        <Chip tone="paid" label="Live" />
+        <div className="flex flex-wrap items-center gap-2">
+          <ShareLinkButton
+            path={getStreamSharePath(stream.id)}
+            label="Share"
+            shareTitle={stream.title}
+            shareText={
+              stream.status === "live"
+                ? `Watch live now: ${stream.title}`
+                : `Join my live stream: ${stream.title}`
+            }
+            className="px-4 py-2 text-xs"
+          />
+          <Chip tone="paid" label="Live" />
+        </div>
       </div>
 
       {!LIVEKIT_URL && (
@@ -427,24 +468,11 @@ export default function LiveStreamPage() {
               🌸 Flower
             </button>
           </div>
-          <LiveKitRoom
+          <StreamRoom
             serverUrl={LIVEKIT_URL}
             token={token}
-            connect
-            video={role === "publisher"}
-            audio={role === "publisher"}
-            style={{ height: "min(70vh, 560px)" }}
-          >
-            <VideoConference />
-            <RoomAudioRenderer />
-          </LiveKitRoom>
-          <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 max-h-32 overflow-y-auto bg-gradient-to-t from-black/70 to-transparent px-3 pb-16 pt-8 md:pb-3">
-            {comments.slice(-5).map((c) => (
-              <p key={c.id} className="text-xs text-white">
-                <span className="font-semibold">{c.displayName}</span> {c.body}
-              </p>
-            ))}
-          </div>
+            isPublisher={role === "publisher"}
+          />
         </div>
       ) : needsPayment ? (
         <Card>
@@ -512,7 +540,19 @@ export default function LiveStreamPage() {
 
       <Card>
         <h2 className="text-sm font-bold text-brand-blueDark">Live chat</h2>
-        <form onSubmit={handlePostComment} className="mt-2 flex gap-2">
+        <ul className="mt-3 max-h-48 space-y-2 overflow-y-auto">
+          {comments.length === 0 ? (
+            <li className="text-sm text-brand-muted">Be the first to say something.</li>
+          ) : (
+            comments.map((c) => (
+              <li key={c.id} className="text-sm">
+                <span className="font-semibold text-brand-blueDark">{c.displayName}</span>{" "}
+                <span className="text-brand-muted">{c.body}</span>
+              </li>
+            ))
+          )}
+        </ul>
+        <form onSubmit={handlePostComment} className="mt-3 flex gap-2 border-t border-brand-border pt-3">
           <input
             className="form-input-light flex-1 text-sm"
             placeholder="Say something…"

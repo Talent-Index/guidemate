@@ -7,6 +7,7 @@ import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
 import { createClient } from "@/lib/supabase/client";
 import { homeForRole } from "@/lib/auth/home";
 import { provisionWallet } from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
 
 type Role = "tourist" | "guide";
 
@@ -21,6 +22,7 @@ export default function SignUpPage() {
 function SignUpForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
   const [role, setRole] = useState<Role>(searchParams.get("role") === "guide" ? "guide" : "tourist");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -93,6 +95,7 @@ function SignUpForm() {
         if (role === "guide") {
           await provisionWallet(data.session.access_token);
         }
+        toast("Account created — welcome to Guidemate", "success");
         router.push(homeForRole(role));
       } else {
         // Email confirmation is required - stash the intended profile so

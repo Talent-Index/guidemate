@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
-import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { StarRating } from "@/components/ui/StarRating";
+import { SettingsSection } from "@/components/settings/SettingsSection";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import { provisionWallet } from "@/lib/api";
@@ -31,6 +30,8 @@ export function GuideProfileCard() {
   }, [profile]);
 
   if (!session || profile?.role !== "guide") return null;
+
+  const email = session.user.email ?? "";
 
   async function handleSave(e: FormEvent) {
     e.preventDefault();
@@ -63,14 +64,8 @@ export function GuideProfileCard() {
   }
 
   return (
-    <Card>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h2 className="text-lg font-bold text-brand-blueDark">Your guide profile</h2>
-          <p className="mt-1 text-sm text-brand-muted">
-            What tourists see, plus your M-Pesa payout number and on-chain wallet.
-          </p>
-        </div>
+    <SettingsSection title="Profile" description="What tourists see, plus your payout details.">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
         <StarRating
           value={profile.ratingAvg}
           count={profile.ratingCount}
@@ -79,19 +74,12 @@ export function GuideProfileCard() {
         />
       </div>
 
-      <div className="mt-6 rounded-2xl border border-brand-border p-4 text-sm">
-        <p className="font-semibold text-brand-blueDark">Terms</p>
-        <p className="mt-2 text-brand-muted">
-          Guidemate takes <span className="font-semibold text-brand-blueDark">15%</span> of your listed rate. You keep
-          85% when the trip is completed. If a tourist cancels, the platform charges a{" "}
-          <span className="font-semibold text-brand-blueDark">20% inconvenience fee</span>.
-        </p>
-        <Link href="/guide/terms" className="mt-2 inline-block font-semibold text-brand-accent">
-          Read full guide terms
-        </Link>
-      </div>
-
-      <form className="mt-4 grid gap-3 sm:grid-cols-2" onSubmit={handleSave}>
+      <form className="grid gap-3 sm:grid-cols-2" onSubmit={handleSave}>
+        <div className="sm:col-span-2">
+          <Field label="Email">
+            <input className="form-input-light bg-brand-bg" value={email} readOnly />
+          </Field>
+        </div>
         <Field label="Full name">
           <input className="form-input-light" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
         </Field>
@@ -114,7 +102,7 @@ export function GuideProfileCard() {
         </Field>
         <Field label="Payout wallet address">
           <input
-            className="form-input-light"
+            className="form-input-light bg-brand-bg"
             value={profile.walletAddress ?? ""}
             readOnly
             placeholder="Not provisioned yet"
@@ -156,10 +144,10 @@ export function GuideProfileCard() {
         {error && <p className="text-sm text-red-600 sm:col-span-2">{error}</p>}
 
         <Button variant="primary" type="submit" disabled={saving} className="w-fit sm:col-span-2">
-          {saving ? "Saving..." : "Save profile"}
+          {saving ? "Saving..." : "Save changes"}
         </Button>
       </form>
-    </Card>
+    </SettingsSection>
   );
 }
 

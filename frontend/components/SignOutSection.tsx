@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/components/ui/Toast";
 
-export function SignOutSection() {
+export function SignOutSection({ embedded = false }: { embedded?: boolean }) {
   const { signOut } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -21,13 +21,21 @@ export function SignOutSection() {
     }
   }
 
-  return (
-    <Card className="p-4">
-      <h2 className="text-sm font-bold uppercase tracking-wide text-brand-muted">Account</h2>
-      <p className="mt-2 text-sm text-brand-muted">Sign out of Guidemate on this device.</p>
-      <Button variant="secondary" className="mt-4" onClick={() => void handleSignOut()}>
+  const content = (
+    <>
+      {!embedded && (
+        <>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-brand-muted">Account</h2>
+          <p className="mt-2 text-sm text-brand-muted">Sign out of Guidemate on this device.</p>
+        </>
+      )}
+      <Button variant="secondary" className={embedded ? "" : "mt-4"} onClick={() => void handleSignOut()}>
         Sign out
       </Button>
-    </Card>
+    </>
   );
+
+  if (embedded) return content;
+
+  return <Card className="p-4">{content}</Card>;
 }

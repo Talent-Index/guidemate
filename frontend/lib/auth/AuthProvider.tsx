@@ -15,6 +15,7 @@ export interface Profile {
   ratingAvg: number;
   ratingCount: number;
   isVetted: boolean;
+  createdAt: string | null;
 }
 
 interface AuthContextValue {
@@ -41,6 +42,7 @@ function toProfile(row: any): Profile {
     ratingAvg: Number(row.rating_avg ?? 0),
     ratingCount: row.rating_count ?? 0,
     isVetted: Boolean(row.is_vetted),
+    createdAt: row.created_at ?? null,
   };
 }
 

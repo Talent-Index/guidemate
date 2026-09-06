@@ -4,8 +4,9 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { GuideProfileCard } from "@/components/GuideProfileCard";
-import { SignOutSection } from "@/components/SignOutSection";
-import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
+import { SettingsPageShell } from "@/components/settings/SettingsPageShell";
+import { SettingsHelpSection } from "@/components/settings/SettingsHelpSection";
+import { SettingsAccountSection } from "@/components/settings/SettingsAccountSection";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 export default function GuideSettingsPage() {
@@ -33,20 +34,10 @@ export default function GuideSettingsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <MobilePageBanner eyebrow="Account" title="Settings" />
-        <div className="hidden md:block">
-          <h1 className="text-xl font-bold text-brand-blueDark">Settings</h1>
-          <p className="text-sm text-brand-muted">Signed in as {profile.fullName ?? session.user.email}</p>
-        </div>
-        <p className="mt-3 text-sm text-brand-muted md:hidden">
-          Signed in as {profile.fullName ?? session.user.email}
-        </p>
-      </div>
-
+    <SettingsPageShell subtitle={`Signed in as ${profile.fullName ?? session.user.email}`}>
       <GuideProfileCard />
-      <SignOutSection />
-    </div>
+      <SettingsHelpSection role="guide" />
+      <SettingsAccountSection />
+    </SettingsPageShell>
   );
 }

@@ -20,6 +20,7 @@ import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { WalletPanel } from "@/components/WalletPanel";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
 import { getExperienceSharePath, getStreamSharePath } from "@/lib/share";
+import { WelcomeTodayCard, type WelcomeAction } from "@/components/WelcomeTodayCard";
 import { useToast } from "@/components/ui/Toast";
 
 type DashboardTab = "experiences" | "insights" | "wallet";
@@ -111,6 +112,14 @@ export default function GuideDashboardPage() {
     if (window.location.hash === "#settings") {
       router.replace("/guide/settings");
     }
+    function syncTabFromHash() {
+      const hash = window.location.hash;
+      if (hash === "#guide-wallet") setActiveTab("wallet");
+      if (hash === "#guide-experiences") setActiveTab("experiences");
+    }
+    syncTabFromHash();
+    window.addEventListener("hashchange", syncTabFromHash);
+    return () => window.removeEventListener("hashchange", syncTabFromHash);
   }, [router]);
 
   useEffect(() => {
@@ -269,9 +278,59 @@ export default function GuideDashboardPage() {
   const upcoming = guideBookings.filter((b) => b.status === "locked");
   const pastBookings = guideBookings.filter((b) => b.status !== "locked");
 
+  const guideWelcomeActions: WelcomeAction[] = [
+    ...(!profile.phone?.trim()
+      ? [
+          {
+            label: "Complete your profile",
+            description: "Add your M-Pesa number so you can get paid.",
+            href: "/guide/settings",
+          },
+        ]
+      : []),
+    ...(!profile.walletAddress
+      ? [
+          {
+            label: "Set up payout wallet",
+            description: "Provision your on-chain wallet for earnings.",
+            href: "/guide/settings",
+          },
+        ]
+      : []),
+    ...(experiences.length === 0
+      ? [
+          {
+            label: "Publish your first experience",
+            description: "Create a listing tourists can book.",
+            href: "/guide/dashboard#guide-experiences",
+          },
+        ]
+      : []),
+    {
+      label: "Check earnings",
+      description: "View balance and withdraw to M-Pesa.",
+      href: "/guide/dashboard#guide-wallet",
+    },
+    ...(upcoming.length > 0
+      ? [
+          {
+            label: "View booked tours",
+            description: `${upcoming.length} paid ${upcoming.length === 1 ? "trip" : "trips"} waiting.`,
+            href: "/guide",
+          },
+        ]
+      : []),
+    {
+      label: "Go live or schedule",
+      description: "Stream to tourists and earn tips.",
+      href: "/live",
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-6">
       <MobilePageBanner eyebrow="Dashboard" title="Your listings and payouts" />
+      <WelcomeTodayCard profile={profile} actions={guideWelcomeActions} />
       <div className="hidden flex-wrap items-center justify-between gap-4 md:flex">
         <div className="flex gap-2">
           <Link
@@ -348,6 +407,7 @@ export default function GuideDashboardPage() {
         </TabButton>
       </div>
 
+      <div id="guide-experiences">
       {activeTab === "experiences" && (
       <Card>
         <div className="flex items-center justify-between">
@@ -542,7 +602,9 @@ export default function GuideDashboardPage() {
         </div>
       </Card>
       )}
+      </div>
 
+      <div id="guide-wallet">
       {activeTab === "wallet" && session && (
         <div className="flex flex-col gap-4">
           <Card>
@@ -554,6 +616,7 @@ export default function GuideDashboardPage() {
           <WalletPanel accessToken={session.access_token} canWithdraw phone={profile?.phone} />
         </div>
       )}
+      </div>
 
       {activeTab === "insights" && (
       <div className="flex flex-col gap-4">

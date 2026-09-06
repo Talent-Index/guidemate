@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
-import { SignOutSection } from "@/components/SignOutSection";
+import { SettingsPageShell } from "@/components/settings/SettingsPageShell";
+import { SettingsHelpSection } from "@/components/settings/SettingsHelpSection";
+import { SettingsAccountSection } from "@/components/settings/SettingsAccountSection";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 export default function AdminSettingsPage() {
@@ -24,19 +25,9 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <MobilePageBanner eyebrow="Admin" title="Settings" />
-        <div className="hidden md:block">
-          <h1 className="text-xl font-bold text-brand-blueDark">Settings</h1>
-          <p className="text-sm text-brand-muted">Signed in as {profile.fullName ?? session.user.email}</p>
-        </div>
-        <p className="mt-3 text-sm text-brand-muted md:hidden">
-          Signed in as {profile.fullName ?? session.user.email}
-        </p>
-      </div>
-
-      <SignOutSection />
-    </div>
+    <SettingsPageShell subtitle={`Signed in as ${profile.fullName ?? session.user.email}`}>
+      <SettingsHelpSection role="admin" />
+      <SettingsAccountSection />
+    </SettingsPageShell>
   );
 }

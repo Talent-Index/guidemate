@@ -628,6 +628,35 @@ export function approveApplication(id: string, accessToken: string) {
   });
 }
 
+export interface StaffMember {
+  id: string;
+  fullName: string | null;
+  email: string | null;
+  createdAt: string;
+}
+
+export function listStaff(accessToken: string) {
+  return request<{ staff: StaffMember[] }>("/api/admin/staff", { headers: authHeaders(accessToken) });
+}
+
+export function createStaff(
+  input: { email: string; fullName: string; password: string },
+  accessToken: string
+) {
+  return request<{ ok: true; staff: { id: string; email: string; fullName: string } }>("/api/admin/staff", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
+}
+
+export function revokeStaff(userId: string, accessToken: string) {
+  return request<{ ok: true }>(`/api/admin/staff/${userId}`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+}
+
 export function recordStreamTip(
   streamId: string,
   input: { amountUsdc: number; txHash: string; tipperWallet?: string },

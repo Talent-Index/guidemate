@@ -6,7 +6,7 @@ services:
     plan: free
     region: oregon
     branch: main
-    autoDeployTrigger: checksPass
+    autoDeployTrigger: commit
     rootDir: backend
     buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
@@ -65,7 +65,7 @@ services:
     plan: free
     region: oregon
     branch: main
-    autoDeployTrigger: checksPass
+    autoDeployTrigger: commit
     rootDir: frontend
     buildCommand: npm install --include=dev && npm run build
     startCommand: npm start

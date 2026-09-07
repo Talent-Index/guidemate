@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -36,11 +37,13 @@ jobs:
           NEXT_PUBLIC_MOCK_USDC_ADDRESS: "0x76EC76a347115afa9a3490a256bA13447cfBd8c5"
           NEXT_PUBLIC_FUJI_RPC_URL: https://api.avax-test.network/ext/bc/C/rpc
 
-  # Optional fallback if Render GitHub webhooks fail: add repository secrets
-  # RENDER_DEPLOY_HOOK_BACKEND and RENDER_DEPLOY_HOOK_FRONTEND (from Render → Settings → Deploy Hook).
+  # After CI passes on main, trigger Render deploy hooks (recommended).
+  # Add repository secrets from Render → each service → Settings → Deploy Hook:
+  #   RENDER_DEPLOY_HOOK_BACKEND  (guidemate-backend)
+  #   RENDER_DEPLOY_HOOK_FRONTEND (yourguidemate)
   deploy:
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Deploy backend (guidemate-backend)
@@ -48,19 +51,19 @@ jobs:
           DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}
         run: |
           if [ -z "$DEPLOY_HOOK" ]; then
-            echo "RENDER_DEPLOY_HOOK_BACKEND not set — relying on Render autoDeployTrigger: checksPass"
+            echo "::warning::RENDER_DEPLOY_HOOK_BACKEND not set — add it in GitHub repo secrets to deploy after CI."
             exit 0
           fi
           echo "Triggering Render deploy for guidemate-backend..."
-          curl -fsS "$DEPLOY_HOOK"
+          curl -fsS -X POST "$DEPLOY_HOOK"
 
       - name: Deploy frontend (yourguidemate)
         env:
           DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}
         run: |
           if [ -z "$DEPLOY_HOOK" ]; then
-            echo "RENDER_DEPLOY_HOOK_FRONTEND not set — relying on Render autoDeployTrigger: checksPass"
+            echo "::warning::RENDER_DEPLOY_HOOK_FRONTEND not set — add it in GitHub repo secrets to deploy after CI."
             exit 0
           fi
           echo "Triggering Render deploy for yourguidemate..."
-          curl -fsS "$DEPLOY_HOOK"
+          curl -fsS -X POST "$DEPLOY_HOOK"

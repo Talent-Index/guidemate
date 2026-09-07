@@ -7,29 +7,23 @@ import { GuideProfileCard } from "@/components/GuideProfileCard";
 import { SettingsPageShell } from "@/components/settings/SettingsPageShell";
 import { SettingsHelpSection } from "@/components/settings/SettingsHelpSection";
 import { SettingsAccountSection } from "@/components/settings/SettingsAccountSection";
+import { RoleGate } from "@/components/auth/RoleGate";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 export default function GuideSettingsPage() {
   const { loading: authLoading, session, profile } = useAuth();
 
-  if (authLoading) return null;
-
-  if (!session) {
-    return (
-      <Card className="mx-auto max-w-md text-center">
-        <h1 className="text-xl font-bold text-brand-blueDark">Sign in to manage your profile</h1>
-        <Link href="/auth/sign-in">
-          <Button className="mt-4">Sign in</Button>
-        </Link>
-      </Card>
-    );
+  if (authLoading || (session && !profile)) {
+    return <p className="text-sm text-brand-muted">Loading…</p>;
   }
 
-  if (profile?.role !== "guide") {
+  if (!session || profile?.role !== "guide") {
     return (
-      <Card className="mx-auto max-w-md text-center">
-        <p className="text-sm text-brand-muted">This page is for guide accounts.</p>
-      </Card>
+      <RoleGate
+        role="guide"
+        title="Sign in to manage your profile"
+        body="Sign in with a guide account to edit settings."
+      />
     );
   }
 

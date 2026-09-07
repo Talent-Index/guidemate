@@ -7,6 +7,7 @@ import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
 import { createClient } from "@/lib/supabase/client";
 import { homeForRole, type AccountRole } from "@/lib/auth/home";
 import { provisionWallet } from "@/lib/api";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/components/ui/Toast";
 
 async function finishOAuthProfile(
@@ -44,6 +45,7 @@ async function finishOAuthProfile(
 
 export default function SignInPage() {
   const router = useRouter();
+  const { refreshProfile } = useAuth();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -81,9 +83,9 @@ export default function SignInPage() {
       if (profile?.role === "guide") {
         await provisionWallet(data.session.access_token);
       }
-
+      await refreshProfile();
       toast("Signed in successfully", "success");
-      router.push(homeForRole((profile?.role ?? "tourist") as AccountRole));
+      router.replace(homeForRole((profile?.role ?? "tourist") as AccountRole));
     } catch (err) {
       const message = (err as Error).message;
       setError(message);

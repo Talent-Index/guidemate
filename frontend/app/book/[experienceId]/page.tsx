@@ -122,7 +122,7 @@ export default function BookExperiencePage() {
     }
   }
 
-  if (authLoading || loadingExperience) return null;
+  if (authLoading || loadingExperience || (session && !profile)) return <p className="text-sm text-brand-muted">Loading…</p>;
 
   if (loadError || !experience) {
     return (

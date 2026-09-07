@@ -9,6 +9,7 @@ import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { ExperienceGridSkeleton } from "@/components/ui/Skeleton";
 import { StarRating } from "@/components/ui/StarRating";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
+import { GreetingRow } from "@/components/ui/GreetingRow";
 import { WelcomeTodayCard, type WelcomeAction } from "@/components/WelcomeTodayCard";
 import { ExperienceMatchCard } from "@/components/ExperienceMatchCard";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -116,12 +117,16 @@ export default function ExplorePage() {
     <div className="flex flex-col gap-8">
       <div>
         <MobilePageBanner eyebrow="Explore" title="Experiences you can book" />
-        <div className="hidden md:block">
-          <h1 className="text-xl font-bold text-brand-blueDark">Experiences you can book</h1>
-          <p className="mt-1 text-sm text-brand-muted">
-            Browse what&apos;s live right now. Sign in to get a match tailored by our AI agent.
-          </p>
-        </div>
+        {profile?.role === "tourist" ? (
+          <GreetingRow subtitle="Browse what's live, or describe a trip and let the match agent pick a guide." />
+        ) : (
+          <div className="hidden md:block">
+            <h1 className="text-xl font-bold text-brand-blueDark">Experiences you can book</h1>
+            <p className="mt-1 text-sm text-brand-muted">
+              Browse what&apos;s live right now. Sign in to get a match tailored by our AI agent.
+            </p>
+          </div>
+        )}
         <p className="mt-3 text-sm text-brand-muted md:hidden">
           Browse what&apos;s live right now. Sign in to get a match tailored by our AI agent.
         </p>

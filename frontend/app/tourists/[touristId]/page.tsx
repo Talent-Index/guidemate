@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
+import { PageBackButton } from "@/components/ui/PageBackButton";
 import { StarRating } from "@/components/ui/StarRating";
+import { ProfilePageSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { getTouristProfile, type TouristPublicProfile } from "@/lib/api";
 
@@ -20,10 +22,14 @@ function initials(name: string) {
 
 export default function TouristProfilePage() {
   const params = useParams<{ touristId: string }>();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo");
   const { loading: authLoading, session, profile } = useAuth();
   const [tourist, setTourist] = useState<TouristPublicProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const fallbackHref = profile?.role === "guide" ? "/guide" : "/tourist/bookings";
 
   useEffect(() => {
     if (authLoading) return;
@@ -33,6 +39,8 @@ export default function TouristProfilePage() {
       return;
     }
     let cancelled = false;
+    setLoading(true);
+    setError(null);
     getTouristProfile(params.touristId, session.access_token)
       .then(({ tourist: next }) => {
         if (!cancelled) setTourist(next);
@@ -48,23 +56,34 @@ export default function TouristProfilePage() {
     };
   }, [authLoading, session, params.touristId]);
 
-  if (authLoading || loading) return null;
+  if (authLoading || loading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageBackButton fallbackHref={fallbackHref} returnTo={returnTo} />
+        <ProfilePageSkeleton />
+      </div>
+    );
+  }
 
   if (error || !tourist) {
     return (
-      <Card className="mx-auto max-w-md text-center">
-        <p className="text-sm text-red-600">{error ?? "Tourist not found."}</p>
-        <Link href={profile?.role === "guide" ? "/guide" : "/tourist/bookings"}>
-          <Button variant="secondary" className="mt-4">
-            Back
-          </Button>
-        </Link>
-      </Card>
+      <div className="flex flex-col gap-6">
+        <PageBackButton fallbackHref={fallbackHref} returnTo={returnTo} />
+        <Card className="mx-auto max-w-md text-center">
+          <p className="text-sm text-red-600">{error ?? "Tourist not found."}</p>
+          <Link href={fallbackHref}>
+            <Button variant="secondary" className="mt-4">
+              Back
+            </Button>
+          </Link>
+        </Card>
+      </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-6">
+      <PageBackButton fallbackHref={fallbackHref} returnTo={returnTo} />
       <MobilePageBanner eyebrow="Tourist" title={tourist.fullName} />
       <Card>
         <div className="hidden md:block">

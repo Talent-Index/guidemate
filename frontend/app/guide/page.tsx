@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { Button } from "@/components/ui/Button";
+import { RoleGate } from "@/components/auth/RoleGate";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { completeBooking, completeBookingWithPin, listMyBookings, reportNoShow, submitTouristRating, type BookingRecord } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
@@ -67,21 +68,15 @@ export default function GuideActiveTourPage() {
     }
   }
 
-  if (authLoading) return null;
+  if (authLoading || (session && !profile)) return <p className="text-sm text-brand-muted">Loading…</p>;
 
   if (!session || profile?.role !== "guide") {
     return (
-      <div className="mx-auto max-w-md text-center">
-        <Card>
-          <h1 className="text-xl font-bold text-brand-blueDark">Guide sign-in required</h1>
-          <p className="mt-2 text-sm text-brand-muted">Sign in with a guide account to see your active tours.</p>
-          <Link href="/auth/sign-in">
-            <Button variant="primary" className="mt-4">
-              Sign in
-            </Button>
-          </Link>
-        </Card>
-      </div>
+      <RoleGate
+        role="guide"
+        title="Guide sign-in required"
+        body="Sign in with a guide account to see your active tours."
+      />
     );
   }
 

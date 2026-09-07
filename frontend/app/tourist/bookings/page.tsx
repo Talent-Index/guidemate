@@ -12,6 +12,7 @@ import { EndTripPanel } from "@/components/EndTripPanel";
 import { RatePanel } from "@/components/RatePanel";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
+import { RoleGate } from "@/components/auth/RoleGate";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   listMyBookings,
@@ -61,21 +62,22 @@ export default function TouristBookingsPage() {
     };
   }, [session]);
 
-  if (authLoading) return null;
+  if (authLoading || (session && !profile)) {
+    return <p className="text-sm text-brand-muted">Loading…</p>;
+  }
+
+  if (!session || profile?.role !== "tourist") {
+    return (
+      <RoleGate
+        role="tourist"
+        title="Sign in to see your bookings"
+        body="Sign in with a tourist account to view trips and end a tour."
+      />
+    );
+  }
 
   const upcoming = bookings.filter((b) => b.status === "locked");
   const past = bookings.filter((b) => b.status !== "locked");
-
-  if (!session) {
-    return (
-      <Card className="mx-auto max-w-md text-center">
-        <h1 className="text-xl font-bold text-brand-blueDark">Sign in to see your bookings</h1>
-        <Link href="/auth/sign-in">
-          <Button className="mt-4">Sign in</Button>
-        </Link>
-      </Card>
-    );
-  }
 
   return (
     <div className="flex flex-col gap-6">

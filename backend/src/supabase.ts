@@ -28,11 +28,20 @@ export async function getUserIdFromAuthHeader(authHeader: string | undefined): P
 }
 
 /// Same as getUserIdFromAuthHeader, but only returns the id when the caller's
-/// profiles.role is admin. Used to gate /api/admin/* routes.
+/// profiles.role is admin (super user). Used to gate staff management and guide approvals.
 export async function getAdminUserIdFromAuthHeader(authHeader: string | undefined): Promise<string | undefined> {
   const userId = await getUserIdFromAuthHeader(authHeader);
   if (!userId) return undefined;
   const { data, error } = await supabaseAdmin.from("profiles").select("role").eq("id", userId).maybeSingle();
   if (error || data?.role !== "admin") return undefined;
+  return userId;
+}
+
+/// Admin or staff — used for analytics and read-only platform reports.
+export async function getAnalyticsUserIdFromAuthHeader(authHeader: string | undefined): Promise<string | undefined> {
+  const userId = await getUserIdFromAuthHeader(authHeader);
+  if (!userId) return undefined;
+  const { data, error } = await supabaseAdmin.from("profiles").select("role").eq("id", userId).maybeSingle();
+  if (error || (data?.role !== "admin" && data?.role !== "staff")) return undefined;
   return userId;
 }

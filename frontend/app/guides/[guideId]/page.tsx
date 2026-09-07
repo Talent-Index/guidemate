@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
+import { PageBackButton } from "@/components/ui/PageBackButton";
 import { StarRating } from "@/components/ui/StarRating";
+import { ProfilePageSkeleton } from "@/components/ui/Skeleton";
 import { getGuideProfile, type GuidePublicProfile } from "@/lib/api";
 import { Price } from "@/lib/fx";
 
@@ -21,12 +23,16 @@ function initials(name: string) {
 
 export default function GuideProfilePage() {
   const params = useParams<{ guideId: string }>();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo");
   const [guide, setGuide] = useState<GuidePublicProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setError(null);
     getGuideProfile(params.guideId)
       .then(({ guide: profile }) => {
         if (!cancelled) setGuide(profile);
@@ -42,23 +48,34 @@ export default function GuideProfilePage() {
     };
   }, [params.guideId]);
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageBackButton fallbackHref="/explore" returnTo={returnTo} />
+        <ProfilePageSkeleton />
+      </div>
+    );
+  }
 
   if (error || !guide) {
     return (
-      <Card className="mx-auto max-w-md text-center">
-        <p className="text-sm text-red-600">{error ?? "Guide not found."}</p>
-        <Link href="/explore">
-          <Button variant="secondary" className="mt-4">
-            Back to Explore
-          </Button>
-        </Link>
-      </Card>
+      <div className="flex flex-col gap-6">
+        <PageBackButton fallbackHref="/explore" returnTo={returnTo} />
+        <Card className="mx-auto max-w-md text-center">
+          <p className="text-sm text-red-600">{error ?? "Guide not found."}</p>
+          <Link href="/explore">
+            <Button variant="secondary" className="mt-4">
+              Back to Explore
+            </Button>
+          </Link>
+        </Card>
+      </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-6">
+      <PageBackButton fallbackHref="/explore" returnTo={returnTo} />
       <MobilePageBanner eyebrow="Guide" title={guide.fullName} />
       <Card>
         <div className="hidden md:block">

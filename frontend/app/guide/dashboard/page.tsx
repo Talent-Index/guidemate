@@ -10,20 +10,21 @@ import { ExperiencePhotoStrip, experiencePhotoUrls } from "@/components/ui/Exper
 import { ListRowSkeleton } from "@/components/ui/Skeleton";
 import { StarRating } from "@/components/ui/StarRating";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { RoleGate } from "@/components/auth/RoleGate";
+import { GreetingRow } from "@/components/ui/GreetingRow";
 import { createClient } from "@/lib/supabase/client";
 import { EXPERIENCE_CATEGORIES } from "@/lib/categories";
 import { RatePanel } from "@/components/RatePanel";
 import { ViewTouristProfileButton } from "@/components/ViewTouristProfileButton";
-import { listMyBookings, getGuideInsights, submitTouristRating, type BookingRecord, type GuideInsights } from "@/lib/api";
+import { getWallet, listMyBookings, getGuideInsights, submitTouristRating, type BookingRecord, type GuideInsights } from "@/lib/api";
 import { Price } from "@/lib/fx";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
-import { WalletPanel } from "@/components/WalletPanel";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
 import { getExperienceSharePath, getStreamSharePath } from "@/lib/share";
 import { WelcomeTodayCard, type WelcomeAction } from "@/components/WelcomeTodayCard";
 import { useToast } from "@/components/ui/Toast";
 
-type DashboardTab = "experiences" | "insights" | "wallet";
+type DashboardTab = "experiences" | "insights";
 
 interface ExperienceRow {
   id: string;
@@ -66,6 +67,7 @@ export default function GuideDashboardPage() {
   const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState<DashboardTab>("experiences");
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
   const [guideBookings, setGuideBookings] = useState<BookingRecord[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
@@ -109,12 +111,24 @@ export default function GuideDashboardPage() {
   }, [session, activeTab]);
 
   useEffect(() => {
+    if (!session) {
+      setWalletBalance(null);
+      return;
+    }
+    getWallet(session.access_token)
+      .then((wallet) => setWalletBalance(wallet.balanceUsdc))
+      .catch(() => setWalletBalance(null));
+  }, [session]);
+
+  useEffect(() => {
     if (window.location.hash === "#settings") {
       router.replace("/guide/settings");
     }
+    if (window.location.hash === "#guide-wallet") {
+      router.replace("/wallet");
+    }
     function syncTabFromHash() {
       const hash = window.location.hash;
-      if (hash === "#guide-wallet") setActiveTab("wallet");
       if (hash === "#guide-experiences") setActiveTab("experiences");
     }
     syncTabFromHash();
@@ -257,26 +271,21 @@ export default function GuideDashboardPage() {
     await loadExperiences(session.user.id);
   }
 
-  if (authLoading) return null;
+  if (authLoading || (session && !profile)) return <p className="text-sm text-brand-muted">Loadingâ¦</p>;
 
   if (!session || profile?.role !== "guide") {
     return (
-      <div className="mx-auto max-w-md text-center">
-        <Card>
-          <h1 className="text-xl font-bold text-brand-blueDark">Guide sign-in required</h1>
-          <p className="mt-2 text-sm text-brand-muted">Sign in with a guide account to manage your listings.</p>
-          <Link href="/auth/sign-in">
-            <Button variant="primary" className="mt-4">
-              Sign in
-            </Button>
-          </Link>
-        </Card>
-      </div>
+      <RoleGate
+        role="guide"
+        title="Guide sign-in required"
+        body="Sign in with a guide account to manage your listings."
+      />
     );
   }
 
   const upcoming = guideBookings.filter((b) => b.status === "locked");
   const pastBookings = guideBookings.filter((b) => b.status !== "locked");
+  const activeListings = experiences.filter((exp) => exp.is_active).length;
 
   const guideWelcomeActions: WelcomeAction[] = [
     ...(!profile.phone?.trim()
@@ -309,7 +318,7 @@ export default function GuideDashboardPage() {
     {
       label: "Check earnings",
       description: "View balance and withdraw to M-Pesa.",
-      href: "/guide/dashboard#guide-wallet",
+      href: "/wallet",
     },
     ...(upcoming.length > 0
       ? [
@@ -330,6 +339,25 @@ export default function GuideDashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <MobilePageBanner eyebrow="Dashboard" title="Your listings and payouts" />
+      <GreetingRow subtitle="Your listings, booked tours, and payouts in one place." />
+      <div className="hidden grid-cols-3 gap-3 md:grid">
+        <Card className="p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Active listings</p>
+          <p className="mt-1 text-2xl font-bold text-brand-blueDark">{activeListings}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Locked bookings</p>
+          <p className="mt-1 text-2xl font-bold text-brand-blueDark">{upcoming.length}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Wallet</p>
+          {walletBalance == null ? (
+            <p className="mt-1 text-sm text-brand-muted">â</p>
+          ) : (
+            <Price amountUsdc={walletBalance} className="mt-1" align="start" size="lg" />
+          )}
+        </Card>
+      </div>
       <WelcomeTodayCard profile={profile} actions={guideWelcomeActions} />
       <div className="hidden flex-wrap items-center justify-between gap-4 md:flex">
         <div className="flex gap-2">
@@ -380,11 +408,11 @@ export default function GuideDashboardPage() {
                   )}
                   <p className="text-xs text-brand-muted">
                     {b.touristCompletedTripCount} {b.touristCompletedTripCount === 1 ? "trip" : "trips"}
-                    {b.touristLanguages?.length ? ` · ${b.touristLanguages.join(", ")}` : ""}
+                    {b.touristLanguages?.length ? ` â¬â ${b.touristLanguages.join(", ")}` : ""}
                   </p>
                   {b.touristBio && <p className="mt-1 text-sm text-brand-muted line-clamp-2">{b.touristBio}</p>}
                   <p className="text-xs text-brand-muted">
-                    {b.experienceTitle ?? "Experience"} · <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
+                    {b.experienceTitle ?? "Experience"} â¬â <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
                   </p>
                   {b.touristId && <ViewTouristProfileButton touristId={b.touristId} className="mt-2 inline-block" />}
                 </div>
@@ -402,9 +430,12 @@ export default function GuideDashboardPage() {
         <TabButton active={activeTab === "insights"} onClick={() => setActiveTab("insights")}>
           Insights
         </TabButton>
-        <TabButton active={activeTab === "wallet"} onClick={() => setActiveTab("wallet")}>
+        <Link
+          href="/wallet"
+          className="rounded-full border border-brand-border px-4 py-1.5 text-xs font-semibold text-brand-muted hover:border-brand-accent hover:text-brand-accent"
+        >
           Wallet
-        </TabButton>
+        </Link>
       </div>
 
       <div id="guide-experiences">
@@ -535,7 +566,7 @@ export default function GuideDashboardPage() {
                     <span className="inline-flex items-baseline gap-2">
                       <Price amountUsdc={exp.price_usdc} size="sm" align="start" />
                       <span>
-                        · {exp.duration_minutes} min{exp.location ? ` · ${exp.location}` : ""}
+                        â¬â {exp.duration_minutes} min{exp.location ? ` â¬â ${exp.location}` : ""}
                       </span>
                     </span>
                   </p>
@@ -604,20 +635,6 @@ export default function GuideDashboardPage() {
       )}
       </div>
 
-      <div id="guide-wallet">
-      {activeTab === "wallet" && session && (
-        <div className="flex flex-col gap-4">
-          <Card>
-            <h2 className="text-lg font-bold text-brand-blueDark">Your wallet</h2>
-            <p className="mt-1 text-sm text-brand-muted">
-              Earnings from tours and live streams land here. Withdraw to your M-Pesa number anytime.
-            </p>
-          </Card>
-          <WalletPanel accessToken={session.access_token} canWithdraw phone={profile?.phone} />
-        </div>
-      )}
-      </div>
-
       {activeTab === "insights" && (
       <div className="flex flex-col gap-4">
         <Card>
@@ -651,7 +668,7 @@ export default function GuideDashboardPage() {
         {upcoming.length > 0 && (
           <Card>
             <h3 className="text-sm font-bold uppercase tracking-wide text-brand-muted">Confirmed bookings</h3>
-            <p className="mt-1 text-sm text-brand-muted">Paid and waiting for the tour — open Active tour to verify.</p>
+            <p className="mt-1 text-sm text-brand-muted">Paid and waiting for the tour ÎÃÃ¶ open Active tour to verify.</p>
             <div className="mt-4 flex flex-col gap-3">
               {upcoming.map((b) => (
                 <div
@@ -662,10 +679,10 @@ export default function GuideDashboardPage() {
                     <p className="font-semibold text-brand-blueDark">{b.experienceTitle ?? "Tour"}</p>
                     <p className="text-sm text-brand-muted">
                       {b.touristName?.trim() || "Guest"}
-                      {b.touristPhone ? ` · ${b.touristPhone}` : ""}
+                      {b.touristPhone ? ` â¬â ${b.touristPhone}` : ""}
                     </p>
                     <p className="text-xs text-brand-muted">
-                      Booked {new Date(b.createdAt).toLocaleDateString()} ·{" "}
+                      Booked {new Date(b.createdAt).toLocaleDateString()} â¬â{" "}
                       <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
                     </p>
                   </div>
@@ -693,7 +710,7 @@ export default function GuideDashboardPage() {
                       {s.priceUsdc > 0 ? (
                         <>
                           {" "}
-                          · <Price amountUsdc={s.priceUsdc} size="sm" align="start" className="inline-flex" />
+                          â¬â <Price amountUsdc={s.priceUsdc} size="sm" align="start" className="inline-flex" />
                         </>
                       ) : null}
                     </p>
@@ -730,11 +747,11 @@ export default function GuideDashboardPage() {
                     {s.experienceTitle && <p className="text-sm text-brand-muted">{s.experienceTitle}</p>}
                     <p className="text-xs text-brand-muted">
                       {s.endedAt ? new Date(s.endedAt).toLocaleDateString() : new Date(s.createdAt).toLocaleDateString()}
-                      {" · "}
+                      {" â¬â "}
                       {s.tipCount} tips ({s.tipTotalUsdc} USDC)
-                      {" · "}
+                      {" â¬â "}
                       {s.reactionCount} flowers
-                      {s.commentCount > 0 ? ` · ${s.commentCount} comments` : ""}
+                      {s.commentCount > 0 ? ` â¬â ${s.commentCount} comments` : ""}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -770,7 +787,7 @@ export default function GuideDashboardPage() {
             {loadingBookings && <ListRowSkeleton count={3} />}
             {bookingsError && <p className="text-sm text-red-600">{bookingsError}</p>}
             {!loadingBookings && !bookingsError && pastBookings.length === 0 && (
-              <p className="text-sm text-brand-muted">No completed tours yet — they&apos;ll show up here once verified.</p>
+              <p className="text-sm text-brand-muted">No completed tours yet ÎÃÃ¶ they&apos;ll show up here once verified.</p>
             )}
             {pastBookings.map((b) => (
             <div key={b.bookingId} className="rounded-lg border border-brand-border p-3 max-md:rounded-3xl">
@@ -779,21 +796,21 @@ export default function GuideDashboardPage() {
                 <p className="font-semibold text-brand-blueDark">{b.experienceTitle ?? b.request ?? "Tour"}</p>
                 <p className="text-xs text-brand-muted">
                   {b.touristName?.trim() || "Guest"}
-                  {b.touristPhone ? ` · ${b.touristPhone}` : ""}
-                  {` · ${b.touristCompletedTripCount} ${b.touristCompletedTripCount === 1 ? "trip" : "trips"}`}
+                  {b.touristPhone ? ` â¬â ${b.touristPhone}` : ""}
+                  {` â¬â ${b.touristCompletedTripCount} ${b.touristCompletedTripCount === 1 ? "trip" : "trips"}`}
                 </p>
                 {b.touristLanguages?.length ? (
                   <p className="text-xs text-brand-muted">{b.touristLanguages.join(", ")}</p>
                 ) : null}
                 {b.touristBio && <p className="mt-1 text-sm text-brand-muted line-clamp-2">{b.touristBio}</p>}
                 <p className="text-xs text-brand-muted">
-                  {new Date(b.createdAt).toLocaleDateString()} ·{" "}
+                  {new Date(b.createdAt).toLocaleDateString()} â¬â{" "}
                   <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
-                  {b.splits ? ` · your cut ${b.splits.guideAmount} USDC` : ""}
+                  {b.splits ? ` â¬â your cut ${b.splits.guideAmount} USDC` : ""}
                 </p>
                 {b.rating && (
                   <p className="mt-1 text-sm text-brand-amber" aria-label={`Rated ${b.rating.stars} stars`}>
-                    {[1, 2, 3, 4, 5].map((n) => (n <= b.rating!.stars ? "★" : "☆")).join("")}
+                    {[1, 2, 3, 4, 5].map((n) => (n <= b.rating!.stars ? "ÎÃ¿Ã " : "ÎÃ¿Ã¥")).join("")}
                     <span className="ml-1 text-xs text-brand-muted">from tourist</span>
                   </p>
                 )}
@@ -802,11 +819,11 @@ export default function GuideDashboardPage() {
                 <Chip tone={b.status} />
                 {b.status === "paid" && b.payout ? (
                   <p className="text-xs font-medium text-brand-success">
-                    {b.payout.kesAmount} KES · Ref {b.payout.reference}
+                    {b.payout.kesAmount} KES â¬â Ref {b.payout.reference}
                   </p>
                 ) : b.status === "refunded" && b.refund ? (
                   <p className="text-xs text-red-600">
-                    No-show · {b.refund.refundAmount.toFixed(2)} USDC refunded
+                    No-show â¬â {b.refund.refundAmount.toFixed(2)} USDC refunded
                   </p>
                 ) : (
                   <p className="text-xs text-brand-muted">Payout not yet received</p>

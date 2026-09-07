@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 
 export interface Profile {
   id: string;
-  role: "guide" | "tourist" | "admin";
+  role: "guide" | "tourist" | "admin" | "staff";
   fullName: string | null;
   phone: string | null;
   walletAddress: string | null;
@@ -44,6 +44,10 @@ function toProfile(row: any): Profile {
   };
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [supabase] = useState(() => createClient());
   const [loading, setLoading] = useState(true);
@@ -52,8 +56,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadProfile = useCallback(
     async (userId: string) => {
-      const { data } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
-      setProfile(data ? toProfile(data) : null);
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const { data } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+        if (data) {
+          setProfile(toProfile(data));
+          return;
+        }
+        await sleep(200 * (attempt + 1));
+      }
+      setProfile(null);
     },
     [supabase]
   );
@@ -65,14 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!mounted) return;
       setSession(data.session);
       if (data.session) await loadProfile(data.session.user.id);
-      setLoading(false);
+      if (mounted) setLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      // Without this, pages that gate on `profile` (e.g. the booking flow) can
-      // briefly see a signed-in session with no profile yet - right after
-      // sign-up/sign-in, before this fetch resolves - and incorrectly render
-      // their "please sign in" state even though the user is authenticated.
       setLoading(true);
       setSession(newSession);
       if (newSession) {
@@ -80,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setProfile(null);
       }
-      setLoading(false);
+      if (mounted) setLoading(false);
     });
 
     return () => {
@@ -90,8 +97,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [supabase, loadProfile]);
 
   const refreshProfile = useCallback(async () => {
-    if (session) await loadProfile(session.user.id);
-  }, [session, loadProfile]);
+    const { data } = await supabase.auth.getSession();
+    if (data.session) {
+      setSession(data.session);
+      await loadProfile(data.session.user.id);
+    }
+  }, [supabase, loadProfile]);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
@@ -108,4 +119,11 @@ export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
+}
+
+export function firstNameFromProfile(profile: Profile | null, email?: string | null) {
+  const name = profile?.fullName?.trim();
+  if (name) return name.split(/\s+/)[0];
+  if (email) return email.split("@")[0];
+  return "there";
 }

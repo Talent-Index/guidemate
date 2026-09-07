@@ -5,8 +5,12 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import {
   type ExperienceSlot,
+  canAddAnotherSlot,
+  eatWallClockToIso,
   formatSlotDate,
   formatSlotTimeRange,
+  MAX_UPCOMING_SLOTS,
+  slotEndsAtIso,
   spotsLeft,
   toDatetimeLocalValue,
 } from "@/lib/slots";
@@ -47,18 +51,40 @@ export function GuideAvailabilityPanel({
     if (open) loadSlots();
   }, [open, loadSlots]);
 
+  const upcoming = slots.filter((s) => !s.is_cancelled);
+
   async function handleAdd(e: FormEvent) {
     e.preventDefault();
     if (!startsAt) return;
+
+    if (durationMinutes <= 0) {
+      toast("Set duration first", "error");
+      return;
+    }
+
+    const startsAtIso = eatWallClockToIso(startsAt);
+    if (new Date(startsAtIso) < new Date()) {
+      toast("Start time must be in the future", "error");
+      return;
+    }
+
+    if (!canAddAnotherSlot(upcoming.length)) {
+      toast(`Maximum ${MAX_UPCOMING_SLOTS} upcoming slots`, "error");
+      return;
+    }
+
+    if (upcoming.some((s) => s.starts_at === startsAtIso)) {
+      toast("A slot with this start time already exists", "error");
+      return;
+    }
+
     setSaving(true);
-    const start = new Date(startsAt);
-    const end = new Date(start.getTime() + durationMinutes * 60_000);
     const supabase = createClient();
     const { error } = await supabase.from("experience_slots").insert({
       experience_id: experienceId,
       guide_id: guideId,
-      starts_at: start.toISOString(),
-      ends_at: end.toISOString(),
+      starts_at: startsAtIso,
+      ends_at: slotEndsAtIso(startsAtIso, durationMinutes),
       max_guests: Number(maxGuests) || 6,
     });
     setSaving(false);
@@ -86,8 +112,6 @@ export function GuideAvailabilityPanel({
     await loadSlots();
   }
 
-  const upcoming = slots.filter((s) => !s.is_cancelled);
-
   return (
     <div className="mt-2 w-full">
       <button
@@ -101,7 +125,7 @@ export function GuideAvailabilityPanel({
       {open && (
         <div className="mt-3 rounded-xl border border-brand-border bg-brand-bg p-3">
           <p className="text-xs text-brand-muted">
-            Add times when tourists can book. Each slot lasts {durationMinutes} minutes.
+            Add times when tourists can book. Each slot lasts {durationMinutes} minutes (East Africa Time).
           </p>
 
           <form className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_auto]" onSubmit={handleAdd}>
@@ -112,7 +136,8 @@ export function GuideAvailabilityPanel({
               onChange={(e) => setStartsAt(e.target.value)}
               required
               min={toDatetimeLocalValue(new Date().toISOString())}
-              aria-label="Slot start time"
+              aria-label="Start (EAT)"
+              title="Start (EAT)"
             />
             <input
               type="number"

@@ -146,6 +146,8 @@ export function createBooking(
     paymentMethod?: "demo" | "mpesa" | "custodial" | "external";
     paymentIntentId?: string;
     txHash?: string;
+    slotId?: string;
+    guests?: number;
   },
   accessToken?: string
 ) {
@@ -263,6 +265,7 @@ export interface GuidePublicProfile {
   id: string;
   fullName: string;
   bio: string | null;
+  avatarUrl: string | null;
   languages: string[];
   ratingAvg: number;
   ratingCount: number;

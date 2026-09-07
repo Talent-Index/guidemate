@@ -32,6 +32,9 @@ interface ExperienceDetail {
   price_usdc: number;
   duration_minutes: number;
   location: string | null;
+  meeting_lat: number | null;
+  meeting_lng: number | null;
+  meeting_label: string | null;
   image_url: string | null;
   image_urls: string[] | null;
   itinerary: unknown;
@@ -88,9 +91,10 @@ export default function ExperienceDetailPage() {
       const { data, error: loadError } = await supabase
         .from("experiences")
         .select(
-          "id, guide_id, title, description, tags, category, price_usdc, duration_minutes, location, image_url, image_urls, itinerary, guide:guide_id ( id, full_name, bio, avatar_url, languages, rating_avg, rating_count, is_vetted )"
+          "id, guide_id, title, description, tags, category, price_usdc, duration_minutes, location, meeting_lat, meeting_lng, meeting_label, image_url, image_urls, itinerary, guide:guide_id ( id, full_name, bio, avatar_url, languages, rating_avg, rating_count, is_vetted )"
         )
         .eq("id", params.experienceId)
+        .eq("status", "published")
         .eq("is_active", true)
         .maybeSingle();
 
@@ -115,6 +119,7 @@ export default function ExperienceDetailPage() {
             .from("experiences")
             .select("id, title, price_usdc, image_url, category, guide:guide_id ( full_name, rating_avg, rating_count )")
             .eq("guide_id", row.guide_id)
+            .eq("status", "published")
             .eq("is_active", true)
             .neq("id", row.id)
             .order("created_at", { ascending: false })

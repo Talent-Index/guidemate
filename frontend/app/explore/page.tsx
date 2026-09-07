@@ -46,6 +46,7 @@ export default function ExplorePage() {
         .select(
           "id, title, description, tags, category, price_usdc, duration_minutes, location, image_url, guide:guide_id ( full_name, rating_avg, rating_count )"
         )
+        .eq("status", "published")
         .eq("is_active", true)
         .order("created_at", { ascending: false });
       setExperiences((data as unknown as ExperienceListRow[]) ?? []);

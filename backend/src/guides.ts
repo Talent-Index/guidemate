@@ -23,6 +23,7 @@ export interface GuidePublicProfile {
   id: string;
   fullName: string;
   bio: string | null;
+  avatarUrl: string | null;
   languages: string[];
   ratingAvg: number;
   ratingCount: number;
@@ -41,7 +42,7 @@ function firstName(fullName: string | null | undefined): string {
 export async function getGuidePublicProfile(guideId: string): Promise<GuidePublicProfile | undefined> {
   const { data: profile, error } = await supabaseAdmin
     .from("profiles")
-    .select("id, role, full_name, bio, languages, rating_avg, rating_count, is_vetted")
+    .select("id, role, full_name, bio, avatar_url, languages, rating_avg, rating_count, is_vetted")
     .eq("id", guideId)
     .maybeSingle();
 
@@ -75,6 +76,7 @@ export async function getGuidePublicProfile(guideId: string): Promise<GuidePubli
     id: profile.id,
     fullName: profile.full_name ?? "Guide",
     bio: profile.bio ?? null,
+    avatarUrl: (profile.avatar_url as string | null) ?? null,
     languages: profile.languages ?? [],
     ratingAvg: Number(profile.rating_avg ?? 0),
     ratingCount: profile.rating_count ?? 0,

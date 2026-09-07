@@ -59,6 +59,7 @@ export async function getGuidePublicProfile(guideId: string): Promise<GuidePubli
       .from("experiences")
       .select("id, title, description, tags, category, price_usdc, duration_minutes, location, image_url")
       .eq("guide_id", guideId)
+      .eq("status", "published")
       .eq("is_active", true)
       .order("created_at", { ascending: false }),
   ]);

@@ -73,6 +73,7 @@ export async function listActiveExperiences(): Promise<Experience[]> {
   const { data, error } = await supabaseAdmin
     .from("experiences")
     .select(SELECT)
+    .eq("status", "published")
     .eq("is_active", true)
     .order("created_at", { ascending: false });
 
@@ -84,7 +85,13 @@ export async function listActiveExperiences(): Promise<Experience[]> {
 }
 
 export async function getExperienceById(id: string): Promise<Experience | undefined> {
-  const { data, error } = await supabaseAdmin.from("experiences").select(SELECT).eq("id", id).maybeSingle();
+  const { data, error } = await supabaseAdmin
+    .from("experiences")
+    .select(SELECT)
+    .eq("id", id)
+    .eq("status", "published")
+    .eq("is_active", true)
+    .maybeSingle();
   if (error || !data) return undefined;
   return toExperience(data);
 }

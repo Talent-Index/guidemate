@@ -111,7 +111,10 @@ adminRouter.post("/applications/:id/approve", async (req, res) => {
 
   try {
     let userId: string | undefined;
-    const invited = await supabaseAdmin.auth.admin.inviteUserByEmail(application.email);
+    const frontendUrl = process.env.FRONTEND_URL ?? "https://yourguidemate.top";
+    const invited = await supabaseAdmin.auth.admin.inviteUserByEmail(application.email, {
+      redirectTo: `${frontendUrl}/auth/callback`,
+    });
     if (invited.data?.user?.id) {
       userId = invited.data.user.id;
     } else {

@@ -32,6 +32,9 @@ interface ExperienceDetail {
   price_usdc: number;
   duration_minutes: number;
   location: string | null;
+  meeting_lat: number | null;
+  meeting_lng: number | null;
+  meeting_label: string | null;
   image_url: string | null;
   image_urls: string[] | null;
   itinerary: unknown;
@@ -70,6 +73,11 @@ function tagline(description: string) {
   return `${first.slice(0, 117)}...`;
 }
 
+function osmEmbedSrc(lat: number, lng: number) {
+  const d = 0.08;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - d}%2C${lat - d}%2C${lng + d}%2C${lat + d}&layer=mapnik&marker=${lat}%2C${lng}`;
+}
+
 export default function ExperienceDetailPage() {
   const params = useParams<{ experienceId: string }>();
   const { session } = useAuth();
@@ -88,9 +96,10 @@ export default function ExperienceDetailPage() {
       const { data, error: loadError } = await supabase
         .from("experiences")
         .select(
-          "id, guide_id, title, description, tags, category, price_usdc, duration_minutes, location, image_url, image_urls, itinerary, guide:guide_id ( id, full_name, bio, avatar_url, languages, rating_avg, rating_count, is_vetted )"
+          "id, guide_id, title, description, tags, category, price_usdc, duration_minutes, location, meeting_lat, meeting_lng, meeting_label, image_url, image_urls, itinerary, guide:guide_id ( id, full_name, bio, avatar_url, languages, rating_avg, rating_count, is_vetted )"
         )
         .eq("id", params.experienceId)
+        .eq("status", "published")
         .eq("is_active", true)
         .maybeSingle();
 
@@ -115,6 +124,7 @@ export default function ExperienceDetailPage() {
             .from("experiences")
             .select("id, title, price_usdc, image_url, category, guide:guide_id ( full_name, rating_avg, rating_count )")
             .eq("guide_id", row.guide_id)
+            .eq("status", "published")
             .eq("is_active", true)
             .neq("id", row.id)
             .order("created_at", { ascending: false })
@@ -143,7 +153,8 @@ export default function ExperienceDetailPage() {
 
   const guide = experience.guide;
   const photos = experiencePhotoUrls(experience);
-  const mapQuery = encodeURIComponent(experience.location ?? "Nairobi, Kenya");
+  const hasPin = experience.meeting_lat != null && experience.meeting_lng != null;
+  const meetingPlaceName = experience.meeting_label ?? experience.location;
   const hours = Math.round((experience.duration_minutes / 60) * 10) / 10;
   const itinerarySteps = normalizeItinerary(experience.itinerary, photos);
   const guideRole = guide?.is_vetted ? "Vetted local guide" : "Local guide";
@@ -240,24 +251,33 @@ export default function ExperienceDetailPage() {
 
           <section>
             <h2 className="text-[22px] font-bold text-[var(--gm-ink)]">Where we&apos;ll meet</h2>
-            <p className="mt-2 font-semibold text-[var(--gm-ink)]">{experience.location ?? "Nairobi"}</p>
-            <p className="text-sm text-brand-muted">Nairobi, Kenya</p>
-            <div className="mt-4 overflow-hidden rounded-2xl border border-brand-border">
-              <iframe
-                title="Meeting location map"
-                className="h-80 w-full border-0"
-                loading="lazy"
-                src="https://www.openstreetmap.org/export/embed.html?bbox=36.78%2C-1.34%2C37.00%2C-1.20&layer=mapnik&marker=-1.2864%2C36.8172"
-              />
-            </div>
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${mapQuery}`}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-3 inline-block text-sm font-semibold text-brand-accent hover:underline"
-            >
-              Open in Google Maps
-            </a>
+            {hasPin ? (
+              <>
+                {meetingPlaceName && (
+                  <p className="mt-2 font-semibold text-[var(--gm-ink)]">{meetingPlaceName}</p>
+                )}
+                <div className="mt-4 overflow-hidden rounded-2xl border border-brand-border">
+                  <iframe
+                    title="Meeting location map"
+                    className="h-80 w-full border-0"
+                    loading="lazy"
+                    src={osmEmbedSrc(experience.meeting_lat!, experience.meeting_lng!)}
+                  />
+                </div>
+                <a
+                  href={`https://www.google.com/maps?q=${experience.meeting_lat},${experience.meeting_lng}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-block text-sm font-semibold text-brand-accent hover:underline"
+                >
+                  Open in Google Maps
+                </a>
+              </>
+            ) : (
+              experience.location && (
+                <p className="mt-2 text-sm text-brand-muted">{experience.location}</p>
+              )
+            )}
           </section>
 
           <ExperienceThingsToKnow

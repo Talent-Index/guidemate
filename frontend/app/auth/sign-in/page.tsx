@@ -4,44 +4,13 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { FormField, FormShell } from "@/components/ui/FormShell";
 import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { createClient } from "@/lib/supabase/client";
 import { homeForRole, type AccountRole } from "@/lib/auth/home";
 import { provisionWallet } from "@/lib/api";
+import { ensureTouristProfile } from "@/lib/auth/ensureProfile";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/components/ui/Toast";
-
-async function finishOAuthProfile(
-  supabase: ReturnType<typeof createClient>,
-  userId: string,
-  email: string,
-  meta: Record<string, unknown> | undefined
-) {
-  let { data: profile } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
-  if (!profile) {
-    const pendingRaw = localStorage.getItem(`guidemate_pending_profile_${email}`);
-    const pending = pendingRaw
-      ? (JSON.parse(pendingRaw) as { role: "guide" | "tourist"; fullName: string; phone: string | null })
-      : null;
-    const role = meta?.role === "guide" || pending?.role === "guide" ? "guide" : "tourist";
-    const fullName =
-      (typeof meta?.full_name === "string" && meta.full_name) || pending?.fullName || email;
-    const phone = (typeof meta?.phone === "string" && meta.phone) || pending?.phone || null;
-    const { data: created, error: profileError } = await supabase
-      .from("profiles")
-      .insert({ id: userId, role, full_name: fullName, phone })
-      .select("role")
-      .single();
-    if (profileError) {
-      const { data: existing } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
-      if (!existing) throw profileError;
-      profile = existing;
-    } else {
-      profile = created;
-    }
-    localStorage.removeItem(`guidemate_pending_profile_${email}`);
-  }
-  return profile;
-}
 
 export default function SignInPage() {
   const router = useRouter();
@@ -79,7 +48,12 @@ export default function SignInPage() {
       if (signInError) throw signInError;
 
       const userId = data.user.id;
-      const profile = await finishOAuthProfile(supabase, userId, email, data.user.user_metadata as Record<string, unknown>);
+      const profile = await ensureTouristProfile(
+        supabase,
+        userId,
+        email,
+        data.user.user_metadata as Record<string, unknown>
+      );
       if (profile?.role === "guide") {
         await provisionWallet(data.session.access_token);
       }
@@ -97,61 +71,59 @@ export default function SignInPage() {
 
   return (
     <SignedInRedirect>
-    <FormShell
-      title="Sign in"
-      subtitle="Welcome back. You land in the portal for the role this email signed up with."
-      footer={
-        <>
-          Don&apos;t have an account?{" "}
-          <a href="/auth/sign-up" className="font-semibold text-brand-accent underline">
-            Create one
-          </a>
-          <br />
-          Admin? Use this same form. Your profile must have role <span className="text-[var(--gm-ink)]">admin</span> — there is
-          no separate admin password.
-        </>
-      }
-    >
-      <form onSubmit={handleSubmit}>
-        <FormField label="Email *">
-          <input required type="email" className="form-input-light" value={email} onChange={(e) => setEmail(e.target.value)} />
-        </FormField>
-        <FormField label="Password *">
-          <input
-            required
-            type="password"
-            className="form-input-light"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </FormField>
+      <FormShell
+        title="Sign in"
+        subtitle="Tourists and approved guides sign in here. Guides receive an email invite after vetting."
+        footer={
+          <>
+            Don&apos;t have an account?{" "}
+            <a href="/auth/sign-up" className="font-semibold text-brand-accent underline">
+              Register as a tourist
+            </a>
+            <br />
+            Want to guide?{" "}
+            <a href="/apply" className="font-semibold text-brand-accent underline">
+              Apply here
+            </a>
+            <br />
+            Admin? Use this same form. Your profile must have role{" "}
+            <span className="text-[var(--gm-ink)]">admin</span> — there is no separate admin password.
+          </>
+        }
+      >
+        <form onSubmit={handleSubmit}>
+          <FormField label="Email *">
+            <input required type="email" className="form-input-light" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </FormField>
+          <FormField label="Password *">
+            <input
+              required
+              type="password"
+              className="form-input-light"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </FormField>
 
-        {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+          {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-brand-amber py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-brand-blueDark transition hover:bg-brand-amberDark disabled:opacity-50"
-        >
-          {loading ? "Signing in..." : "Sign in"}
-        </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-brand-amber py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-brand-blueDark transition hover:bg-brand-amberDark disabled:opacity-50"
+          >
+            {loading ? "Signing in..." : "Sign in"}
+          </button>
 
-        <div className="my-4 flex items-center gap-3">
-          <div className="h-px flex-1 bg-brand-border" />
-          <span className="text-xs text-brand-muted">or</span>
-          <div className="h-px flex-1 bg-brand-border" />
-        </div>
+          <div className="my-4 flex items-center gap-3">
+            <div className="h-px flex-1 bg-brand-border" />
+            <span className="text-xs text-brand-muted">or</span>
+            <div className="h-px flex-1 bg-brand-border" />
+          </div>
 
-        <button
-          type="button"
-          disabled={loading}
-          onClick={handleGoogleSignIn}
-          className="w-full border border-brand-border bg-white py-3.5 text-xs font-bold uppercase tracking-[0.15em] text-brand-blueDark transition hover:border-brand-accent disabled:opacity-50"
-        >
-          Continue with Google
-        </button>
-      </form>
-    </FormShell>
+          <GoogleSignInButton onClick={handleGoogleSignIn} disabled={loading} loading={loading} />
+        </form>
+      </FormShell>
     </SignedInRedirect>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isInternalUser } from "@/lib/auth/roles";
+import { createClient } from "@/lib/supabase/client";
 
 const GUIDE_STEPS = [
   {
@@ -63,28 +64,60 @@ function storageKey(userId: string) {
   return `guidemate-tour-v1-${userId}`;
 }
 
+async function markOnboardingComplete(userId: string) {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ onboarding_completed_at: new Date().toISOString() })
+    .eq("id", userId);
+  if (error) throw error;
+}
+
 export function FirstRunTour() {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
 
   useEffect(() => {
     if (!user || !profile || isInternalUser(profile.role)) return;
-    try {
-      if (localStorage.getItem(storageKey(user.id))) return;
-      setOpen(true);
-      setStep(0);
-    } catch {
-      /* ignore storage errors */
-    }
-  }, [user, profile]);
+    if (profile.onboardingCompletedAt) return;
 
-  function dismiss() {
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        if (localStorage.getItem(storageKey(user.id))) {
+          await markOnboardingComplete(user.id);
+          if (!cancelled) await refreshProfile();
+          return;
+        }
+      } catch {
+        /* ignore storage or backfill errors */
+      }
+
+      if (!cancelled) {
+        setOpen(true);
+        setStep(0);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, profile, refreshProfile]);
+
+  async function dismiss() {
     if (user) {
       try {
         localStorage.setItem(storageKey(user.id), "1");
       } catch {
         /* ignore */
+      }
+      try {
+        await markOnboardingComplete(user.id);
+        await refreshProfile();
+      } catch {
+        /* ignore profile update errors */
       }
     }
     setOpen(false);
@@ -114,7 +147,7 @@ export function FirstRunTour() {
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
           <button
             type="button"
-            onClick={dismiss}
+            onClick={() => void dismiss()}
             className="text-sm font-semibold text-brand-muted hover:text-brand-blueDark"
           >
             Skip
@@ -125,7 +158,11 @@ export function FirstRunTour() {
                 Back
               </Button>
             )}
-            <Button variant="primary" type="button" onClick={() => (last ? dismiss() : setStep((n) => n + 1))}>
+            <Button
+              variant="primary"
+              type="button"
+              onClick={() => void (last ? dismiss() : setStep((n) => n + 1))}
+            >
               {last ? "Done" : "Next"}
             </Button>
           </div>

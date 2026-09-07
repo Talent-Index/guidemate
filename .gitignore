@@ -20,3 +20,7 @@ contracts/broadcast/
 # OS
 .DS_Store
 Thumbs.db
+
+# Mini Hack submission docs (local only — do not commit)
+docs/
+scripts/export-one-pager-metrics.ts

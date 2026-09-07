@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ListRowSkeleton } from "@/components/ui/Skeleton";
+import { SuperAdminGate } from "@/components/auth/AdminGate";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import { approveApplication } from "@/lib/api";
@@ -147,21 +148,9 @@ export default function AdminApplicationsPage() {
 
   if (!session || profile?.role !== "admin") {
     return (
-      <div className="mx-auto max-w-md text-center">
-        <Card>
-          <h1 className="text-xl font-bold text-brand-blueDark">Admin sign-in required</h1>
-          <p className="mt-2 text-sm text-brand-muted">
-            Sign in with the same email/password you used at sign-up. That account must have{" "}
-            <span className="font-semibold text-brand-blueDark">profiles.role = admin</span> — there is no
-            separate admin password, and nobody is an admin until you promote an account in Supabase.
-          </p>
-          <Link href="/auth/sign-in">
-            <Button variant="primary" className="mt-4">
-              Sign in
-            </Button>
-          </Link>
-        </Card>
-      </div>
+      <SuperAdminGate>
+        <div />
+      </SuperAdminGate>
     );
   }
 

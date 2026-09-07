@@ -196,6 +196,7 @@ export interface CreateBookingInput {
   lockTxHash: string;
   paymentMethod?: string;
   paymentRef?: string;
+  slotId?: string;
 }
 
 export async function saveBooking(input: CreateBookingInput): Promise<BookingRecord> {
@@ -216,6 +217,7 @@ export async function saveBooking(input: CreateBookingInput): Promise<BookingRec
       lock_tx_hash: input.lockTxHash,
       payment_method: input.paymentMethod ?? "demo",
       payment_ref: input.paymentRef ?? null,
+      slot_id: input.slotId ?? null,
     })
     .select(SELECT)
     .single();

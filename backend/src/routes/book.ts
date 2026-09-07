@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getExperienceById } from "../experiences.js";
 import { bookingIdToBytes32, requireChain } from "../chain.js";
 import { saveBooking } from "../bookings.js";
+import { reserveSlot } from "../slots.js";
 import { ensureConversation } from "../chat.js";
 import { recordWalletTransaction } from "../ledger.js";
 import { getCompletedPaymentIntent } from "./payments.js";
@@ -22,6 +23,8 @@ const bookSchema = z.object({
   paymentMethod: z.enum(["demo", "mpesa", "custodial", "external"]).optional().default("demo"),
   paymentIntentId: z.string().uuid().optional(),
   txHash: z.string().optional(),
+  slotId: z.string().uuid().optional(),
+  guests: z.number().int().min(1).max(20).optional().default(1),
 });
 
 bookRouter.post("/", async (req, res) => {
@@ -30,7 +33,7 @@ bookRouter.post("/", async (req, res) => {
     return res.status(400).json({ error: parsed.error.flatten() });
   }
 
-  const { request, experienceId, matchReason, hotelName, hotelWallet, paymentMethod, paymentIntentId } =
+  const { request, experienceId, matchReason, hotelName, hotelWallet, paymentMethod, paymentIntentId, slotId, guests } =
     parsed.data;
 
   const experience = await getExperienceById(experienceId);
@@ -57,6 +60,11 @@ bookRouter.post("/", async (req, res) => {
         return res.status(402).json({ error: "M-Pesa payment not completed for this experience" });
       }
     }
+
+    if (!slotId) {
+      return res.status(400).json({ error: "slotId required: choose an available time before booking" });
+    }
+    await reserveSlot(slotId, experienceId, guests);
 
     const bookingId = randomUUID();
     const bytes32Id = bookingIdToBytes32(bookingId);
@@ -91,6 +99,7 @@ bookRouter.post("/", async (req, res) => {
       lockTxHash: receipt?.hash ?? lockTx.hash,
       paymentMethod,
       paymentRef: paymentIntentId ?? undefined,
+      slotId,
     });
 
     if (touristId) {

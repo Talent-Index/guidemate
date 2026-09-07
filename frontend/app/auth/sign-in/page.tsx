@@ -7,6 +7,7 @@ import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
 import { createClient } from "@/lib/supabase/client";
 import { homeForRole, type AccountRole } from "@/lib/auth/home";
 import { provisionWallet } from "@/lib/api";
+import { useAuth } from "@/lib/auth/AuthProvider";
 
 async function finishOAuthProfile(
   supabase: ReturnType<typeof createClient>,
@@ -43,6 +44,7 @@ async function finishOAuthProfile(
 
 export default function SignInPage() {
   const router = useRouter();
+  const { refreshProfile } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -78,8 +80,8 @@ export default function SignInPage() {
       if (profile?.role === "guide") {
         await provisionWallet(data.session.access_token);
       }
-
-      router.push(homeForRole((profile?.role ?? "tourist") as AccountRole));
+      await refreshProfile();
+      router.replace(homeForRole((profile?.role ?? "tourist") as AccountRole));
     } catch (err) {
       setError((err as Error).message);
     } finally {

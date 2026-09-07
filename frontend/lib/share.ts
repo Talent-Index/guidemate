@@ -11,7 +11,7 @@ export function buildAppUrl(path: string): string {
 }
 
 export function getExperienceSharePath(experienceId: string) {
-  return `/book/${experienceId}`;
+  return `/experiences/${experienceId}`;
 }
 
 export function getStreamSharePath(streamId: string) {

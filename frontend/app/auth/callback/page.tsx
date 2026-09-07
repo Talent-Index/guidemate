@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { homeForRole, type AccountRole } from "@/lib/auth/home";
 import { provisionWallet } from "@/lib/api";
+import { useAuth } from "@/lib/auth/AuthProvider";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
+  const { refreshProfile } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -60,9 +62,10 @@ export default function AuthCallbackPage() {
         }
       }
 
+      await refreshProfile();
       router.replace(homeForRole((profile?.role ?? "tourist") as AccountRole));
     })();
-  }, [router]);
+  }, [router, refreshProfile]);
 
   if (error) {
     return (

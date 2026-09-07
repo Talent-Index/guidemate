@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode, Suspense } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -9,16 +9,19 @@ import { ExperiencePhotoStrip, experiencePhotoUrls } from "@/components/ui/Exper
 import { ListRowSkeleton } from "@/components/ui/Skeleton";
 import { StarRating } from "@/components/ui/StarRating";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { RoleGate } from "@/components/auth/RoleGate";
+import { GreetingRow } from "@/components/ui/GreetingRow";
+import { AccountSettingsActions } from "@/components/ui/AccountSettingsActions";
 import { createClient } from "@/lib/supabase/client";
 import { EXPERIENCE_CATEGORIES } from "@/lib/categories";
 import { RatePanel } from "@/components/RatePanel";
 import { ViewTouristProfileButton } from "@/components/ViewTouristProfileButton";
-import { listMyBookings, provisionWallet, submitTouristRating, type BookingRecord } from "@/lib/api";
+import { getWallet, listMyBookings, provisionWallet, submitTouristRating, type BookingRecord } from "@/lib/api";
 import { Price } from "@/lib/fx";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
-import { WalletPanel } from "@/components/WalletPanel";
+import { useSearchParams, useRouter } from "next/navigation";
 
-type DashboardTab = "experiences" | "history" | "wallet" | "settings";
+type DashboardTab = "experiences" | "history" | "settings";
 
 interface ExperienceRow {
   id: string;
@@ -56,9 +59,20 @@ async function uploadExperiencePhotos(files: File[], guideId: string): Promise<s
 }
 
 export default function GuideDashboardPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-brand-muted">Loading…</p>}>
+      <GuideDashboard />
+    </Suspense>
+  );
+}
+
+function GuideDashboard() {
   const { loading: authLoading, session, profile, refreshProfile } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<DashboardTab>("experiences");
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
   const [guideBookings, setGuideBookings] = useState<BookingRecord[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
@@ -130,6 +144,17 @@ export default function GuideDashboardPage() {
       cancelled = true;
       clearInterval(interval);
     };
+  }, [session]);
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "settings") setActiveTab("settings");
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!session) return;
+    getWallet(session.access_token)
+      .then((summary) => setWalletBalance(summary.balanceUsdc))
+      .catch(() => setWalletBalance(null));
   }, [session]);
 
   async function loadExperiences(guideId: string) {
@@ -271,46 +296,43 @@ export default function GuideDashboardPage() {
     await loadExperiences(session.user.id);
   }
 
-  if (authLoading) return null;
+  const upcoming = guideBookings.filter((b) => b.status === "locked");
+  const pastBookings = guideBookings.filter((b) => b.status !== "locked");
+  const activeListings = experiences.filter((exp) => exp.is_active).length;
+
+  if (authLoading || (session && !profile)) return <p className="text-sm text-brand-muted">Loading…</p>;
 
   if (!session || profile?.role !== "guide") {
     return (
-      <div className="mx-auto max-w-md text-center">
-        <Card>
-          <h1 className="text-xl font-bold text-brand-blueDark">Guide sign-in required</h1>
-          <p className="mt-2 text-sm text-brand-muted">Sign in with a guide account to manage your listings.</p>
-          <Link href="/auth/sign-in">
-            <Button variant="primary" className="mt-4">
-              Sign in
-            </Button>
-          </Link>
-        </Card>
-      </div>
+      <RoleGate
+        role="guide"
+        title="Guide sign-in required"
+        body="Sign in with a guide account to manage your listings."
+      />
     );
   }
-
-  const upcoming = guideBookings.filter((b) => b.status === "locked");
-  const pastBookings = guideBookings.filter((b) => b.status !== "locked");
 
   return (
     <div className="flex flex-col gap-6">
       <MobilePageBanner eyebrow="Dashboard" title="Your listings and payouts" />
-      <div className="hidden flex-wrap items-center justify-between gap-4 md:flex">
-        <div className="flex gap-2">
-          <Link
-            href="/guide"
-            className="rounded-full border border-brand-border px-4 py-1.5 text-xs font-semibold text-brand-muted hover:border-brand-accent hover:text-brand-accent"
-          >
-            Active tour
-          </Link>
-          <span className="rounded-full bg-brand-blue px-4 py-1.5 text-xs font-semibold text-white">Dashboard</span>
-          <Link
-            href="/live"
-            className="rounded-full border border-brand-border px-4 py-1.5 text-xs font-semibold text-brand-muted hover:border-brand-accent hover:text-brand-accent"
-          >
-            Go live
-          </Link>
-        </div>
+      <GreetingRow subtitle="Your listings, booked tours, and payouts in one place." />
+      <div className="hidden grid-cols-3 gap-3 md:grid">
+        <Card className="p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Active listings</p>
+          <p className="mt-1 text-2xl font-bold text-brand-blueDark">{activeListings}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Locked bookings</p>
+          <p className="mt-1 text-2xl font-bold text-brand-blueDark">{upcoming.length}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Wallet</p>
+          {walletBalance == null ? (
+            <p className="mt-1 text-sm text-brand-muted">—</p>
+          ) : (
+            <Price amountUsdc={walletBalance} className="mt-1" align="start" size="lg" />
+          )}
+        </Card>
       </div>
 
       {upcoming.length > 0 && (
@@ -361,19 +383,37 @@ export default function GuideDashboardPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2">
-          <TabButton active={activeTab === "experiences"} onClick={() => setActiveTab("experiences")}>
+          <TabButton
+            active={activeTab === "experiences"}
+            onClick={() => {
+              setActiveTab("experiences");
+              router.replace("/guide/dashboard");
+            }}
+          >
             Experiences
           </TabButton>
-          <TabButton active={activeTab === "history"} onClick={() => setActiveTab("history")}>
+          <TabButton
+            active={activeTab === "history"}
+            onClick={() => {
+              setActiveTab("history");
+              router.replace("/guide/dashboard");
+            }}
+          >
             Past tours
           </TabButton>
-          <TabButton active={activeTab === "wallet"} onClick={() => setActiveTab("wallet")}>
+          <Link
+            href="/wallet"
+            className="rounded-full border border-brand-border px-4 py-1.5 text-xs font-semibold text-brand-muted hover:border-brand-accent hover:text-brand-accent"
+          >
             Wallet
-          </TabButton>
+          </Link>
         </div>
         <button
           type="button"
-          onClick={() => setActiveTab("settings")}
+          onClick={() => {
+            setActiveTab("settings");
+            router.replace("/guide/dashboard?tab=settings");
+          }}
           className={`flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
             activeTab === "settings"
               ? "border-brand-accent bg-brand-accent/10 text-brand-accent"
@@ -385,6 +425,7 @@ export default function GuideDashboardPage() {
       </div>
 
       {activeTab === "settings" && (
+      <>
       <Card>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
@@ -482,6 +523,8 @@ export default function GuideDashboardPage() {
           </Button>
         </form>
       </Card>
+      <AccountSettingsActions />
+      </>
       )}
 
       {activeTab === "experiences" && (
@@ -670,18 +713,6 @@ export default function GuideDashboardPage() {
           ))}
         </div>
       </Card>
-      )}
-
-      {activeTab === "wallet" && session && (
-        <div className="flex flex-col gap-4">
-          <Card>
-            <h2 className="text-lg font-bold text-brand-blueDark">Your wallet</h2>
-            <p className="mt-1 text-sm text-brand-muted">
-              Earnings from tours and live streams land here. Withdraw to your M-Pesa number anytime.
-            </p>
-          </Card>
-          <WalletPanel accessToken={session.access_token} canWithdraw phone={phone} />
-        </div>
       )}
 
       {activeTab === "history" && (

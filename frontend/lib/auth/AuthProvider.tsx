@@ -17,6 +17,7 @@ export interface Profile {
   isVetted: boolean;
   avatarUrl: string | null;
   createdAt: string | null;
+  onboardingCompletedAt: string | null;
 }
 
 interface AuthContextValue {
@@ -45,6 +46,7 @@ function toProfile(row: any): Profile {
     isVetted: Boolean(row.is_vetted),
     avatarUrl: row.avatar_url ?? null,
     createdAt: row.created_at ?? null,
+    onboardingCompletedAt: row.onboarding_completed_at ?? null,
   };
 }
 

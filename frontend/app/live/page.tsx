@@ -210,176 +210,231 @@ export default function LiveBrowsePage() {
         </div>
       </div>
 
-      {profile?.role === "guide" && (
-        <Card>
-          <h2 className="text-lg font-bold text-brand-blueDark">Host a stream</h2>
-          <p className="mt-1 text-sm text-brand-muted">
-            Go live now, schedule for later, or tell the community you&apos;ll be on in about an hour.
-          </p>
-          {!session ? (
-            <Link href="/auth/sign-in">
-              <Button variant="primary" className="mt-4">
-                Sign in to go live
-              </Button>
-            </Link>
-          ) : (
-            <div className="mt-4 flex flex-col gap-4">
-              <input
-                className="form-input-light"
-                placeholder="e.g. Umoja market walk, live"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-              />
-              <div className="grid gap-3 sm:grid-cols-2">
+      {profile?.role === "guide" ? (
+        <div className="md:grid md:grid-cols-[minmax(280px,360px)_1fr] md:gap-6 md:items-start">
+          <Card>
+            <h2 className="text-lg font-bold text-brand-blueDark">Host a stream</h2>
+            <p className="mt-1 text-sm text-brand-muted">
+              Go live now, schedule for later, or tell the community you&apos;ll be on in about an hour.
+            </p>
+            {!session ? (
+              <Link href="/auth/sign-in">
+                <Button variant="primary" className="mt-4">
+                  Sign in to go live
+                </Button>
+              </Link>
+            ) : (
+              <div className="mt-4 flex flex-col gap-4">
                 <input
                   className="form-input-light"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  aria-label="Price in USDC"
+                  placeholder="e.g. Umoja market walk, live"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required
                 />
-                <input
-                  className="form-input-light"
-                  type="datetime-local"
-                  value={scheduledAt}
-                  onChange={(e) => setScheduledAt(e.target.value)}
-                  aria-label="Scheduled start time"
-                />
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="primary"
-                  type="button"
-                  disabled={starting || title.trim().length < 2}
-                  onClick={handleGoLive}
-                >
-                  {starting ? "Starting..." : "Go live now"}
-                </Button>
-                <Button
-                  variant="secondary"
-                  type="button"
-                  disabled={scheduling || title.trim().length < 2}
-                  onClick={handleSchedule}
-                >
-                  {scheduling ? "Scheduling..." : "Schedule stream"}
-                </Button>
-                <Button
-                  variant="secondary"
-                  type="button"
-                  disabled={announcing || title.trim().length < 2}
-                  onClick={handleAnnounceInHour}
-                >
-                  {announcing ? "Announcing..." : "Notify: live in 1 hour"}
-                </Button>
-              </div>
-            </div>
-          )}
-          {startError && <p className="mt-2 text-sm text-red-600">{startError}</p>}
-
-          {myScheduled.length > 0 && (
-            <div className="mt-6 border-t border-brand-border pt-4">
-              <h3 className="text-sm font-bold uppercase tracking-wide text-brand-muted">Your scheduled streams</h3>
-              <ul className="mt-3 flex flex-col gap-3">
-                {myScheduled.map((stream) => (
-                  <li
-                    key={stream.id}
-                    className="flex flex-col gap-2 rounded-lg border border-brand-border p-3 sm:flex-row sm:items-center sm:justify-between"
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input
+                    className="form-input-light"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    aria-label="Price in USDC"
+                  />
+                  <input
+                    className="form-input-light"
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    aria-label="Scheduled start time"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="primary"
+                    type="button"
+                    disabled={starting || title.trim().length < 2}
+                    onClick={handleGoLive}
                   >
-                    <div>
-                      <p className="font-semibold text-brand-blueDark">{stream.title}</p>
-                      <p className="text-sm text-brand-muted">
-                        {stream.scheduledAt ? formatWhen(stream.scheduledAt) : "Time TBD"}
-                        {stream.communityNotifiedAt ? " · Announced to community" : ""}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <ShareLinkButton
-                        path={getStreamSharePath(stream.id)}
-                        label="Share link"
-                        shareTitle={stream.title}
-                        shareText={`Join my live stream: ${stream.title}`}
-                        className="px-4 py-2 text-xs"
-                      />
-                      {!stream.communityNotifiedAt && (
+                    {starting ? "Starting..." : "Go live now"}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    disabled={scheduling || title.trim().length < 2}
+                    onClick={handleSchedule}
+                  >
+                    {scheduling ? "Scheduling..." : "Schedule stream"}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    disabled={announcing || title.trim().length < 2}
+                    onClick={handleAnnounceInHour}
+                  >
+                    {announcing ? "Announcing..." : "Notify: live in 1 hour"}
+                  </Button>
+                </div>
+              </div>
+            )}
+            {startError && <p className="mt-2 text-sm text-red-600">{startError}</p>}
+
+            {myScheduled.length > 0 && (
+              <div className="mt-6 border-t border-brand-border pt-4">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-brand-muted">Your scheduled streams</h3>
+                <ul className="mt-3 flex flex-col gap-3">
+                  {myScheduled.map((stream) => (
+                    <li
+                      key={stream.id}
+                      className="flex flex-col gap-2 rounded-lg border border-brand-border p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div>
+                        <p className="font-semibold text-brand-blueDark">{stream.title}</p>
+                        <p className="text-sm text-brand-muted">
+                          {stream.scheduledAt ? formatWhen(stream.scheduledAt) : "Time TBD"}
+                          {stream.communityNotifiedAt ? " · Announced to community" : ""}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <ShareLinkButton
+                          path={getStreamSharePath(stream.id)}
+                          label="Share link"
+                          shareTitle={stream.title}
+                          shareText={`Join my live stream: ${stream.title}`}
+                          className="px-4 py-2 text-xs"
+                        />
+                        {!stream.communityNotifiedAt && (
+                          <Button
+                            variant="secondary"
+                            type="button"
+                            disabled={guideActionId === stream.id}
+                            onClick={() => handleNotify(stream.id)}
+                          >
+                            Notify community
+                          </Button>
+                        )}
                         <Button
-                          variant="secondary"
+                          variant="primary"
                           type="button"
                           disabled={guideActionId === stream.id}
-                          onClick={() => handleNotify(stream.id)}
+                          onClick={() => handleStartEarly(stream.id)}
                         >
-                          Notify community
+                          Start early
                         </Button>
-                      )}
-                      <Button
-                        variant="primary"
-                        type="button"
-                        disabled={guideActionId === stream.id}
-                        onClick={() => handleStartEarly(stream.id)}
-                      >
-                        Start early
-                      </Button>
-                      <Link href={`/live/${stream.id}`}>
-                        <Button variant="secondary" type="button">View</Button>
-                      </Link>
-                    </div>
-                  </li>
+                        <Link href={`/live/${stream.id}`}>
+                          <Button variant="secondary" type="button">View</Button>
+                        </Link>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </Card>
+
+          <div className="flex flex-col gap-8">
+            {upcoming.length > 0 && (
+              <div>
+                <h2 className="text-lg font-bold text-brand-blueDark">Coming up</h2>
+                <p className="mt-1 text-sm text-brand-muted">Guides who announced they&apos;ll be live soon.</p>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  {upcoming.map((stream) => (
+                    <StreamCard
+                      key={stream.id}
+                      stream={stream}
+                      badge={stream.scheduledAt ? timeUntil(stream.scheduledAt) : "Soon"}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <h2 className="text-lg font-bold text-brand-blueDark">Happening now</h2>
+              {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+              {loading && <ExperienceGridSkeleton count={2} />}
+              {!loading && live.length === 0 && (
+                <Card className="mt-4">
+                  <p className="font-semibold text-brand-blueDark">Nobody is live right now</p>
+                  <p className="mt-2 text-sm text-brand-muted">
+                    Check back soon or look at the coming-up list above.
+                  </p>
+                </Card>
+              )}
+              {!loading && (
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  {live.map((stream) => (
+                    <StreamCard key={stream.id} stream={stream} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {recorded.length > 0 && (
+              <div>
+                <h2 className="text-lg font-bold text-brand-blueDark">Watch again</h2>
+                <p className="mt-1 text-sm text-brand-muted">Recordings from recent streams, saved for on-demand replay.</p>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  {recorded.map((stream) => (
+                    <StreamCard key={stream.id} stream={stream} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <>
+          {upcoming.length > 0 && (
+            <div>
+              <h2 className="text-lg font-bold text-brand-blueDark">Coming up</h2>
+              <p className="mt-1 text-sm text-brand-muted">Guides who announced they&apos;ll be live soon.</p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {upcoming.map((stream) => (
+                  <StreamCard
+                    key={stream.id}
+                    stream={stream}
+                    badge={stream.scheduledAt ? timeUntil(stream.scheduledAt) : "Soon"}
+                  />
                 ))}
-              </ul>
+              </div>
             </div>
           )}
-        </Card>
-      )}
 
-      {upcoming.length > 0 && (
-        <div>
-          <h2 className="text-lg font-bold text-brand-blueDark">Coming up</h2>
-          <p className="mt-1 text-sm text-brand-muted">Guides who announced they&apos;ll be live soon.</p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            {upcoming.map((stream) => (
-              <StreamCard
-                key={stream.id}
-                stream={stream}
-                badge={stream.scheduledAt ? timeUntil(stream.scheduledAt) : "Soon"}
-              />
-            ))}
+          <div>
+            <h2 className="text-lg font-bold text-brand-blueDark">Happening now</h2>
+            {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+            {loading && <ExperienceGridSkeleton count={2} />}
+            {!loading && live.length === 0 && (
+              <Card className="mt-4">
+                <p className="font-semibold text-brand-blueDark">Nobody is live right now</p>
+                <p className="mt-2 text-sm text-brand-muted">
+                  Check back soon or look at the coming-up list above.
+                </p>
+              </Card>
+            )}
+            {!loading && (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {live.map((stream) => (
+                  <StreamCard key={stream.id} stream={stream} />
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      )}
 
-      <div>
-        <h2 className="text-lg font-bold text-brand-blueDark">Happening now</h2>
-        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-        {loading && <ExperienceGridSkeleton count={2} />}
-        {!loading && live.length === 0 && (
-          <Card className="mt-4">
-            <p className="font-semibold text-brand-blueDark">Nobody is live right now</p>
-            <p className="mt-2 text-sm text-brand-muted">
-              Check back soon or look at the coming-up list above.
-            </p>
-          </Card>
-        )}
-        {!loading && (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            {live.map((stream) => (
-              <StreamCard key={stream.id} stream={stream} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {recorded.length > 0 && (
-        <div>
-          <h2 className="text-lg font-bold text-brand-blueDark">Watch again</h2>
-          <p className="mt-1 text-sm text-brand-muted">Recordings from recent streams, saved for on-demand replay.</p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            {recorded.map((stream) => (
-              <StreamCard key={stream.id} stream={stream} />
-            ))}
-          </div>
-        </div>
+          {recorded.length > 0 && (
+            <div>
+              <h2 className="text-lg font-bold text-brand-blueDark">Watch again</h2>
+              <p className="mt-1 text-sm text-brand-muted">Recordings from recent streams, saved for on-demand replay.</p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {recorded.map((stream) => (
+                  <StreamCard key={stream.id} stream={stream} />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

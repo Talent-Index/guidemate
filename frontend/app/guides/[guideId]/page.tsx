@@ -8,18 +8,11 @@ import { Button } from "@/components/ui/Button";
 import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { PageBackButton } from "@/components/ui/PageBackButton";
+import { GuideAvatar } from "@/components/ui/GuideAvatar";
 import { StarRating } from "@/components/ui/StarRating";
 import { ProfilePageSkeleton } from "@/components/ui/Skeleton";
 import { getGuideProfile, type GuidePublicProfile } from "@/lib/api";
 import { Price } from "@/lib/fx";
-
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-}
 
 export default function GuideProfilePage() {
   const params = useParams<{ guideId: string }>();
@@ -82,9 +75,7 @@ export default function GuideProfilePage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Guide profile</p>
         </div>
         <div className="flex flex-wrap items-start gap-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-brand-amber text-lg font-bold text-brand-blueDark">
-            {initials(guide.fullName) || "G"}
-          </div>
+          <GuideAvatar name={guide.fullName} avatarUrl={guide.avatarUrl} size="lg" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-bold text-brand-blueDark">{guide.fullName}</h1>
@@ -138,8 +129,8 @@ export default function GuideProfilePage() {
                   <p className="mt-2 text-sm text-brand-muted line-clamp-2">{exp.description}</p>
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                     <Price amountUsdc={exp.priceUsdc} />
-                    <Link href={`/book/${exp.id}`}>
-                      <Button variant="primary">Book</Button>
+                    <Link href={`/experiences/${exp.id}`}>
+                      <Button variant="primary">View</Button>
                     </Link>
                   </div>
                 </div>

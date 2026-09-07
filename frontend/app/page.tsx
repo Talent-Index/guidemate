@@ -111,16 +111,16 @@ export default function HomePage() {
             </p>
             <div className="mt-10 flex flex-wrap items-center gap-3">
               <Link
-                href="/explore"
+                href="/apply"
                 className="bg-brand-amber px-7 py-3 text-sm font-semibold text-brand-blueDark transition hover:bg-brand-amberDark"
               >
-                Explore experiences
+                Apply to be a guide
               </Link>
               <Link
-                href="/apply"
+                href="/auth/sign-up"
                 className="bg-brand-blue px-7 py-3 text-sm font-semibold text-white transition hover:bg-brand-accent"
               >
-                Apply to be a guide
+                Register
               </Link>
             </div>
           </div>
@@ -207,7 +207,7 @@ export default function HomePage() {
           <div className="mx-auto max-w-3xl px-4 py-24 text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Get in early</h2>
             <p className="mx-auto mt-3 max-w-md text-sm text-brand-muted">
-              Apply to host as a guide, or join the waitlist if you want access when we open more widely.
+              Apply to host as a guide, or register to book experiences as a tourist.
             </p>
             <div className="mt-10 flex flex-wrap justify-center gap-3">
               <Link
@@ -217,10 +217,10 @@ export default function HomePage() {
                 Apply to be a guide
               </Link>
               <Link
-                href="/waitlist"
+                href="/auth/sign-up"
                 className="bg-brand-blue px-7 py-3 text-sm font-semibold text-white transition hover:bg-brand-accent"
               >
-                Join waitlist
+                Register
               </Link>
             </div>
             <p className="mt-8 text-xs text-brand-muted">

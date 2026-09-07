@@ -148,9 +148,9 @@ function MatchedExperience({ experience, reason }: { experience: Experience; rea
           </span>
         ))}
       </div>
-      <Link href={`/book/${experience.id}`}>
+      <Link href={`/experiences/${experience.id}`}>
         <Button variant="primary" className="mt-4">
-          Book this experience
+          View this experience
         </Button>
       </Link>
       <ViewGuideProfileButton guideId={experience.guide.id} className="mt-3 inline-block" />

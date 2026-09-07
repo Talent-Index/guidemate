@@ -26,10 +26,15 @@ interface ApplicationRow {
   full_name: string;
   email: string;
   phone: string;
+  id_number: string | null;
   location: string;
   experience_pitch: string;
   portfolio_links: string[];
+  cv_path: string | null;
   proof_of_work_path: string | null;
+  referee_name: string | null;
+  referee_phone: string | null;
+  referee_email: string | null;
   status: ApplicationStatus;
   created_at: string;
 }
@@ -44,6 +49,7 @@ export default function AdminApplicationsPage() {
   const [filter, setFilter] = useState<ApplicationStatus | "all">("pending");
   const [actingId, setActingId] = useState<string | null>(null);
   const [proofUrls, setProofUrls] = useState<Record<string, string>>({});
+  const [cvUrls, setCvUrls] = useState<Record<string, string>>({});
 
   async function loadApplications() {
     setLoading(true);
@@ -52,7 +58,7 @@ export default function AdminApplicationsPage() {
     let query = supabase
       .from("guide_applications")
       .select(
-        "id, full_name, email, phone, location, experience_pitch, portfolio_links, proof_of_work_path, status, created_at"
+        "id, full_name, email, phone, id_number, location, experience_pitch, portfolio_links, cv_path, proof_of_work_path, referee_name, referee_phone, referee_email, status, created_at"
       )
       .order("created_at", { ascending: false });
     if (filter !== "all") query = query.eq("status", filter);
@@ -69,17 +75,29 @@ export default function AdminApplicationsPage() {
     setApplications(rows);
 
     const urls: Record<string, string> = {};
+    const cvSigned: Record<string, string> = {};
     await Promise.all(
-      rows
-        .filter((row) => row.proof_of_work_path)
-        .map(async (row) => {
-          const { data: signed } = await supabase.storage
-            .from("guide-proofs")
-            .createSignedUrl(row.proof_of_work_path!, 3600);
-          if (signed?.signedUrl) urls[row.id] = signed.signedUrl;
-        })
+      rows.flatMap((row) => {
+        const tasks: Promise<void>[] = [];
+        if (row.proof_of_work_path) {
+          tasks.push(
+            supabase.storage.from("guide-proofs").createSignedUrl(row.proof_of_work_path, 3600).then(({ data: signed }) => {
+              if (signed?.signedUrl) urls[row.id] = signed.signedUrl;
+            })
+          );
+        }
+        if (row.cv_path) {
+          tasks.push(
+            supabase.storage.from("guide-proofs").createSignedUrl(row.cv_path, 3600).then(({ data: signed }) => {
+              if (signed?.signedUrl) cvSigned[row.id] = signed.signedUrl;
+            })
+          );
+        }
+        return tasks;
+      })
     );
     setProofUrls(urls);
+    setCvUrls(cvSigned);
     setLoading(false);
   }
 
@@ -234,6 +252,7 @@ export default function AdminApplicationsPage() {
               <p className="text-sm text-brand-muted">
                 {app.email} · {app.phone} · {app.location}
               </p>
+              {app.id_number && <p className="text-sm text-brand-muted">ID: {app.id_number}</p>}
               <p className="mt-1 text-xs text-brand-muted">{new Date(app.created_at).toLocaleString()}</p>
             </div>
             <span
@@ -267,16 +286,39 @@ export default function AdminApplicationsPage() {
             </div>
           )}
 
-          {proofUrls[app.id] && (
-            <a
-              href={proofUrls[app.id]}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-3 inline-block text-sm font-semibold text-brand-accent hover:underline"
-            >
-              View proof of work
-            </a>
+          {app.referee_name && (
+            <div className="mt-3 rounded-lg border border-brand-border bg-brand-bg/40 p-3 text-sm">
+              <p className="font-semibold text-brand-blueDark">Referee</p>
+              <p className="text-brand-muted">
+                {app.referee_name}
+                {app.referee_phone ? ` · ${app.referee_phone}` : ""}
+                {app.referee_email ? ` · ${app.referee_email}` : ""}
+              </p>
+            </div>
           )}
+
+          <div className="mt-3 flex flex-wrap gap-4">
+            {cvUrls[app.id] && (
+              <a
+                href={cvUrls[app.id]}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm font-semibold text-brand-accent hover:underline"
+              >
+                View CV
+              </a>
+            )}
+            {proofUrls[app.id] && (
+              <a
+                href={proofUrls[app.id]}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm font-semibold text-brand-accent hover:underline"
+              >
+                View proof of work
+              </a>
+            )}
+          </div>
 
           {app.status === "pending" && (
             <div className="mt-4 flex flex-wrap gap-2">

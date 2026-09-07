@@ -15,6 +15,7 @@ export interface Profile {
   ratingAvg: number;
   ratingCount: number;
   isVetted: boolean;
+  avatarUrl: string | null;
   createdAt: string | null;
 }
 
@@ -42,6 +43,7 @@ function toProfile(row: any): Profile {
     ratingAvg: Number(row.rating_avg ?? 0),
     ratingCount: row.rating_count ?? 0,
     isVetted: Boolean(row.is_vetted),
+    avatarUrl: row.avatar_url ?? null,
     createdAt: row.created_at ?? null,
   };
 }

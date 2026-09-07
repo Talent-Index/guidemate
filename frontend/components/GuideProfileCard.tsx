@@ -3,10 +3,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { StarRating } from "@/components/ui/StarRating";
+import { GuideAvatar } from "@/components/ui/GuideAvatar";
 import { SettingsSection } from "@/components/settings/SettingsSection";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import { provisionWallet } from "@/lib/api";
+import { uploadGuideAvatar } from "@/lib/uploads";
 import { useToast } from "@/components/ui/Toast";
 
 export function GuideProfileCard() {
@@ -16,6 +18,9 @@ export function GuideProfileCard() {
   const [phone, setPhone] = useState("");
   const [bio, setBio] = useState("");
   const [languages, setLanguages] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [provisioningWallet, setProvisioningWallet] = useState(false);
@@ -27,17 +32,39 @@ export function GuideProfileCard() {
     setPhone(profile.phone ?? "");
     setBio(profile.bio ?? "");
     setLanguages(profile.languages.join(", "));
+    setAvatarUrl(profile.avatarUrl);
   }, [profile]);
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    };
+  }, [avatarPreview]);
 
   if (!session || profile?.role !== "guide") return null;
 
   const email = session.user.email ?? "";
+  const displayAvatar = avatarPreview ?? avatarUrl;
+
+  function handleAvatarSelected(file: File | undefined) {
+    if (!file) return;
+    setAvatarFile(file);
+    setAvatarPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+  }
 
   async function handleSave(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError(null);
     try {
+      let nextAvatarUrl = avatarUrl;
+      if (avatarFile) {
+        nextAvatarUrl = await uploadGuideAvatar(avatarFile, session!.user.id);
+      }
+
       const supabase = createClient();
       const { error: updateError } = await supabase
         .from("profiles")
@@ -49,9 +76,12 @@ export function GuideProfileCard() {
             .split(",")
             .map((l) => l.trim())
             .filter(Boolean),
+          avatar_url: nextAvatarUrl,
         })
         .eq("id", session!.user.id);
       if (updateError) throw updateError;
+      setAvatarUrl(nextAvatarUrl);
+      setAvatarFile(null);
       await refreshProfile();
       toast("Profile saved", "success");
     } catch (err) {
@@ -64,8 +94,24 @@ export function GuideProfileCard() {
   }
 
   return (
-    <SettingsSection title="Profile" description="What tourists see, plus your payout details.">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+    <SettingsSection title="Profile" description="What tourists see on your experiences, plus payout details.">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <GuideAvatar name={fullName || "Guide"} avatarUrl={displayAvatar} size="xl" />
+          <div>
+            <p className="text-sm font-medium text-brand-blueDark">Profile photo</p>
+            <label className="mt-1 inline-block cursor-pointer text-sm font-semibold text-brand-accent hover:underline">
+              Upload photo
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleAvatarSelected(e.target.files?.[0])}
+              />
+            </label>
+            <p className="mt-1 text-xs text-brand-muted">Shown on your experience pages and host card.</p>
+          </div>
+        </div>
         <StarRating
           value={profile.ratingAvg}
           count={profile.ratingCount}

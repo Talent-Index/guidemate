@@ -7,6 +7,7 @@ import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
 import { createClient } from "@/lib/supabase/client";
 import { homeForRole } from "@/lib/auth/home";
 import { provisionWallet } from "@/lib/api";
+import { useAuth } from "@/lib/auth/AuthProvider";
 
 type Role = "tourist" | "guide";
 
@@ -21,6 +22,7 @@ export default function SignUpPage() {
 function SignUpForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { refreshProfile } = useAuth();
   const [role, setRole] = useState<Role>(searchParams.get("role") === "guide" ? "guide" : "tourist");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -85,7 +87,8 @@ function SignUpForm() {
             .eq("id", data.user.id)
             .maybeSingle();
           if (existing) {
-            router.push(homeForRole(existing.role as "guide" | "tourist" | "admin"));
+            await refreshProfile();
+            router.replace(homeForRole(existing.role as "guide" | "tourist" | "admin"));
             return;
           }
           throw profileError;
@@ -93,7 +96,8 @@ function SignUpForm() {
         if (role === "guide") {
           await provisionWallet(data.session.access_token);
         }
-        router.push(homeForRole(role));
+        await refreshProfile();
+        router.replace(homeForRole(role));
       } else {
         // Email confirmation is required - stash the intended profile so
         // /auth/sign-in can finish creating it once they confirm and log in.

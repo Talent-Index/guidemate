@@ -220,14 +220,14 @@ export function NavBar() {
 
         <div className="flex items-center gap-2 md:hidden">
           {showNavAccountActions && <ThemeToggle />}
-          {!signedIn && pathname === "/" ? (
+          {!signedIn && pathname === "/" && (
             <Link
               href="/auth/sign-in"
-              className="bg-brand-amber px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#111111]"
+              className="bg-brand-amber px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[#111111] transition hover:bg-brand-amberDark"
             >
               Sign in
             </Link>
-          ) : null}
+          )}
         </div>
       </div>
     </header>

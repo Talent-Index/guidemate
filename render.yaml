@@ -5,6 +5,8 @@ services:
     runtime: node
     plan: free
     region: oregon
+    branch: main
+    autoDeployTrigger: checksPass
     rootDir: backend
     buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
@@ -34,6 +36,9 @@ services:
         sync: false # 32-byte hex - paste from backend/.env; never commit this
       - key: USDC_TO_KES_RATE
         value: "145"
+      # Use simulate until Kotani enables ONRAMP on your integrator account; then switch to kotani
+      - key: RAMP_PROVIDER
+        value: simulate
       - key: LIVEKIT_API_KEY
         sync: false # paste from backend/.env in the Render dashboard - never commit this
       - key: LIVEKIT_API_SECRET
@@ -59,6 +64,8 @@ services:
     runtime: node
     plan: free
     region: oregon
+    branch: main
+    autoDeployTrigger: checksPass
     rootDir: frontend
     buildCommand: npm install --include=dev && npm run build
     startCommand: npm start

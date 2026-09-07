@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isSuperAdmin } from "@/lib/auth/roles";
 import type { ReactNode } from "react";
@@ -43,9 +44,56 @@ function SignInIcon({ active }: { active: boolean }) {
   );
 }
 
+function ProfileIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-[22px] w-[22px]"
+      fill={active ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={active ? 0 : 1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="12" cy="8.2" r="3.2" />
+      <path d="M5.4 19.4c.6-3.4 3.2-5 6.6-5s6 1.6 6.6 5" />
+    </svg>
+  );
+}
+
 export function MobileTabBar() {
   const pathname = usePathname();
   const { user, profile } = useAuth();
+  const [hash, setHash] = useState("");
+
+  useEffect(() => {
+    const syncHash = () => setHash(window.location.hash);
+    syncHash();
+    window.addEventListener("hashchange", syncHash);
+    return () => window.removeEventListener("hashchange", syncHash);
+  }, [pathname]);
+
+  const settingsHref =
+    profile?.role === "guide"
+      ? "/guide/settings"
+      : profile?.role === "tourist"
+        ? "/tourist/settings"
+        : profile?.role === "admin" || profile?.role === "staff"
+          ? "/admin/settings"
+          : null;
+
+  const profileTab: Tab | null = settingsHref
+    ? {
+        href: settingsHref,
+        label: "Settings",
+        match: (p) =>
+          p.startsWith("/tourist/settings") ||
+          p.startsWith("/guide/settings") ||
+          p.startsWith("/admin/settings"),
+        icon: (a) => <ProfileIcon active={a} />,
+      }
+    : null;
 
   let tabs: Tab[];
   if (profile?.role === "guide") {
@@ -71,6 +119,7 @@ export function MobileTabBar() {
       { href: "/wallet", label: "Wallet", match: (p) => p.startsWith("/wallet"), icon: (a) => <WalletNavIcon active={a} /> },
       { href: "/live", label: "Live", match: (p) => p.startsWith("/live"), icon: (a) => <LiveNavIcon active={a} /> },
     ];
+    if (profileTab) tabs.push(profileTab);
   } else if (isSuperAdmin(profile?.role)) {
     tabs = [
       { href: "/admin", label: "Analytics", match: (p) => p === "/admin", icon: (a) => <AnalyticsNavIcon active={a} /> },
@@ -80,24 +129,14 @@ export function MobileTabBar() {
         match: (p) => p.startsWith("/admin/applications"),
         icon: (a) => <DashboardNavIcon active={a} />,
       },
-      {
-        href: "/admin/settings",
-        label: "Settings",
-        match: (p) => p.startsWith("/admin/settings"),
-        icon: (a) => <SettingsNavIcon active={a} />,
-      },
       { href: "/live", label: "Live", match: (p) => p.startsWith("/live"), icon: (a) => <LiveNavIcon active={a} /> },
     ];
+    if (profileTab) tabs.push(profileTab);
   } else if (profile?.role === "staff") {
     tabs = [
       { href: "/admin", label: "Analytics", match: (p) => p === "/admin", icon: (a) => <AnalyticsNavIcon active={a} /> },
-      {
-        href: "/admin/settings",
-        label: "Settings",
-        match: (p) => p.startsWith("/admin/settings"),
-        icon: (a) => <SettingsNavIcon active={a} />,
-      },
     ];
+    if (profileTab) tabs.push(profileTab);
   } else if (user && profile?.role === "tourist") {
     tabs = [
       {
@@ -119,13 +158,8 @@ export function MobileTabBar() {
         match: (p) => p.startsWith("/chat"),
         icon: (a) => <MessagesNavIcon active={a} />,
       },
-      {
-        href: "/tourist/settings",
-        label: "Settings",
-        match: (p) => p.startsWith("/tourist/settings"),
-        icon: (a) => <SettingsNavIcon active={a} />,
-      },
     ];
+    if (profileTab) tabs.push(profileTab);
   } else {
     tabs = [
       { href: "/", label: "Home", match: (p) => p === "/", icon: (a) => <HomeNavIcon active={a} /> },

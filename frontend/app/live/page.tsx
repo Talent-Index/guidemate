@@ -22,6 +22,8 @@ import {
 } from "@/lib/api";
 import { Price } from "@/lib/fx";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
+import { ShareLinkButton } from "@/components/ShareLinkButton";
+import { getStreamSharePath } from "@/lib/share";
 
 function formatWhen(iso: string) {
   return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -294,6 +296,13 @@ export default function LiveBrowsePage() {
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      <ShareLinkButton
+                        path={getStreamSharePath(stream.id)}
+                        label="Share link"
+                        shareTitle={stream.title}
+                        shareText={`Join my live stream: ${stream.title}`}
+                        className="px-4 py-2 text-xs"
+                      />
                       {!stream.communityNotifiedAt && (
                         <Button
                           variant="secondary"

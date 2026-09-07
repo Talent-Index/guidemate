@@ -1,21 +1,22 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { SettingsSection } from "@/components/settings/SettingsSection";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
 
 /** Lets a tourist keep the details guides see: name, phone, languages, and a short bio. */
 export function TouristProfileCard() {
   const { session, profile, refreshProfile } = useAuth();
+  const { toast } = useToast();
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [bio, setBio] = useState("");
   const [languages, setLanguages] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (!profile) return;
@@ -28,12 +29,12 @@ export function TouristProfileCard() {
   if (!session || profile?.role !== "tourist") return null;
 
   const userId = session.user.id;
+  const email = session.user.email ?? "";
 
   async function handleSave(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError(null);
-    setSaved(false);
     try {
       const supabase = createClient();
       const { error: updateError } = await supabase
@@ -50,21 +51,23 @@ export function TouristProfileCard() {
         .eq("id", userId);
       if (updateError) throw updateError;
       await refreshProfile();
-      setSaved(true);
+      toast("Profile saved", "success");
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast(message, "error");
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Card>
-      <h2 className="text-lg font-bold text-brand-blueDark">Your profile</h2>
-      <p className="mt-1 text-sm text-brand-muted">
-        Guides see this after you book: how to reach you, languages, and a bit about you.
-      </p>
-      <form className="mt-4 grid gap-3 sm:grid-cols-2" onSubmit={handleSave}>
+    <SettingsSection title="Profile" description="Guides see this after you book.">
+      <form className="grid gap-3 sm:grid-cols-2" onSubmit={handleSave}>
+        <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+          <span className="font-medium text-brand-blueDark">Email</span>
+          <input className="form-input-light bg-brand-bg" value={email} readOnly />
+        </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium text-brand-blueDark">Full name</span>
           <input className="form-input-light" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
@@ -98,13 +101,12 @@ export function TouristProfileCard() {
           />
         </label>
         {error && <p className="text-sm text-red-600 sm:col-span-2">{error}</p>}
-        {saved && <p className="text-sm text-brand-success sm:col-span-2">Profile saved.</p>}
         <div className="sm:col-span-2">
-          <Button variant="secondary" type="submit" disabled={saving}>
-            {saving ? "Saving..." : "Save profile"}
+          <Button variant="primary" type="submit" disabled={saving}>
+            {saving ? "Saving..." : "Save changes"}
           </Button>
         </div>
       </form>
-    </Card>
+    </SettingsSection>
   );
 }

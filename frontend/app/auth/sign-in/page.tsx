@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { homeForRole, type AccountRole } from "@/lib/auth/home";
 import { provisionWallet } from "@/lib/api";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { useToast } from "@/components/ui/Toast";
 
 async function finishOAuthProfile(
   supabase: ReturnType<typeof createClient>,
@@ -45,6 +46,7 @@ async function finishOAuthProfile(
 export default function SignInPage() {
   const router = useRouter();
   const { refreshProfile } = useAuth();
+  const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -60,6 +62,7 @@ export default function SignInPage() {
     });
     if (oauthError) {
       setError(oauthError.message);
+      toast(oauthError.message, "error");
       setLoading(false);
     }
   }
@@ -81,9 +84,12 @@ export default function SignInPage() {
         await provisionWallet(data.session.access_token);
       }
       await refreshProfile();
+      toast("Signed in successfully", "success");
       router.replace(homeForRole((profile?.role ?? "tourist") as AccountRole));
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast(message, "error");
     } finally {
       setLoading(false);
     }

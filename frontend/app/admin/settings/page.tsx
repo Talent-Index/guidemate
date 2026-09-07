@@ -4,15 +4,16 @@ import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
-import { AccountSettingsActions } from "@/components/ui/AccountSettingsActions";
 import { AnalyticsGate, SuperAdminGate } from "@/components/auth/AdminGate";
+import { SettingsPageShell } from "@/components/settings/SettingsPageShell";
+import { SettingsHelpSection } from "@/components/settings/SettingsHelpSection";
+import { SettingsAccountSection } from "@/components/settings/SettingsAccountSection";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isSuperAdmin } from "@/lib/auth/roles";
 import { createStaff, listStaff, revokeStaff, type StaffMember } from "@/lib/api";
 
 export default function AdminSettingsPage() {
-  const { session, profile } = useAuth();
+  const { loading: authLoading, session, profile } = useAuth();
   const superAdmin = isSuperAdmin(profile?.role);
 
   const [staff, setStaff] = useState<StaffMember[]>([]);
@@ -73,21 +74,19 @@ export default function AdminSettingsPage() {
     }
   }
 
+  if (authLoading || (session && !profile)) {
+    return <p className="text-sm text-brand-muted">Loading…</p>;
+  }
+
   return (
     <AnalyticsGate>
-      <div className="flex flex-col gap-6">
-        <div>
-          <MobilePageBanner eyebrow="Admin" title="Settings" />
-          <div className="hidden md:block">
-            <h1 className="text-xl font-bold text-brand-blueDark">Settings</h1>
-            <p className="text-sm text-brand-muted">
-              {superAdmin
-                ? "Create staff logins for analytics access, and manage your account."
-                : "Manage your staff account."}
-            </p>
-          </div>
-        </div>
-
+      <SettingsPageShell
+        subtitle={
+          profile
+            ? `Signed in as ${profile.fullName ?? session?.user.email}`
+            : "Admin settings"
+        }
+      >
         {superAdmin ? (
           <SuperAdminGate>
             <Card>
@@ -180,8 +179,9 @@ export default function AdminSettingsPage() {
         {message && <p className="text-sm text-brand-success">{message}</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <AccountSettingsActions />
-      </div>
+        <SettingsHelpSection role="admin" />
+        <SettingsAccountSection />
+      </SettingsPageShell>
     </AnalyticsGate>
   );
 }

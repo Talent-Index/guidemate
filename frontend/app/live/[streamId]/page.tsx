@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { LiveKitRoom, VideoConference, RoomAudioRenderer } from "@livekit/components-react";
-import "@livekit/components-styles";
+import { StreamRoom } from "@/components/StreamRoom";
 import { parseUnits } from "viem";
 import { useAccount, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
@@ -17,6 +16,7 @@ import { wagmiConfig } from "@/lib/wagmi";
 import mockUsdcAbi from "@/lib/abi/MockUSDC.json";
 import {
   endStream,
+  friendlyPaymentError,
   getStream,
   getStreamStats,
   initiateMpesaPayment,
@@ -36,6 +36,10 @@ import {
 } from "@/lib/api";
 import { Price } from "@/lib/fx";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
+import { ShareLinkButton } from "@/components/ShareLinkButton";
+import { getStreamSharePath } from "@/lib/share";
+import { useToast } from "@/components/ui/Toast";
+import "@livekit/components-styles";
 
 const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? "";
 const USDC_ADDRESS = (process.env.NEXT_PUBLIC_MOCK_USDC_ADDRESS ?? "") as `0x${string}`;
@@ -44,6 +48,7 @@ export default function LiveStreamPage() {
   const params = useParams<{ streamId: string }>();
   const streamId = params.streamId;
   const { session, profile } = useAuth();
+  const { toast } = useToast();
   const { address } = useAccount();
   const { writeContractAsync, isPending: writing } = useWriteContract();
 
@@ -53,6 +58,7 @@ export default function LiveStreamPage() {
   const [tips, setTips] = useState<StreamTip[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
+  const [paying, setPaying] = useState(false);
   const [ending, setEnding] = useState(false);
   const [starting, setStarting] = useState(false);
   const [notifying, setNotifying] = useState(false);
@@ -101,8 +107,12 @@ export default function LiveStreamPage() {
       setToken(result.token);
       setRole(result.role);
       setStream(result.stream);
+      if (opts?.txHash || opts?.paymentIntentId) {
+        toast("Payment received — you can watch now", "success");
+      }
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
     } finally {
       setJoining(false);
     }
@@ -120,27 +130,34 @@ export default function LiveStreamPage() {
     return hash;
   }
 
+  function showPayError(message: string) {
+    const friendly = friendlyPaymentError(message);
+    setPayError(friendly);
+    toast(friendly, "error");
+  }
+
   async function handlePayToWatch() {
-    if (!stream?.guideWallet) {
-      setPayError("This guide has not set a payout wallet yet.");
-      return;
-    }
+    if (!stream?.guideWallet || paying) return;
     setPayError(null);
+    setPaying(true);
     try {
       const hash = await transferUsdc(stream.guideWallet as `0x${string}`, stream.priceUsdc);
       await handleJoin({ txHash: hash });
     } catch (err) {
-      setPayError((err as Error).message);
+      showPayError((err as Error).message);
+    } finally {
+      setPaying(false);
     }
   }
 
   async function handleMpesaPayToWatch() {
-    if (!session || !stream) return;
+    if (!session || !stream || paying) return;
     if (!mpesaPhone.trim()) {
       setPayError("Enter your M-Pesa phone number");
       return;
     }
     setPayError(null);
+    setPaying(true);
     try {
       const payment = await initiateMpesaPayment(
         {
@@ -156,7 +173,9 @@ export default function LiveStreamPage() {
       }
       await handleJoin({ paymentIntentId: payment.intentId });
     } catch (err) {
-      setPayError((err as Error).message);
+      showPayError((err as Error).message);
+    } finally {
+      setPaying(false);
     }
   }
 
@@ -208,8 +227,9 @@ export default function LiveStreamPage() {
         session?.access_token
       );
       await refreshTips();
+      toast(`Tip sent — ${amount} USDC`, "success");
     } catch (err) {
-      setPayError((err as Error).message);
+      showPayError((err as Error).message);
     }
   }
 
@@ -295,6 +315,14 @@ export default function LiveStreamPage() {
           <h1 className="mt-2 text-xl font-bold text-brand-blueDark">{stream.title}</h1>
           <p className="text-sm text-brand-muted">with {stream.guideName}</p>
           <ViewGuideProfileButton guideId={stream.guideId} className="mt-3 inline-block" />
+          <div className="mt-4">
+            <ShareLinkButton
+              path={getStreamSharePath(stream.id)}
+              label="Share stream link"
+              shareTitle={stream.title}
+              shareText={`Watch ${stream.title} on Guidemate`}
+            />
+          </div>
           {stream.recordingUrl ? (
             <video className="mt-4 w-full rounded-lg bg-black" src={stream.recordingUrl} controls playsInline />
           ) : (
@@ -320,7 +348,16 @@ export default function LiveStreamPage() {
             </p>
             <ViewGuideProfileButton guideId={stream.guideId} className="mt-3 inline-block" />
           </div>
-          <Chip tone="neutral" label="Scheduled" />
+          <div className="flex flex-wrap items-center gap-2">
+            <ShareLinkButton
+              path={getStreamSharePath(stream.id)}
+              label="Share"
+              shareTitle={stream.title}
+              shareText={`Join my live stream: ${stream.title}`}
+              className="px-4 py-2 text-xs"
+            />
+            <Chip tone="neutral" label="Scheduled" />
+          </div>
         </div>
 
         <Card>
@@ -345,7 +382,16 @@ export default function LiveStreamPage() {
         {isGuide && (
           <Card>
             <h2 className="text-sm font-bold text-brand-blueDark">Guide controls</h2>
+            <p className="mt-1 text-sm text-brand-muted">
+              Share this link so people can join when you go live.
+            </p>
             <div className="mt-3 flex flex-wrap gap-2">
+              <ShareLinkButton
+                path={getStreamSharePath(stream.id)}
+                label="Share link"
+                shareTitle={stream.title}
+                shareText={`Join my live stream: ${stream.title}`}
+              />
               {!stream.communityNotifiedAt && (
                 <Button variant="secondary" disabled={notifying} onClick={handleNotifyCommunity}>
                   {notifying ? "Notifying..." : "Notify: live in 1 hour"}
@@ -379,7 +425,20 @@ export default function LiveStreamPage() {
           </p>
           <ViewGuideProfileButton guideId={stream.guideId} className="mt-3 inline-block" />
         </div>
-        <Chip tone="paid" label="Live" />
+        <div className="flex flex-wrap items-center gap-2">
+          <ShareLinkButton
+            path={getStreamSharePath(stream.id)}
+            label="Share"
+            shareTitle={stream.title}
+            shareText={
+              stream.status === "live"
+                ? `Watch live now: ${stream.title}`
+                : `Join my live stream: ${stream.title}`
+            }
+            className="px-4 py-2 text-xs"
+          />
+          <Chip tone="paid" label="Live" />
+        </div>
       </div>
 
       {!LIVEKIT_URL && (
@@ -393,37 +452,27 @@ export default function LiveStreamPage() {
 
       {token && LIVEKIT_URL ? (
         <div className="relative overflow-hidden rounded-card border border-brand-border" data-lk-theme="default">
-          <div
-            className="absolute inset-0 z-10 md:pointer-events-none"
-            onClick={handleTapFlower}
-            aria-hidden
-          />
-          <div className="pointer-events-none absolute left-3 top-3 z-20 flex gap-2">
+          <div className="pointer-events-none absolute left-3 top-3 z-20 flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white">
               {stats.viewerCount} watching
             </span>
             <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white">
               {stats.reactionCount + flowers} flowers
             </span>
+            <button
+              type="button"
+              onClick={handleTapFlower}
+              className="pointer-events-auto rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-black/80"
+              aria-label="Send a flower"
+            >
+              🌸 Flower
+            </button>
           </div>
-          <LiveKitRoom
+          <StreamRoom
             serverUrl={LIVEKIT_URL}
             token={token}
-            connect
-            video={role === "publisher"}
-            audio={role === "publisher"}
-            style={{ height: "min(70vh, 560px)" }}
-          >
-            <VideoConference />
-            <RoomAudioRenderer />
-          </LiveKitRoom>
-          <div className="absolute bottom-0 left-0 right-0 z-20 max-h-32 overflow-y-auto bg-gradient-to-t from-black/70 to-transparent px-3 pb-3 pt-8">
-            {comments.slice(-5).map((c) => (
-              <p key={c.id} className="text-xs text-white">
-                <span className="font-semibold">{c.displayName}</span> {c.body}
-              </p>
-            ))}
-          </div>
+            isPublisher={role === "publisher"}
+          />
         </div>
       ) : needsPayment ? (
         <Card>
@@ -444,16 +493,16 @@ export default function LiveStreamPage() {
               <Button
                 variant="primary"
                 className="mt-2 w-full"
-                disabled={!session || joining}
+                disabled={!session || paying || joining}
                 onClick={handleMpesaPayToWatch}
               >
-                {joining ? "Processing…" : `Pay with M-Pesa & watch`}
+                {paying || joining ? "Processing…" : `Pay with M-Pesa & watch`}
               </Button>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <WalletConnectButton />
-              <Button variant="secondary" disabled={!address || writing || joining} onClick={handlePayToWatch}>
-                {writing || joining ? "Paying..." : `Pay ${stream.priceUsdc} USDC`}
+              <Button variant="secondary" disabled={!address || writing || paying || joining} onClick={handlePayToWatch}>
+                {writing || paying || joining ? "Paying..." : `Pay ${stream.priceUsdc} USDC`}
               </Button>
             </div>
           </div>
@@ -491,7 +540,19 @@ export default function LiveStreamPage() {
 
       <Card>
         <h2 className="text-sm font-bold text-brand-blueDark">Live chat</h2>
-        <form onSubmit={handlePostComment} className="mt-2 flex gap-2">
+        <ul className="mt-3 max-h-48 space-y-2 overflow-y-auto">
+          {comments.length === 0 ? (
+            <li className="text-sm text-brand-muted">Be the first to say something.</li>
+          ) : (
+            comments.map((c) => (
+              <li key={c.id} className="text-sm">
+                <span className="font-semibold text-brand-blueDark">{c.displayName}</span>{" "}
+                <span className="text-brand-muted">{c.body}</span>
+              </li>
+            ))
+          )}
+        </ul>
+        <form onSubmit={handlePostComment} className="mt-3 flex gap-2 border-t border-brand-border pt-3">
           <input
             className="form-input-light flex-1 text-sm"
             placeholder="Say something…"

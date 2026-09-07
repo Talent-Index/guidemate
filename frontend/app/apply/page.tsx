@@ -77,8 +77,8 @@ export default function ApplyPage() {
       <FormShell title="Application received">
         <p className="text-center text-sm text-[var(--gm-muted)]">
           Thanks {fullName}. Your application is saved on the Guidemate admin dashboard. An admin will review it
-          there — we do not send automated emails yet. If you are approved, they will invite you to sign in as a
-          guide.
+          there. If you are approved, you will receive an email with a link to set your password and sign in to
+          your guide dashboard.
         </p>
       </FormShell>
     );
@@ -94,9 +94,10 @@ export default function ApplyPage() {
       footer={
         <>
           Already approved?{" "}
-          <a href="/auth/sign-up?role=guide" className="font-semibold text-brand-accent underline">
-            Register as a guide
+          <a href="/auth/sign-in" className="font-semibold text-brand-accent underline">
+            Sign in
           </a>
+          {" "}— use the link from your approval email first to set your password.
         </>
       }
     >

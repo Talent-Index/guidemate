@@ -1,31 +1,21 @@
 "use client";
 
-import { Suspense, useState, type FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { FormField, FormShell } from "@/components/ui/FormShell";
 import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { createClient } from "@/lib/supabase/client";
 import { homeForRole } from "@/lib/auth/home";
-import { provisionWallet } from "@/lib/api";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/components/ui/Toast";
 
-type Role = "tourist" | "guide";
+const ROLE = "tourist" as const;
 
 export default function SignUpPage() {
-  return (
-    <Suspense fallback={null}>
-      <SignUpForm />
-    </Suspense>
-  );
-}
-
-function SignUpForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { refreshProfile } = useAuth();
   const { toast } = useToast();
-  const [role, setRole] = useState<Role>(searchParams.get("role") === "guide" ? "guide" : "tourist");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,28 +23,27 @@ function SignUpForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   async function handleGoogleSignUp() {
     setError(null);
+    setLoading(true);
     localStorage.setItem(
       `guidemate_pending_profile_${email || "google"}`,
-      JSON.stringify({ role, fullName: fullName || "User", phone: phone || null })
+      JSON.stringify({ fullName: fullName || "User", phone: phone || null })
     );
     const supabase = createClient();
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
-    if (oauthError) setError(oauthError.message);
+    if (oauthError) {
+      setError(oauthError.message);
+      setLoading(false);
+    }
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (role === "guide" && !acceptedTerms) {
-      setError("Agree to the guide terms to continue.");
-      return;
-    }
     setError(null);
     setLoading(true);
 
@@ -64,12 +53,12 @@ function SignUpForm() {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { role, full_name: fullName, phone: phone || null } },
+        options: { data: { role: ROLE, full_name: fullName, phone: phone || null } },
       });
       if (signUpError) {
         const message = signUpError.message.toLowerCase();
         if (message.includes("already") || message.includes("registered")) {
-          throw new Error("This email already has an account. Sign in — the role cannot be changed.");
+          throw new Error("This email already has an account. Sign in instead.");
         }
         throw signUpError;
       }
@@ -78,7 +67,7 @@ function SignUpForm() {
       if (data.session) {
         const { error: profileError } = await supabase.from("profiles").insert({
           id: data.user.id,
-          role,
+          role: ROLE,
           full_name: fullName,
           phone: phone || null,
         });
@@ -95,18 +84,13 @@ function SignUpForm() {
           }
           throw profileError;
         }
-        if (role === "guide") {
-          await provisionWallet(data.session.access_token);
-        }
         await refreshProfile();
         toast("Account created — welcome to Guidemate", "success");
-        router.replace(homeForRole(role));
+        router.replace(homeForRole(ROLE));
       } else {
-        // Email confirmation is required - stash the intended profile so
-        // /auth/sign-in can finish creating it once they confirm and log in.
         localStorage.setItem(
           `guidemate_pending_profile_${email}`,
-          JSON.stringify({ role, fullName, phone: phone || null })
+          JSON.stringify({ fullName, phone: phone || null })
         );
         setNeedsConfirmation(true);
       }
@@ -130,128 +114,82 @@ function SignUpForm() {
 
   return (
     <SignedInRedirect>
-    <FormShell
-      title="Create your account"
-      subtitle="Pick tourist or guide once. That role stays on this email."
-      footer={
-        <>
-          Already have an account?{" "}
-          <a href="/auth/sign-in" className="font-semibold text-brand-accent underline">
-            Sign in
-          </a>
-          <br />
-          Want to be a vetted guide?{" "}
-          <a href="/apply" className="font-semibold text-brand-accent underline">
-            Apply here
-          </a>
-        </>
-      }
-    >
-      <div className="mb-8 flex border border-[var(--gm-border)]">
-        <RoleTab label="I'm a tourist" active={role === "tourist"} onClick={() => setRole("tourist")} />
-        <RoleTab label="I'm a guide" active={role === "guide"} onClick={() => setRole("guide")} />
-      </div>
-
-      <form onSubmit={handleSubmit}>
-        <FormField label="Full name *">
-          <input
-            required
-            className="form-input-light"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            placeholder="Jane Doe"
-          />
-        </FormField>
-        <FormField label="Email *">
-          <input
-            required
-            type="email"
-            className="form-input-light"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-          />
-        </FormField>
-        <FormField label="Password *">
-          <input
-            required
-            type="password"
-            minLength={6}
-            className="form-input-light"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="At least 6 characters"
-          />
-        </FormField>
-        <FormField label={role === "guide" ? "M-Pesa phone number *" : "Phone number"}>
-          <input
-            required={role === "guide"}
-            className="form-input-light"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="+254 7XX XXX XXX"
-          />
-        </FormField>
-
-        {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
-
-        {role === "guide" && (
-          <label className="mb-6 flex items-start gap-3 text-sm text-[var(--gm-muted)]">
+      <FormShell
+        title="Create your account"
+        subtitle="Register as a tourist to book local experiences. Guides apply separately and are vetted before access."
+        footer={
+          <>
+            Already have an account?{" "}
+            <a href="/auth/sign-in" className="font-semibold text-brand-accent underline">
+              Sign in
+            </a>
+            <br />
+            Want to be a vetted guide?{" "}
+            <a href="/apply" className="font-semibold text-brand-accent underline">
+              Apply here
+            </a>
+          </>
+        }
+      >
+        <form onSubmit={handleSubmit}>
+          <FormField label="Full name *">
             <input
-              type="checkbox"
               required
-              checked={acceptedTerms}
-              onChange={(e) => setAcceptedTerms(e.target.checked)}
-              className="mt-1"
+              className="form-input-light"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Jane Doe"
             />
-            <span>
-              I agree to the{" "}
-              <a href="/guide/terms" className="font-semibold text-brand-accent underline" target="_blank" rel="noreferrer">
-                guide terms
-              </a>
-              : the platform takes 15% of my rate, and tourist cancellations carry a 20% inconvenience fee.
-            </span>
-          </label>
-        )}
+          </FormField>
+          <FormField label="Email *">
+            <input
+              required
+              type="email"
+              className="form-input-light"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+            />
+          </FormField>
+          <FormField label="Password *">
+            <input
+              required
+              type="password"
+              minLength={6}
+              className="form-input-light"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 6 characters"
+            />
+          </FormField>
+          <FormField label="Phone number">
+            <input
+              className="form-input-light"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+254 7XX XXX XXX"
+            />
+          </FormField>
 
-        <button
-          type="submit"
-          disabled={loading || (role === "guide" && !acceptedTerms)}
-          className="w-full bg-brand-amber py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-brand-blueDark transition hover:bg-brand-amberDark disabled:opacity-50"
-        >
-          {loading ? "Creating account..." : "Create account"}
-        </button>
+          {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
-        <div className="my-4 flex items-center gap-3">
-          <div className="h-px flex-1 bg-brand-border" />
-          <span className="text-xs text-brand-muted">or</span>
-          <div className="h-px flex-1 bg-brand-border" />
-        </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-brand-amber py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-brand-blueDark transition hover:bg-brand-amberDark disabled:opacity-50"
+          >
+            {loading ? "Creating account..." : "Create account"}
+          </button>
 
-        <button
-          type="button"
-          disabled={role === "guide" && !acceptedTerms}
-          onClick={handleGoogleSignUp}
-          className="w-full border border-brand-border bg-white py-3.5 text-xs font-bold uppercase tracking-[0.15em] text-brand-blueDark transition hover:border-brand-accent disabled:opacity-50"
-        >
-          Continue with Google
-        </button>
-      </form>
-    </FormShell>
+          <div className="my-4 flex items-center gap-3">
+            <div className="h-px flex-1 bg-brand-border" />
+            <span className="text-xs text-brand-muted">or</span>
+            <div className="h-px flex-1 bg-brand-border" />
+          </div>
+
+          <GoogleSignInButton onClick={handleGoogleSignUp} disabled={loading} loading={loading} />
+        </form>
+      </FormShell>
     </SignedInRedirect>
-  );
-}
-
-function RoleTab({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex-1 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide transition ${
-        active ? "bg-brand-blue text-white" : "text-[var(--gm-muted)] hover:text-[var(--gm-ink)]"
-      }`}
-    >
-      {label}
-    </button>
   );
 }

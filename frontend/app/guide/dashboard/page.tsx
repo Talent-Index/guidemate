@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
@@ -20,14 +20,11 @@ import { getWallet, listMyBookings, getGuideInsights, submitTouristRating, type 
 import { Price } from "@/lib/fx";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
-import { GuideAvailabilityPanel } from "@/components/experience/GuideAvailabilityPanel";
-import { ExperienceItineraryPanel } from "@/components/experience/ExperienceItineraryPanel";
-import { ExperienceItineraryEditor } from "@/components/experience/ExperienceItineraryEditor";
-import { emptyItineraryStep, itineraryForSave, type ItineraryStep } from "@/lib/itinerary";
 import { uploadExperiencePhoto } from "@/lib/uploads";
 import { getExperienceSharePath, getStreamSharePath } from "@/lib/share";
 import { WelcomeTodayCard, type WelcomeAction } from "@/components/WelcomeTodayCard";
-import { useToast } from "@/components/ui/Toast";
+import { compareExperiencesForDashboard, nextGapHint } from "@/lib/experiencePublish";
+import type { ExperienceStatus } from "@/lib/experienceDraft";
 
 type DashboardTab = "experiences" | "insights";
 
@@ -44,6 +41,13 @@ interface ExperienceRow {
   image_urls: string[];
   itinerary: unknown;
   is_active: boolean;
+  status: ExperienceStatus;
+  wizard_step: number;
+  meeting_lat: number | null;
+  meeting_lng: number | null;
+  meeting_label: string | null;
+  created_at: string;
+  futureSlotCount: number;
 }
 
 async function uploadExperiencePhotos(files: File[], guideId: string): Promise<string[]> {
@@ -57,7 +61,6 @@ async function uploadExperiencePhotos(files: File[], guideId: string): Promise<s
 export default function GuideDashboardPage() {
   const router = useRouter();
   const { loading: authLoading, session, profile } = useAuth();
-  const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState<DashboardTab>("experiences");
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
@@ -71,20 +74,6 @@ export default function GuideDashboardPage() {
 
   const [experiences, setExperiences] = useState<ExperienceRow[]>([]);
   const [loadingExperiences, setLoadingExperiences] = useState(true);
-
-  const [showForm, setShowForm] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [tags, setTags] = useState("");
-  const [category, setCategory] = useState("");
-  const [price, setPrice] = useState("");
-  const [duration, setDuration] = useState("");
-  const [location, setLocation] = useState("");
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [itinerarySteps, setItinerarySteps] = useState<ItineraryStep[]>([emptyItineraryStep()]);
-  const [savingExperience, setSavingExperience] = useState(false);
-  const [experienceError, setExperienceError] = useState<string | null>(null);
 
   const [photoUpdatingId, setPhotoUpdatingId] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -160,70 +149,34 @@ export default function GuideDashboardPage() {
     const supabase = createClient();
     const { data } = await supabase
       .from("experiences")
-      .select("id, title, description, tags, category, price_usdc, duration_minutes, location, image_url, image_urls, itinerary, is_active")
-      .eq("guide_id", guideId)
-      .order("created_at", { ascending: false });
-    setExperiences((data as ExperienceRow[]) ?? []);
-    setLoadingExperiences(false);
-  }
+      .select(
+        "id, title, description, tags, category, price_usdc, duration_minutes, location, image_url, image_urls, itinerary, is_active, status, wizard_step, meeting_lat, meeting_lng, meeting_label, created_at"
+      )
+      .eq("guide_id", guideId);
 
-  function handleImageFilesSelected(fileList: FileList | null) {
-    const files = fileList ? Array.from(fileList) : [];
-    setImageFiles(files);
-    setImagePreviews((prev) => {
-      prev.forEach((url) => URL.revokeObjectURL(url));
-      return files.map((file) => URL.createObjectURL(file));
-    });
-  }
+    const rows = (data ?? []) as Omit<ExperienceRow, "futureSlotCount">[];
+    const slotCounts: Record<string, number> = {};
 
-  async function handleCreateExperience(e: FormEvent) {
-    e.preventDefault();
-    if (!session) return;
-    setSavingExperience(true);
-    setExperienceError(null);
-    try {
-      const itinerary = itineraryForSave(itinerarySteps);
-      if (itinerary.length === 0) {
-        throw new Error("Add at least one itinerary step with a title and description");
+    if (rows.length > 0) {
+      const { data: slots } = await supabase
+        .from("experience_slots")
+        .select("experience_id")
+        .in("experience_id", rows.map((row) => row.id))
+        .gte("starts_at", new Date().toISOString())
+        .eq("is_cancelled", false);
+
+      for (const slot of slots ?? []) {
+        slotCounts[slot.experience_id] = (slotCounts[slot.experience_id] ?? 0) + 1;
       }
-
-      const imageUrls = imageFiles.length > 0 ? await uploadExperiencePhotos(imageFiles, session.user.id) : [];
-
-      const supabase = createClient();
-      const { error } = await supabase.from("experiences").insert({
-        guide_id: session.user.id,
-        title,
-        description,
-        tags: tags
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean),
-        category: category || null,
-        price_usdc: Number(price),
-        duration_minutes: Number(duration),
-        location: location || null,
-        image_url: imageUrls[0] ?? null,
-        image_urls: imageUrls,
-        itinerary,
-      });
-      if (error) throw error;
-      setTitle("");
-      setDescription("");
-      setTags("");
-      setCategory("");
-      setPrice("");
-      setDuration("");
-      setLocation("");
-      setItinerarySteps([emptyItineraryStep()]);
-      handleImageFilesSelected(null);
-      setShowForm(false);
-      await loadExperiences(session.user.id);
-      toast("Experience published", "success");
-    } catch (err) {
-      setExperienceError((err as Error).message);
-    } finally {
-      setSavingExperience(false);
     }
+
+    const withCounts: ExperienceRow[] = rows.map((row) => ({
+      ...row,
+      futureSlotCount: slotCounts[row.id] ?? 0,
+    }));
+    withCounts.sort(compareExperiencesForDashboard);
+    setExperiences(withCounts);
+    setLoadingExperiences(false);
   }
 
   async function handlePhotosAdd(exp: ExperienceRow, fileList: FileList | null) {
@@ -267,12 +220,14 @@ export default function GuideDashboardPage() {
 
   async function handleDelete(exp: ExperienceRow) {
     if (!session) return;
+    const label = exp.title.trim() || "this experience";
+    if (!window.confirm(`Delete "${label}"? This cannot be undone.`)) return;
     const supabase = createClient();
     await supabase.from("experiences").delete().eq("id", exp.id);
     await loadExperiences(session.user.id);
   }
 
-  if (authLoading || (session && !profile)) return <p className="text-sm text-brand-muted">LoadingÃ¢ÂÂ¦</p>;
+  if (authLoading || (session && !profile)) return <p className="text-sm text-brand-muted">LoadingÃÂ¢ÃÂÃÂ¦</p>;
 
   if (!session || profile?.role !== "guide") {
     return (
@@ -286,7 +241,7 @@ export default function GuideDashboardPage() {
 
   const upcoming = guideBookings.filter((b) => b.status === "locked");
   const pastBookings = guideBookings.filter((b) => b.status !== "locked");
-  const activeListings = experiences.filter((exp) => exp.is_active).length;
+  const activeListings = experiences.filter((exp) => exp.status === "published" && exp.is_active).length;
 
   const guideWelcomeActions: WelcomeAction[] = [
     ...(!profile.phone?.trim()
@@ -312,7 +267,7 @@ export default function GuideDashboardPage() {
           {
             label: "Publish your first experience",
             description: "Create a listing tourists can book.",
-            href: "/guide/dashboard#guide-experiences",
+            href: "/guide/experiences/new",
           },
         ]
       : []),
@@ -353,30 +308,13 @@ export default function GuideDashboardPage() {
         <Card className="p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Wallet</p>
           {walletBalance == null ? (
-            <p className="mt-1 text-sm text-brand-muted">Ã¢ÂÂ</p>
+            <p className="mt-1 text-sm text-brand-muted">ÃÂ¢ÃÂÃÂ</p>
           ) : (
             <Price amountUsdc={walletBalance} className="mt-1" align="start" size="lg" />
           )}
         </Card>
       </div>
       <WelcomeTodayCard profile={profile} actions={guideWelcomeActions} />
-      <div className="hidden flex-wrap items-center justify-between gap-4 md:flex">
-        <div className="flex gap-2">
-          <Link
-            href="/guide"
-            className="rounded-full border border-brand-border px-4 py-1.5 text-xs font-semibold text-brand-muted hover:border-brand-accent hover:text-brand-accent"
-          >
-            Active tour
-          </Link>
-          <span className="rounded-full bg-brand-blue px-4 py-1.5 text-xs font-semibold text-white">Dashboard</span>
-          <Link
-            href="/live"
-            className="rounded-full border border-brand-border px-4 py-1.5 text-xs font-semibold text-brand-muted hover:border-brand-accent hover:text-brand-accent"
-          >
-            Go live
-          </Link>
-        </div>
-      </div>
 
       {upcoming.length > 0 && (
         <Card>
@@ -395,7 +333,7 @@ export default function GuideDashboardPage() {
             {upcoming.map((b) => (
               <div
                 key={b.bookingId}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3 max-md:rounded-3xl"
+                className="flex flex-col gap-3 rounded-lg border border-brand-border p-3 max-md:rounded-3xl md:flex-row md:items-center md:justify-between"
               >
                 <div>
                   <p className="font-semibold text-brand-blueDark">{b.touristName?.trim() || "Guest"}</p>
@@ -409,11 +347,11 @@ export default function GuideDashboardPage() {
                   )}
                   <p className="text-xs text-brand-muted">
                     {b.touristCompletedTripCount} {b.touristCompletedTripCount === 1 ? "trip" : "trips"}
-                    {b.touristLanguages?.length ? ` Ã¢ÂÂ¬Ã¢ÂÂ ${b.touristLanguages.join(", ")}` : ""}
+                    {b.touristLanguages?.length ? ` ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ ${b.touristLanguages.join(", ")}` : ""}
                   </p>
                   {b.touristBio && <p className="mt-1 text-sm text-brand-muted line-clamp-2">{b.touristBio}</p>}
                   <p className="text-xs text-brand-muted">
-                    {b.experienceTitle ?? "Experience"} Ã¢ÂÂ¬Ã¢ÂÂ <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
+                    {b.experienceTitle ?? "Experience"} ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
                   </p>
                   {b.touristId && <ViewTouristProfileButton touristId={b.touristId} className="mt-2 inline-block" />}
                 </div>
@@ -447,204 +385,154 @@ export default function GuideDashboardPage() {
             <h2 className="text-lg font-bold text-brand-blueDark">Your experiences</h2>
             <p className="text-sm text-brand-muted">Tourists find these through search and AI matching.</p>
           </div>
-          <Button variant="accent" onClick={() => setShowForm((v) => !v)}>
-            {showForm ? "Cancel" : "+ New experience"}
-          </Button>
+          <Link href="/guide/experiences/new">
+            <Button variant="accent">+ New experience</Button>
+          </Link>
         </div>
-
-        {showForm && (
-          <form className="mt-4 grid gap-3 rounded-lg bg-brand-bg p-4 max-md:rounded-3xl sm:grid-cols-2" onSubmit={handleCreateExperience}>
-            <Field label="Title">
-              <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} required />
-            </Field>
-            <Field label="Location">
-              <input
-                className={inputClass}
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Nairobi CBD"
-              />
-            </Field>
-            <Field label="Price (USDC)">
-              <input
-                className={inputClass}
-                type="number"
-                min="1"
-                step="0.01"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                required
-              />
-            </Field>
-            <Field label="Duration (minutes)">
-              <input
-                className={inputClass}
-                type="number"
-                min="1"
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                required
-              />
-            </Field>
-            <Field label="Category">
-              <select className={inputClass} value={category} onChange={(e) => setCategory(e.target.value)}>
-                <option value="">Uncategorized</option>
-                {EXPERIENCE_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <div className="sm:col-span-2">
-              <Field label="Tags (comma separated)">
-                <input
-                  className={inputClass}
-                  value={tags}
-                  onChange={(e) => setTags(e.target.value)}
-                  placeholder="street food, walking tours"
-                />
-              </Field>
-            </div>
-            <div className="sm:col-span-2">
-              <Field label="Photos">
-                <div className="flex flex-col gap-3">
-                  {imagePreviews.length > 0 && (
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                      {imagePreviews.map((preview, i) => (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img key={preview} src={preview} alt={`Preview ${i + 1}`} className="h-16 w-24 shrink-0 rounded-lg object-cover" />
-                      ))}
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={(e) => handleImageFilesSelected(e.target.files)}
-                    className="block w-full text-sm text-brand-muted file:mr-3 file:rounded-full file:border-0 file:bg-brand-accent/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-brand-accent hover:file:bg-brand-accent/20"
-                  />
-                </div>
-                <p className="mt-1 text-xs text-brand-muted">
-                  Add one or more photos. Hold Ctrl/Cmd to select multiple.
-                </p>
-              </Field>
-            </div>
-
-            {session && (
-              <div className="sm:col-span-2">
-                <ExperienceItineraryEditor
-                  steps={itinerarySteps}
-                  onChange={setItinerarySteps}
-                  guideId={session.user.id}
-                />
-              </div>
-            )}
-
-            {experienceError && <p className="text-sm text-red-600 sm:col-span-2">{experienceError}</p>}
-
-            <Button variant="primary" type="submit" disabled={savingExperience} className="w-fit sm:col-span-2">
-              {savingExperience ? "Publishing..." : "Publish experience"}
-            </Button>
-          </form>
-        )}
 
         {photoError && <p className="mt-3 text-sm text-red-600">{photoError}</p>}
 
         <div className="mt-4 flex flex-col gap-3">
           {loadingExperiences && <ListRowSkeleton count={3} />}
           {!loadingExperiences && experiences.length === 0 && (
-            <p className="text-sm text-brand-muted">You haven&apos;t published any experiences yet.</p>
+            <div className="flex flex-col items-start gap-3">
+              <p className="text-sm text-brand-muted">You haven&apos;t published any experiences yet.</p>
+              <Link href="/guide/experiences/new">
+                <Button variant="accent">+ New experience</Button>
+              </Link>
+            </div>
           )}
-          {experiences.map((exp) => (
-            <div key={exp.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3 max-md:rounded-3xl">
-              <div className="flex items-center gap-3">
-                <ExperiencePhotoStrip urls={experiencePhotoUrls(exp)} alt={exp.title} />
-                <div>
-                  <p className="font-semibold text-brand-blueDark">{exp.title}</p>
-                  <p className="text-xs text-brand-muted">
-                    <span className="inline-flex items-baseline gap-2">
-                      <Price amountUsdc={exp.price_usdc} size="sm" align="start" />
-                      <span>
-                        · {exp.duration_minutes} min{exp.location ? ` · ${exp.location}` : ""}
+          {experiences.map((exp) => {
+            const isDraft = exp.status === "draft";
+            const displayTitle = exp.title.trim() || "Untitled experience";
+            const gapHint = nextGapHint({
+              title: exp.title,
+              priceUsdc: exp.price_usdc,
+              durationMinutes: exp.duration_minutes,
+              meetingLat: exp.meeting_lat,
+              meetingLng: exp.meeting_lng,
+              futureSlotCount: exp.futureSlotCount,
+            });
+
+            return (
+              <div
+                key={exp.id}
+                className="flex flex-col gap-3 rounded-lg border border-brand-border p-3 max-md:rounded-3xl md:flex-row md:items-center md:justify-between"
+              >
+                <div className="flex items-center gap-3">
+                  <ExperiencePhotoStrip urls={experiencePhotoUrls(exp)} alt={displayTitle} />
+                  <div>
+                    <p className="font-semibold text-brand-blueDark">{displayTitle}</p>
+                    {isDraft ? (
+                      <p className="text-xs text-brand-muted">{gapHint}</p>
+                    ) : (
+                      <p className="text-xs text-brand-muted">
+                        <span className="inline-flex items-baseline gap-2">
+                          <Price amountUsdc={exp.price_usdc} size="sm" align="start" />
+                          <span>
+                            · {exp.duration_minutes} min{exp.location ? ` · ${exp.location}` : ""}
+                          </span>
+                        </span>
+                      </p>
+                    )}
+                    {!isDraft && (
+                      <>
+                        <label className="mt-1 inline-block cursor-pointer text-xs font-semibold text-brand-accent hover:underline">
+                          {photoUpdatingId === exp.id ? "Uploading..." : "Add photos"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            disabled={photoUpdatingId === exp.id}
+                            onChange={(e) => {
+                              handlePhotosAdd(exp, e.target.files);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
+                        <select
+                          className="mt-1 block rounded-full border border-brand-border bg-white px-2 py-0.5 text-xs text-brand-muted"
+                          value={exp.category ?? ""}
+                          onChange={(e) => handleCategoryChange(exp, e.target.value)}
+                        >
+                          <option value="">Uncategorized</option>
+                          {EXPERIENCE_CATEGORIES.map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  {isDraft ? (
+                    <>
+                      <Chip tone="neutral" label="Incomplete" />
+                      <Link
+                        href={`/guide/experiences/${exp.id}/edit`}
+                        className="text-xs font-semibold text-brand-accent hover:underline"
+                      >
+                        Continue setup
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(exp)}
+                        className="text-xs font-semibold text-red-600 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <ShareLinkButton
+                        path={getExperienceSharePath(exp.id)}
+                        label="Share"
+                        shareTitle={displayTitle}
+                        shareText={`Book ${displayTitle} on Guidemate`}
+                        className="px-4 py-2 text-xs"
+                      />
+                      <Link
+                        href={`/guide/experiences/${exp.id}/edit`}
+                        className="text-xs font-semibold text-brand-accent hover:underline"
+                      >
+                        Edit
+                      </Link>
+                      <Link
+                        href={`/guide/experiences/${exp.id}/edit?step=6`}
+                        className="text-xs font-semibold text-brand-accent hover:underline"
+                      >
+                        Add times
+                      </Link>
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                          exp.is_active ? "bg-brand-successBg text-brand-success" : "bg-brand-bg text-brand-muted"
+                        }`}
+                      >
+                        {exp.is_active ? "Active" : "Hidden"}
                       </span>
-                    </span>
-                  </p>
-                  <label className="mt-1 inline-block cursor-pointer text-xs font-semibold text-brand-accent hover:underline">
-                    {photoUpdatingId === exp.id ? "Uploading..." : "Add photos"}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      disabled={photoUpdatingId === exp.id}
-                      onChange={(e) => {
-                        handlePhotosAdd(exp, e.target.files);
-                        e.target.value = "";
-                      }}
-                    />
-                  </label>
-                  <select
-                    className="mt-1 block rounded-full border border-brand-border bg-white px-2 py-0.5 text-xs text-brand-muted"
-                    value={exp.category ?? ""}
-                    onChange={(e) => handleCategoryChange(exp, e.target.value)}
-                  >
-                    <option value="">Uncategorized</option>
-                    {EXPERIENCE_CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleActive(exp)}
+                        className="text-xs font-semibold text-brand-accent hover:underline"
+                      >
+                        {exp.is_active ? "Hide" : "Show"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(exp)}
+                        className="text-xs font-semibold text-red-600 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <ShareLinkButton
-                  path={getExperienceSharePath(exp.id)}
-                  label="Share"
-                  shareTitle={exp.title}
-                  shareText={`Book ${exp.title} on Guidemate`}
-                  className="px-4 py-2 text-xs"
-                />
-                <span
-                  className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                    exp.is_active ? "bg-brand-successBg text-brand-success" : "bg-brand-bg text-brand-muted"
-                  }`}
-                >
-                  {exp.is_active ? "Active" : "Hidden"}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleToggleActive(exp)}
-                  className="text-xs font-semibold text-brand-accent hover:underline"
-                >
-                  {exp.is_active ? "Hide" : "Show"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(exp)}
-                  className="text-xs font-semibold text-red-600 hover:underline"
-                >
-                  Delete
-                </button>
-              </div>
-              {profile?.id && (
-                <>
-                  <ExperienceItineraryPanel
-                    experienceId={exp.id}
-                    guideId={profile.id}
-                    initialItinerary={exp.itinerary}
-                    onSaved={() => loadExperiences(session!.user.id)}
-                  />
-                  <GuideAvailabilityPanel
-                    experienceId={exp.id}
-                    guideId={profile.id}
-                    durationMinutes={exp.duration_minutes}
-                  />
-                </>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
       )}
@@ -683,7 +571,7 @@ export default function GuideDashboardPage() {
         {upcoming.length > 0 && (
           <Card>
             <h3 className="text-sm font-bold uppercase tracking-wide text-brand-muted">Confirmed bookings</h3>
-            <p className="mt-1 text-sm text-brand-muted">Paid and waiting for the tour ÃÂÃÂÃÂ¶ open Active tour to verify.</p>
+            <p className="mt-1 text-sm text-brand-muted">Paid and waiting for the tour ÃÂÃÂÃÂÃÂÃÂÃÂ¶ open Active tour to verify.</p>
             <div className="mt-4 flex flex-col gap-3">
               {upcoming.map((b) => (
                 <div
@@ -694,10 +582,10 @@ export default function GuideDashboardPage() {
                     <p className="font-semibold text-brand-blueDark">{b.experienceTitle ?? "Tour"}</p>
                     <p className="text-sm text-brand-muted">
                       {b.touristName?.trim() || "Guest"}
-                      {b.touristPhone ? ` Ã¢ÂÂ¬Ã¢ÂÂ ${b.touristPhone}` : ""}
+                      {b.touristPhone ? ` ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ ${b.touristPhone}` : ""}
                     </p>
                     <p className="text-xs text-brand-muted">
-                      Booked {new Date(b.createdAt).toLocaleDateString()} Ã¢ÂÂ¬Ã¢ÂÂ{" "}
+                      Booked {new Date(b.createdAt).toLocaleDateString()} ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ{" "}
                       <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
                     </p>
                   </div>
@@ -725,7 +613,7 @@ export default function GuideDashboardPage() {
                       {s.priceUsdc > 0 ? (
                         <>
                           {" "}
-                          Ã¢ÂÂ¬Ã¢ÂÂ <Price amountUsdc={s.priceUsdc} size="sm" align="start" className="inline-flex" />
+                          ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ <Price amountUsdc={s.priceUsdc} size="sm" align="start" className="inline-flex" />
                         </>
                       ) : null}
                     </p>
@@ -762,11 +650,11 @@ export default function GuideDashboardPage() {
                     {s.experienceTitle && <p className="text-sm text-brand-muted">{s.experienceTitle}</p>}
                     <p className="text-xs text-brand-muted">
                       {s.endedAt ? new Date(s.endedAt).toLocaleDateString() : new Date(s.createdAt).toLocaleDateString()}
-                      {" Ã¢ÂÂ¬Ã¢ÂÂ "}
+                      {" ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ "}
                       {s.tipCount} tips ({s.tipTotalUsdc} USDC)
-                      {" Ã¢ÂÂ¬Ã¢ÂÂ "}
+                      {" ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ "}
                       {s.reactionCount} flowers
-                      {s.commentCount > 0 ? ` Ã¢ÂÂ¬Ã¢ÂÂ ${s.commentCount} comments` : ""}
+                      {s.commentCount > 0 ? ` ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ ${s.commentCount} comments` : ""}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -802,7 +690,7 @@ export default function GuideDashboardPage() {
             {loadingBookings && <ListRowSkeleton count={3} />}
             {bookingsError && <p className="text-sm text-red-600">{bookingsError}</p>}
             {!loadingBookings && !bookingsError && pastBookings.length === 0 && (
-              <p className="text-sm text-brand-muted">No completed tours yet ÃÂÃÂÃÂ¶ they&apos;ll show up here once verified.</p>
+              <p className="text-sm text-brand-muted">No completed tours yet ÃÂÃÂÃÂÃÂÃÂÃÂ¶ they&apos;ll show up here once verified.</p>
             )}
             {pastBookings.map((b) => (
             <div key={b.bookingId} className="rounded-lg border border-brand-border p-3 max-md:rounded-3xl">
@@ -811,21 +699,21 @@ export default function GuideDashboardPage() {
                 <p className="font-semibold text-brand-blueDark">{b.experienceTitle ?? b.request ?? "Tour"}</p>
                 <p className="text-xs text-brand-muted">
                   {b.touristName?.trim() || "Guest"}
-                  {b.touristPhone ? ` Ã¢ÂÂ¬Ã¢ÂÂ ${b.touristPhone}` : ""}
-                  {` Ã¢ÂÂ¬Ã¢ÂÂ ${b.touristCompletedTripCount} ${b.touristCompletedTripCount === 1 ? "trip" : "trips"}`}
+                  {b.touristPhone ? ` ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ ${b.touristPhone}` : ""}
+                  {` ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ ${b.touristCompletedTripCount} ${b.touristCompletedTripCount === 1 ? "trip" : "trips"}`}
                 </p>
                 {b.touristLanguages?.length ? (
                   <p className="text-xs text-brand-muted">{b.touristLanguages.join(", ")}</p>
                 ) : null}
                 {b.touristBio && <p className="mt-1 text-sm text-brand-muted line-clamp-2">{b.touristBio}</p>}
                 <p className="text-xs text-brand-muted">
-                  {new Date(b.createdAt).toLocaleDateString()} Ã¢ÂÂ¬Ã¢ÂÂ{" "}
+                  {new Date(b.createdAt).toLocaleDateString()} ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ{" "}
                   <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
-                  {b.splits ? ` Ã¢ÂÂ¬Ã¢ÂÂ your cut ${b.splits.guideAmount} USDC` : ""}
+                  {b.splits ? ` ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ your cut ${b.splits.guideAmount} USDC` : ""}
                 </p>
                 {b.rating && (
                   <p className="mt-1 text-sm text-brand-amber" aria-label={`Rated ${b.rating.stars} stars`}>
-                    {[1, 2, 3, 4, 5].map((n) => (n <= b.rating!.stars ? "ÃÂÃÂ¿ÃÂ " : "ÃÂÃÂ¿ÃÂ¥")).join("")}
+                    {[1, 2, 3, 4, 5].map((n) => (n <= b.rating!.stars ? "ÃÂÃÂÃÂÃÂ¿ÃÂÃÂ " : "ÃÂÃÂÃÂÃÂ¿ÃÂÃÂ¥")).join("")}
                     <span className="ml-1 text-xs text-brand-muted">from tourist</span>
                   </p>
                 )}
@@ -834,11 +722,11 @@ export default function GuideDashboardPage() {
                 <Chip tone={b.status} />
                 {b.status === "paid" && b.payout ? (
                   <p className="text-xs font-medium text-brand-success">
-                    {b.payout.kesAmount} KES Ã¢ÂÂ¬Ã¢ÂÂ Ref {b.payout.reference}
+                    {b.payout.kesAmount} KES ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ Ref {b.payout.reference}
                   </p>
                 ) : b.status === "refunded" && b.refund ? (
                   <p className="text-xs text-red-600">
-                    No-show Ã¢ÂÂ¬Ã¢ÂÂ {b.refund.refundAmount.toFixed(2)} USDC refunded
+                    No-show ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ {b.refund.refundAmount.toFixed(2)} USDC refunded
                   </p>
                 ) : (
                   <p className="text-xs text-brand-muted">Payout not yet received</p>
@@ -885,8 +773,6 @@ function InsightStat({ label, value }: { label: string; value: string | number }
   );
 }
 
-const inputClass = "form-input-light";
-
 function TabButton({
   active,
   onClick,
@@ -909,11 +795,3 @@ function TabButton({
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium text-brand-blueDark">{label}</span>
-      {children}
-    </label>
-  );
-}

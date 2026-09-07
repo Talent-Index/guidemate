@@ -20,6 +20,11 @@ import { getWallet, listMyBookings, getGuideInsights, submitTouristRating, type 
 import { Price } from "@/lib/fx";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
+import { GuideAvailabilityPanel } from "@/components/experience/GuideAvailabilityPanel";
+import { ExperienceItineraryPanel } from "@/components/experience/ExperienceItineraryPanel";
+import { ExperienceItineraryEditor } from "@/components/experience/ExperienceItineraryEditor";
+import { emptyItineraryStep, itineraryForSave, type ItineraryStep } from "@/lib/itinerary";
+import { uploadExperiencePhoto } from "@/lib/uploads";
 import { getExperienceSharePath, getStreamSharePath } from "@/lib/share";
 import { WelcomeTodayCard, type WelcomeAction } from "@/components/WelcomeTodayCard";
 import { useToast } from "@/components/ui/Toast";
@@ -37,20 +42,8 @@ interface ExperienceRow {
   location: string | null;
   image_url: string | null;
   image_urls: string[];
+  itinerary: unknown;
   is_active: boolean;
-}
-
-async function uploadExperiencePhoto(file: File, guideId: string): Promise<string> {
-  const supabase = createClient();
-  const ext = file.name.split(".").pop() ?? "jpg";
-  const path = `${guideId}/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("experience-photos").upload(path, file, {
-    cacheControl: "3600",
-    upsert: false,
-  });
-  if (error) throw error;
-  const { data } = supabase.storage.from("experience-photos").getPublicUrl(path);
-  return data.publicUrl;
 }
 
 async function uploadExperiencePhotos(files: File[], guideId: string): Promise<string[]> {
@@ -89,6 +82,7 @@ export default function GuideDashboardPage() {
   const [location, setLocation] = useState("");
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [itinerarySteps, setItinerarySteps] = useState<ItineraryStep[]>([emptyItineraryStep()]);
   const [savingExperience, setSavingExperience] = useState(false);
   const [experienceError, setExperienceError] = useState<string | null>(null);
 
@@ -166,7 +160,7 @@ export default function GuideDashboardPage() {
     const supabase = createClient();
     const { data } = await supabase
       .from("experiences")
-      .select("id, title, description, tags, category, price_usdc, duration_minutes, location, image_url, image_urls, is_active")
+      .select("id, title, description, tags, category, price_usdc, duration_minutes, location, image_url, image_urls, itinerary, is_active")
       .eq("guide_id", guideId)
       .order("created_at", { ascending: false });
     setExperiences((data as ExperienceRow[]) ?? []);
@@ -188,6 +182,11 @@ export default function GuideDashboardPage() {
     setSavingExperience(true);
     setExperienceError(null);
     try {
+      const itinerary = itineraryForSave(itinerarySteps);
+      if (itinerary.length === 0) {
+        throw new Error("Add at least one itinerary step with a title and description");
+      }
+
       const imageUrls = imageFiles.length > 0 ? await uploadExperiencePhotos(imageFiles, session.user.id) : [];
 
       const supabase = createClient();
@@ -205,6 +204,7 @@ export default function GuideDashboardPage() {
         location: location || null,
         image_url: imageUrls[0] ?? null,
         image_urls: imageUrls,
+        itinerary,
       });
       if (error) throw error;
       setTitle("");
@@ -214,6 +214,7 @@ export default function GuideDashboardPage() {
       setPrice("");
       setDuration("");
       setLocation("");
+      setItinerarySteps([emptyItineraryStep()]);
       handleImageFilesSelected(null);
       setShowForm(false);
       await loadExperiences(session.user.id);
@@ -271,7 +272,7 @@ export default function GuideDashboardPage() {
     await loadExperiences(session.user.id);
   }
 
-  if (authLoading || (session && !profile)) return <p className="text-sm text-brand-muted">Loadingâ¦</p>;
+  if (authLoading || (session && !profile)) return <p className="text-sm text-brand-muted">LoadingÃ¢ÂÂ¦</p>;
 
   if (!session || profile?.role !== "guide") {
     return (
@@ -352,7 +353,7 @@ export default function GuideDashboardPage() {
         <Card className="p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Wallet</p>
           {walletBalance == null ? (
-            <p className="mt-1 text-sm text-brand-muted">â</p>
+            <p className="mt-1 text-sm text-brand-muted">Ã¢ÂÂ</p>
           ) : (
             <Price amountUsdc={walletBalance} className="mt-1" align="start" size="lg" />
           )}
@@ -408,11 +409,11 @@ export default function GuideDashboardPage() {
                   )}
                   <p className="text-xs text-brand-muted">
                     {b.touristCompletedTripCount} {b.touristCompletedTripCount === 1 ? "trip" : "trips"}
-                    {b.touristLanguages?.length ? ` â¬â ${b.touristLanguages.join(", ")}` : ""}
+                    {b.touristLanguages?.length ? ` Ã¢ÂÂ¬Ã¢ÂÂ ${b.touristLanguages.join(", ")}` : ""}
                   </p>
                   {b.touristBio && <p className="mt-1 text-sm text-brand-muted line-clamp-2">{b.touristBio}</p>}
                   <p className="text-xs text-brand-muted">
-                    {b.experienceTitle ?? "Experience"} â¬â <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
+                    {b.experienceTitle ?? "Experience"} Ã¢ÂÂ¬Ã¢ÂÂ <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
                   </p>
                   {b.touristId && <ViewTouristProfileButton touristId={b.touristId} className="mt-2 inline-block" />}
                 </div>
@@ -506,17 +507,6 @@ export default function GuideDashboardPage() {
               </Field>
             </div>
             <div className="sm:col-span-2">
-              <Field label="Description">
-                <textarea
-                  className={inputClass}
-                  rows={3}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  required
-                />
-              </Field>
-            </div>
-            <div className="sm:col-span-2">
               <Field label="Photos">
                 <div className="flex flex-col gap-3">
                   {imagePreviews.length > 0 && (
@@ -540,6 +530,16 @@ export default function GuideDashboardPage() {
                 </p>
               </Field>
             </div>
+
+            {session && (
+              <div className="sm:col-span-2">
+                <ExperienceItineraryEditor
+                  steps={itinerarySteps}
+                  onChange={setItinerarySteps}
+                  guideId={session.user.id}
+                />
+              </div>
+            )}
 
             {experienceError && <p className="text-sm text-red-600 sm:col-span-2">{experienceError}</p>}
 
@@ -566,7 +566,7 @@ export default function GuideDashboardPage() {
                     <span className="inline-flex items-baseline gap-2">
                       <Price amountUsdc={exp.price_usdc} size="sm" align="start" />
                       <span>
-                        â¬â {exp.duration_minutes} min{exp.location ? ` â¬â ${exp.location}` : ""}
+                        · {exp.duration_minutes} min{exp.location ? ` · ${exp.location}` : ""}
                       </span>
                     </span>
                   </p>
@@ -628,6 +628,21 @@ export default function GuideDashboardPage() {
                   Delete
                 </button>
               </div>
+              {profile?.id && (
+                <>
+                  <ExperienceItineraryPanel
+                    experienceId={exp.id}
+                    guideId={profile.id}
+                    initialItinerary={exp.itinerary}
+                    onSaved={() => loadExperiences(session!.user.id)}
+                  />
+                  <GuideAvailabilityPanel
+                    experienceId={exp.id}
+                    guideId={profile.id}
+                    durationMinutes={exp.duration_minutes}
+                  />
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -668,7 +683,7 @@ export default function GuideDashboardPage() {
         {upcoming.length > 0 && (
           <Card>
             <h3 className="text-sm font-bold uppercase tracking-wide text-brand-muted">Confirmed bookings</h3>
-            <p className="mt-1 text-sm text-brand-muted">Paid and waiting for the tour ÎÃÃ¶ open Active tour to verify.</p>
+            <p className="mt-1 text-sm text-brand-muted">Paid and waiting for the tour ÃÂÃÂÃÂ¶ open Active tour to verify.</p>
             <div className="mt-4 flex flex-col gap-3">
               {upcoming.map((b) => (
                 <div
@@ -679,10 +694,10 @@ export default function GuideDashboardPage() {
                     <p className="font-semibold text-brand-blueDark">{b.experienceTitle ?? "Tour"}</p>
                     <p className="text-sm text-brand-muted">
                       {b.touristName?.trim() || "Guest"}
-                      {b.touristPhone ? ` â¬â ${b.touristPhone}` : ""}
+                      {b.touristPhone ? ` Ã¢ÂÂ¬Ã¢ÂÂ ${b.touristPhone}` : ""}
                     </p>
                     <p className="text-xs text-brand-muted">
-                      Booked {new Date(b.createdAt).toLocaleDateString()} â¬â{" "}
+                      Booked {new Date(b.createdAt).toLocaleDateString()} Ã¢ÂÂ¬Ã¢ÂÂ{" "}
                       <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
                     </p>
                   </div>
@@ -710,7 +725,7 @@ export default function GuideDashboardPage() {
                       {s.priceUsdc > 0 ? (
                         <>
                           {" "}
-                          â¬â <Price amountUsdc={s.priceUsdc} size="sm" align="start" className="inline-flex" />
+                          Ã¢ÂÂ¬Ã¢ÂÂ <Price amountUsdc={s.priceUsdc} size="sm" align="start" className="inline-flex" />
                         </>
                       ) : null}
                     </p>
@@ -747,11 +762,11 @@ export default function GuideDashboardPage() {
                     {s.experienceTitle && <p className="text-sm text-brand-muted">{s.experienceTitle}</p>}
                     <p className="text-xs text-brand-muted">
                       {s.endedAt ? new Date(s.endedAt).toLocaleDateString() : new Date(s.createdAt).toLocaleDateString()}
-                      {" â¬â "}
+                      {" Ã¢ÂÂ¬Ã¢ÂÂ "}
                       {s.tipCount} tips ({s.tipTotalUsdc} USDC)
-                      {" â¬â "}
+                      {" Ã¢ÂÂ¬Ã¢ÂÂ "}
                       {s.reactionCount} flowers
-                      {s.commentCount > 0 ? ` â¬â ${s.commentCount} comments` : ""}
+                      {s.commentCount > 0 ? ` Ã¢ÂÂ¬Ã¢ÂÂ ${s.commentCount} comments` : ""}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -787,7 +802,7 @@ export default function GuideDashboardPage() {
             {loadingBookings && <ListRowSkeleton count={3} />}
             {bookingsError && <p className="text-sm text-red-600">{bookingsError}</p>}
             {!loadingBookings && !bookingsError && pastBookings.length === 0 && (
-              <p className="text-sm text-brand-muted">No completed tours yet ÎÃÃ¶ they&apos;ll show up here once verified.</p>
+              <p className="text-sm text-brand-muted">No completed tours yet ÃÂÃÂÃÂ¶ they&apos;ll show up here once verified.</p>
             )}
             {pastBookings.map((b) => (
             <div key={b.bookingId} className="rounded-lg border border-brand-border p-3 max-md:rounded-3xl">
@@ -796,21 +811,21 @@ export default function GuideDashboardPage() {
                 <p className="font-semibold text-brand-blueDark">{b.experienceTitle ?? b.request ?? "Tour"}</p>
                 <p className="text-xs text-brand-muted">
                   {b.touristName?.trim() || "Guest"}
-                  {b.touristPhone ? ` â¬â ${b.touristPhone}` : ""}
-                  {` â¬â ${b.touristCompletedTripCount} ${b.touristCompletedTripCount === 1 ? "trip" : "trips"}`}
+                  {b.touristPhone ? ` Ã¢ÂÂ¬Ã¢ÂÂ ${b.touristPhone}` : ""}
+                  {` Ã¢ÂÂ¬Ã¢ÂÂ ${b.touristCompletedTripCount} ${b.touristCompletedTripCount === 1 ? "trip" : "trips"}`}
                 </p>
                 {b.touristLanguages?.length ? (
                   <p className="text-xs text-brand-muted">{b.touristLanguages.join(", ")}</p>
                 ) : null}
                 {b.touristBio && <p className="mt-1 text-sm text-brand-muted line-clamp-2">{b.touristBio}</p>}
                 <p className="text-xs text-brand-muted">
-                  {new Date(b.createdAt).toLocaleDateString()} â¬â{" "}
+                  {new Date(b.createdAt).toLocaleDateString()} Ã¢ÂÂ¬Ã¢ÂÂ{" "}
                   <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
-                  {b.splits ? ` â¬â your cut ${b.splits.guideAmount} USDC` : ""}
+                  {b.splits ? ` Ã¢ÂÂ¬Ã¢ÂÂ your cut ${b.splits.guideAmount} USDC` : ""}
                 </p>
                 {b.rating && (
                   <p className="mt-1 text-sm text-brand-amber" aria-label={`Rated ${b.rating.stars} stars`}>
-                    {[1, 2, 3, 4, 5].map((n) => (n <= b.rating!.stars ? "ÎÃ¿Ã " : "ÎÃ¿Ã¥")).join("")}
+                    {[1, 2, 3, 4, 5].map((n) => (n <= b.rating!.stars ? "ÃÂÃÂ¿ÃÂ " : "ÃÂÃÂ¿ÃÂ¥")).join("")}
                     <span className="ml-1 text-xs text-brand-muted">from tourist</span>
                   </p>
                 )}
@@ -819,11 +834,11 @@ export default function GuideDashboardPage() {
                 <Chip tone={b.status} />
                 {b.status === "paid" && b.payout ? (
                   <p className="text-xs font-medium text-brand-success">
-                    {b.payout.kesAmount} KES â¬â Ref {b.payout.reference}
+                    {b.payout.kesAmount} KES Ã¢ÂÂ¬Ã¢ÂÂ Ref {b.payout.reference}
                   </p>
                 ) : b.status === "refunded" && b.refund ? (
                   <p className="text-xs text-red-600">
-                    No-show â¬â {b.refund.refundAmount.toFixed(2)} USDC refunded
+                    No-show Ã¢ÂÂ¬Ã¢ÂÂ {b.refund.refundAmount.toFixed(2)} USDC refunded
                   </p>
                 ) : (
                   <p className="text-xs text-brand-muted">Payout not yet received</p>

@@ -4,13 +4,29 @@ import { useState, type FormEvent } from "react";
 import { FormField, FormShell } from "@/components/ui/FormShell";
 import { createClient } from "@/lib/supabase/client";
 
+async function uploadGuideDoc(supabase: ReturnType<typeof createClient>, file: File): Promise<string> {
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const path = `${crypto.randomUUID()}/${safeName}`;
+  const { error: uploadError } = await supabase.storage.from("guide-proofs").upload(path, file, {
+    cacheControl: "3600",
+    upsert: false,
+  });
+  if (uploadError) throw uploadError;
+  return path;
+}
+
 export default function ApplyPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [idNumber, setIdNumber] = useState("");
   const [location, setLocation] = useState("");
   const [experiencePitch, setExperiencePitch] = useState("");
   const [portfolioLinks, setPortfolioLinks] = useState("");
+  const [refereeName, setRefereeName] = useState("");
+  const [refereePhone, setRefereePhone] = useState("");
+  const [refereeEmail, setRefereeEmail] = useState("");
+  const [cvFile, setCvFile] = useState<File | null>(null);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -25,28 +41,27 @@ export default function ApplyPage() {
     const supabase = createClient();
 
     try {
-      let proofOfWorkPath: string | null = null;
-      if (proofFile) {
-        const safeName = proofFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        proofOfWorkPath = `${crypto.randomUUID()}/${safeName}`;
-        const { error: uploadError } = await supabase.storage.from("guide-proofs").upload(proofOfWorkPath, proofFile, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-        if (uploadError) throw uploadError;
-      }
+      const [cvPath, proofOfWorkPath] = await Promise.all([
+        cvFile ? uploadGuideDoc(supabase, cvFile) : Promise.resolve(null),
+        proofFile ? uploadGuideDoc(supabase, proofFile) : Promise.resolve(null),
+      ]);
 
       const { error: insertError } = await supabase.from("guide_applications").insert({
         full_name: fullName,
         email,
         phone,
+        id_number: idNumber,
         location,
         experience_pitch: experiencePitch,
         portfolio_links: portfolioLinks
           .split(",")
           .map((link) => link.trim())
           .filter(Boolean),
+        cv_path: cvPath,
         proof_of_work_path: proofOfWorkPath,
+        referee_name: refereeName,
+        referee_phone: refereePhone,
+        referee_email: refereeEmail.trim() || null,
       });
       if (insertError) throw insertError;
       setSubmitted(true);
@@ -69,15 +84,18 @@ export default function ApplyPage() {
     );
   }
 
+  const fileInputClass =
+    "block w-full text-sm text-[var(--gm-muted)] file:mr-3 file:border-0 file:bg-brand-amber file:px-3 file:py-1.5 file:text-xs file:font-semibold file:uppercase file:tracking-wide file:text-brand-blueDark";
+
   return (
     <FormShell
       title="Apply as a guide"
-      subtitle="Tell us who you are and what you want to host. Approved guides get a custodial payout wallet and can list experiences."
+      subtitle="Tell us who you are, share your CV, and name someone who can vouch for you. Approved guides get a custodial payout wallet and can list experiences."
       footer={
         <>
-          Just want to try the demo?{" "}
+          Already approved?{" "}
           <a href="/auth/sign-up?role=guide" className="font-semibold text-brand-accent underline">
-            Instant guide sign-up
+            Register as a guide
           </a>
         </>
       }
@@ -85,6 +103,17 @@ export default function ApplyPage() {
       <form onSubmit={handleSubmit}>
         <FormField label="Full name *">
           <input required className="form-input-light" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+        </FormField>
+        <FormField label="National ID / passport number *">
+          <input
+            required
+            className="form-input-light"
+            value={idNumber}
+            onChange={(e) => setIdNumber(e.target.value)}
+            placeholder="e.g. 12345678"
+            inputMode="numeric"
+            autoComplete="off"
+          />
         </FormField>
         <FormField label="Email *">
           <input required type="email" className="form-input-light" value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -117,6 +146,16 @@ export default function ApplyPage() {
             placeholder="Street food crawls in the CBD..."
           />
         </FormField>
+        <FormField label="CV (PDF or Word) *">
+          <input
+            required
+            type="file"
+            accept="application/pdf,.pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,.docx"
+            onChange={(e) => setCvFile(e.target.files?.[0] ?? null)}
+            className={fileInputClass}
+          />
+          <p className="mt-1 text-xs text-brand-muted">Upload your résumé or guide profile document.</p>
+        </FormField>
         <FormField label="Portfolio / proof links">
           <input
             className="form-input-light"
@@ -130,9 +169,47 @@ export default function ApplyPage() {
             type="file"
             accept="image/jpeg,image/png,image/webp,application/pdf"
             onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-sm text-[var(--gm-muted)] file:mr-3 file:border-0 file:bg-brand-amber file:px-3 file:py-1.5 file:text-xs file:font-semibold file:uppercase file:tracking-wide file:text-brand-blueDark"
+            className={fileInputClass}
           />
         </FormField>
+
+        <div className="mb-6 rounded-2xl border border-brand-border bg-brand-bg/40 p-4">
+          <p className="text-sm font-semibold text-brand-blueDark">Referee who can vouch for you</p>
+          <p className="mt-1 text-xs text-brand-muted">
+            Someone we can contact — a past employer, tourism partner, or community leader who knows your work.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <FormField label="Referee full name *">
+              <input
+                required
+                className="form-input-light"
+                value={refereeName}
+                onChange={(e) => setRefereeName(e.target.value)}
+                placeholder="Jane Doe"
+              />
+            </FormField>
+            <FormField label="Referee phone *">
+              <input
+                required
+                className="form-input-light"
+                value={refereePhone}
+                onChange={(e) => setRefereePhone(e.target.value)}
+                placeholder="+254 7XX XXX XXX"
+              />
+            </FormField>
+            <div className="sm:col-span-2">
+              <FormField label="Referee email (optional)">
+                <input
+                  type="email"
+                  className="form-input-light"
+                  value={refereeEmail}
+                  onChange={(e) => setRefereeEmail(e.target.value)}
+                  placeholder="referee@example.com"
+                />
+              </FormField>
+            </div>
+          </div>
+        </div>
 
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 

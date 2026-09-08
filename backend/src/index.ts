@@ -15,6 +15,7 @@ import { adminRouter } from "./routes/admin.js";
 import { fxRouter } from "./routes/fx.js";
 import { paymentsRouter, kotaniWebhookHandler } from "./routes/payments.js";
 import { chatRouter } from "./routes/chat.js";
+import { applicationsRouter } from "./routes/applications.js";
 
 const DEFAULT_CORS_ORIGINS = [
   "https://yourguidemate.top",
@@ -50,6 +51,9 @@ app.post(
   express.raw({ type: "application/json" }),
   kotaniWebhookHandler
 );
+
+// Guide applications include base64-encoded CV/proof attachments.
+app.use("/api/applications", express.json({ limit: "15mb" }), applicationsRouter);
 
 app.use(express.json());
 

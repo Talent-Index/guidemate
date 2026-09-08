@@ -718,6 +718,34 @@ export function revokeStaff(userId: string, accessToken: string) {
   });
 }
 
+export interface GuideApplicationFilePayload {
+  filename: string;
+  contentType: string;
+  base64: string;
+}
+
+export interface GuideApplicationInput {
+  fullName: string;
+  email: string;
+  phone: string;
+  idNumber: string;
+  location: string;
+  experiencePitch: string;
+  portfolioLinks: string[];
+  refereeName: string;
+  refereePhone: string;
+  refereeEmail?: string | null;
+  cv: GuideApplicationFilePayload;
+  proof?: GuideApplicationFilePayload | null;
+}
+
+export function submitGuideApplication(input: GuideApplicationInput) {
+  return request<{ ok: true }>("/api/applications", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
 export function recordStreamTip(
   streamId: string,
   input: { amountUsdc: number; txHash: string; tipperWallet?: string },

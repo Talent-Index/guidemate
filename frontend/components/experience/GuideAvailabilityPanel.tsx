@@ -10,26 +10,25 @@ import {
   formatSlotDate,
   formatSlotTimeRange,
   MAX_UPCOMING_SLOTS,
-  slotEndsAtIso,
   spotsLeft,
   toDatetimeLocalValue,
+  validateSlotRange,
 } from "@/lib/slots";
 import { useToast } from "@/components/ui/Toast";
 
 export function GuideAvailabilityPanel({
   experienceId,
   guideId,
-  durationMinutes,
 }: {
   experienceId: string;
   guideId: string;
-  durationMinutes: number;
 }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [slots, setSlots] = useState<ExperienceSlot[]>([]);
   const [loading, setLoading] = useState(false);
   const [startsAt, setStartsAt] = useState("");
+  const [endsAt, setEndsAt] = useState("");
   const [maxGuests, setMaxGuests] = useState("6");
   const [saving, setSaving] = useState(false);
 
@@ -53,18 +52,24 @@ export function GuideAvailabilityPanel({
 
   const upcoming = slots.filter((s) => !s.is_cancelled);
 
+  function handleStartChange(value: string) {
+    setStartsAt(value);
+    if (!value) return;
+
+    if (endsAt && eatWallClockToIso(endsAt) <= eatWallClockToIso(value)) {
+      setEndsAt("");
+    }
+  }
+
   async function handleAdd(e: FormEvent) {
     e.preventDefault();
-    if (!startsAt) return;
-
-    if (durationMinutes <= 0) {
-      toast("Set duration first", "error");
-      return;
-    }
+    if (!startsAt || !endsAt) return;
 
     const startsAtIso = eatWallClockToIso(startsAt);
-    if (new Date(startsAtIso) < new Date()) {
-      toast("Start time must be in the future", "error");
+    const endsAtIso = eatWallClockToIso(endsAt);
+    const rangeError = validateSlotRange(startsAtIso, endsAtIso);
+    if (rangeError) {
+      toast(rangeError, "error");
       return;
     }
 
@@ -84,7 +89,7 @@ export function GuideAvailabilityPanel({
       experience_id: experienceId,
       guide_id: guideId,
       starts_at: startsAtIso,
-      ends_at: slotEndsAtIso(startsAtIso, durationMinutes),
+      ends_at: endsAtIso,
       max_guests: Number(maxGuests) || 6,
     });
     setSaving(false);
@@ -93,6 +98,7 @@ export function GuideAvailabilityPanel({
       return;
     }
     setStartsAt("");
+    setEndsAt("");
     toast("Time slot added", "success");
     await loadSlots();
   }
@@ -125,33 +131,46 @@ export function GuideAvailabilityPanel({
       {open && (
         <div className="mt-3 rounded-xl border border-brand-border bg-brand-bg p-3">
           <p className="text-xs text-brand-muted">
-            Add times when tourists can book. Each slot lasts {durationMinutes} minutes (East Africa Time).
+            Add times when tourists can book. Pick start and end for each slot, for example 11:00 AM to 3:00 PM (East
+            Africa Time).
           </p>
 
-          <form className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_auto]" onSubmit={handleAdd}>
+          <form className="mt-3 grid gap-2" onSubmit={handleAdd}>
             <input
               type="datetime-local"
               className="form-input-light w-full text-sm"
               value={startsAt}
-              onChange={(e) => setStartsAt(e.target.value)}
+              onChange={(e) => handleStartChange(e.target.value)}
               required
               min={toDatetimeLocalValue(new Date().toISOString())}
               aria-label="Start (EAT)"
               title="Start (EAT)"
             />
             <input
-              type="number"
-              min={1}
-              max={50}
-              className="form-input-light w-20 text-sm"
-              value={maxGuests}
-              onChange={(e) => setMaxGuests(e.target.value)}
-              aria-label="Maximum guests"
-              title="Max guests"
+              type="datetime-local"
+              className="form-input-light w-full text-sm"
+              value={endsAt}
+              onChange={(e) => setEndsAt(e.target.value)}
+              required
+              min={startsAt || toDatetimeLocalValue(new Date().toISOString())}
+              aria-label="End (EAT)"
+              title="End (EAT)"
             />
-            <Button type="submit" variant="primary" disabled={saving} className="whitespace-nowrap px-3 py-2 text-xs">
-              {saving ? "Adding..." : "Add slot"}
-            </Button>
+            <div className="flex flex-wrap items-end gap-2">
+              <input
+                type="number"
+                min={1}
+                max={50}
+                className="form-input-light w-20 text-sm"
+                value={maxGuests}
+                onChange={(e) => setMaxGuests(e.target.value)}
+                aria-label="Maximum guests"
+                title="Max guests"
+              />
+              <Button type="submit" variant="primary" disabled={saving} className="whitespace-nowrap px-3 py-2 text-xs">
+                {saving ? "Adding..." : "Add slot"}
+              </Button>
+            </div>
           </form>
 
           <div className="mt-3">

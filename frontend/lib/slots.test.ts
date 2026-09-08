@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_UPCOMING_SLOTS,
   canAddAnotherSlot,
+  defaultEndFromStart,
   eatWallClockToIso,
   formatSlotTimeRange,
   isoToEatWallClock,
   slotEndsAtIso,
+  validateSlotRange,
 } from "./slots";
 
 describe("EAT wall clock", () => {
@@ -33,5 +35,25 @@ describe("slot cap", () => {
     expect(MAX_UPCOMING_SLOTS).toBe(100);
     expect(canAddAnotherSlot(99)).toBe(true);
     expect(canAddAnotherSlot(100)).toBe(false);
+  });
+});
+
+describe("slot range validation", () => {
+  it("rejects end before start", () => {
+    const start = eatWallClockToIso("2026-09-12T11:00");
+    const end = eatWallClockToIso("2026-09-12T10:00");
+    expect(validateSlotRange(start, end)).toBe("End time must be after start time.");
+  });
+
+  it("accepts 11:00 to 15:00 EAT", () => {
+    const start = eatWallClockToIso("2026-09-12T11:00");
+    const end = eatWallClockToIso("2026-09-12T15:00");
+    expect(validateSlotRange(start, end)).toBeNull();
+    expect(formatSlotTimeRange(start, end)).toBe("11:00 AM – 3:00 PM EAT");
+  });
+
+  it("suggests end from experience duration", () => {
+    expect(defaultEndFromStart("2026-09-12T11:00", 240)).toBe("2026-09-12T15:00");
+    expect(defaultEndFromStart("2026-09-12T11:00", 0)).toBe("");
   });
 });

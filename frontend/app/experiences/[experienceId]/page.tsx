@@ -155,7 +155,10 @@ export default function ExperienceDetailPage() {
   const photos = experiencePhotoUrls(experience);
   const hasPin = experience.meeting_lat != null && experience.meeting_lng != null;
   const meetingPlaceName = experience.meeting_label ?? experience.location;
-  const hours = Math.round((experience.duration_minutes / 60) * 10) / 10;
+  const hours =
+    experience.duration_minutes > 0
+      ? Math.round((experience.duration_minutes / 60) * 10) / 10
+      : null;
   const itinerarySteps = normalizeItinerary(experience.itinerary, photos);
   const guideRole = guide?.is_vetted ? "Vetted local guide" : "Local guide";
 
@@ -281,7 +284,7 @@ export default function ExperienceDetailPage() {
           </section>
 
           <ExperienceThingsToKnow
-            durationMinutes={experience.duration_minutes}
+            durationMinutes={experience.duration_minutes > 0 ? experience.duration_minutes : null}
             location={experience.location}
             languages={guide?.languages ?? []}
           />

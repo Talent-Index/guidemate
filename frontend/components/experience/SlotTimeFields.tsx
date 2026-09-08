@@ -10,20 +10,18 @@ import {
   formatSlotDate,
   formatSlotTimeRange,
   MAX_UPCOMING_SLOTS,
-  slotEndsAtIso,
   toDatetimeLocalValue,
+  validateSlotRange,
 } from "@/lib/slots";
 import { useToast } from "@/components/ui/Toast";
 
 export function SlotTimeFields({
   experienceId,
   guideId,
-  durationMinutes,
   onSlotsChanged,
 }: {
   experienceId: string;
   guideId: string;
-  durationMinutes: number;
   onSlotsChanged?: (futureCount: number) => void;
 }) {
   const { toast } = useToast();
@@ -31,6 +29,7 @@ export function SlotTimeFields({
   const [slots, setSlots] = useState<ExperienceSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [startsAt, setStartsAt] = useState("");
+  const [endsAt, setEndsAt] = useState("");
   const [maxGuests, setMaxGuests] = useState("6");
   const [saving, setSaving] = useState(false);
 
@@ -57,25 +56,28 @@ export function SlotTimeFields({
   const upcoming = slots.filter((s) => !s.is_cancelled);
 
   const previewRange =
-    durationMinutes > 0 && startsAt
-      ? formatSlotTimeRange(
-          eatWallClockToIso(startsAt),
-          slotEndsAtIso(eatWallClockToIso(startsAt), durationMinutes)
-        )
+    startsAt && endsAt
+      ? formatSlotTimeRange(eatWallClockToIso(startsAt), eatWallClockToIso(endsAt))
       : null;
+
+  function handleStartChange(value: string) {
+    setStartsAt(value);
+    if (!value) return;
+
+    if (endsAt && eatWallClockToIso(endsAt) <= eatWallClockToIso(value)) {
+      setEndsAt("");
+    }
+  }
 
   async function handleAdd(e: FormEvent) {
     e.preventDefault();
-    if (!startsAt) return;
-
-    if (durationMinutes <= 0) {
-      toast("Set duration first", "error");
-      return;
-    }
+    if (!startsAt || !endsAt) return;
 
     const startsAtIso = eatWallClockToIso(startsAt);
-    if (new Date(startsAtIso) < new Date()) {
-      toast("Start time must be in the future", "error");
+    const endsAtIso = eatWallClockToIso(endsAt);
+    const rangeError = validateSlotRange(startsAtIso, endsAtIso);
+    if (rangeError) {
+      toast(rangeError, "error");
       return;
     }
 
@@ -95,7 +97,7 @@ export function SlotTimeFields({
       experience_id: experienceId,
       guide_id: guideId,
       starts_at: startsAtIso,
-      ends_at: slotEndsAtIso(startsAtIso, durationMinutes),
+      ends_at: endsAtIso,
       max_guests: Number(maxGuests) || 6,
     });
     setSaving(false);
@@ -106,6 +108,7 @@ export function SlotTimeFields({
     }
 
     setStartsAt("");
+    setEndsAt("");
     toast("Time slot added", "success");
     await loadSlots();
   }
@@ -128,7 +131,8 @@ export function SlotTimeFields({
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-brand-muted">
-        Add as many times as you can host. Each slot lasts {durationMinutes} minutes.
+        Add as many times as you can host. Pick a start and end for each slot, for example 11:00 AM to 3:00 PM (East
+        Africa Time).
       </p>
 
       <form className="grid gap-2" onSubmit={handleAdd}>
@@ -139,9 +143,21 @@ export function SlotTimeFields({
             type="datetime-local"
             className="form-input-light w-full text-sm"
             value={startsAt}
-            onChange={(e) => setStartsAt(e.target.value)}
+            onChange={(e) => handleStartChange(e.target.value)}
             required
             min={toDatetimeLocalValue(new Date().toISOString())}
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-xs font-semibold text-brand-blueDark">End (EAT)</span>
+          <input
+            type="datetime-local"
+            className="form-input-light w-full text-sm"
+            value={endsAt}
+            onChange={(e) => setEndsAt(e.target.value)}
+            required
+            min={startsAt || toDatetimeLocalValue(new Date().toISOString())}
           />
         </label>
 

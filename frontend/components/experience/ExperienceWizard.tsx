@@ -30,7 +30,7 @@ import { uploadExperiencePhoto } from "@/lib/uploads";
 const STEP_LABELS = [
   "Basics",
   "Photos",
-  "Price & time",
+  "Price",
   "Itinerary",
   "Meeting point",
   "Dates",
@@ -39,7 +39,6 @@ const STEP_LABELS = [
 const MISSING_LABELS: Record<string, string> = {
   title: "a title",
   price: "a price",
-  duration: "a duration",
   "meeting point": "a meeting point",
   "a future time slot": "a future time slot",
 };
@@ -66,9 +65,6 @@ export function ExperienceWizard({
   const [priceUsdc, setPriceUsdc] = useState(
     draft.price_usdc > 0 ? String(draft.price_usdc) : ""
   );
-  const [durationMinutes, setDurationMinutes] = useState(
-    draft.duration_minutes > 0 ? String(draft.duration_minutes) : ""
-  );
   const [imageUrls, setImageUrls] = useState<string[]>(
     draft.image_urls?.length ? draft.image_urls : draft.image_url ? [draft.image_url] : []
   );
@@ -90,7 +86,6 @@ export function ExperienceWizard({
     category,
     tagsInput,
     priceUsdc,
-    durationMinutes,
     imageUrls,
     itinerarySteps,
     meetingLat,
@@ -105,7 +100,6 @@ export function ExperienceWizard({
     category,
     tagsInput,
     priceUsdc,
-    durationMinutes,
     imageUrls,
     itinerarySteps,
     meetingLat,
@@ -123,16 +117,13 @@ export function ExperienceWizard({
       const urls = formRef.current.imageUrls;
       const itinerary = itineraryForSave(formRef.current.itinerarySteps);
       const price = Number(formRef.current.priceUsdc) || 0;
-      const duration = Number(formRef.current.durationMinutes) || 0;
       const label = formRef.current.meetingLabel;
 
-      return {
+      const patch: Partial<ExperienceDraftRow> = {
         title: formRef.current.title,
         description: formRef.current.description,
         tags,
         category: formRef.current.category || null,
-        price_usdc: price,
-        duration_minutes: duration,
         image_urls: urls,
         image_url: urls[0] ?? null,
         itinerary,
@@ -142,6 +133,10 @@ export function ExperienceWizard({
         location: label,
         wizard_step: wizardStep,
       };
+
+      if (price > 0) patch.price_usdc = price;
+
+      return patch;
     },
     []
   );
@@ -152,13 +147,13 @@ export function ExperienceWizard({
       try {
         await patchExperienceDraft(draft.id, patch);
         return true;
-      } catch {
-        toast("Couldn't save — retrying", "error");
+      } catch (err) {
+        toast((err as Error).message || "Couldn't save — retrying", "error");
         try {
           await patchExperienceDraft(draft.id, patch);
           return true;
-        } catch {
-          toast("Couldn't save your changes", "error");
+        } catch (retryErr) {
+          toast((retryErr as Error).message || "Couldn't save your changes", "error");
           return false;
         }
       }
@@ -250,7 +245,6 @@ export function ExperienceWizard({
     const publishInput = {
       title,
       priceUsdc: Number(priceUsdc) || 0,
-      durationMinutes: Number(durationMinutes) || 0,
       meetingLat,
       meetingLng,
       futureSlotCount,
@@ -272,7 +266,6 @@ export function ExperienceWizard({
   const publishInput = {
     title,
     priceUsdc: Number(priceUsdc) || 0,
-    durationMinutes: Number(durationMinutes) || 0,
     meetingLat,
     meetingLng,
     futureSlotCount,
@@ -455,29 +448,17 @@ export function ExperienceWizard({
           )}
 
           {step === 3 && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Price (USDC)">
-                <input
-                  className={inputClass}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={priceUsdc}
-                  onChange={(e) => setPriceUsdc(e.target.value)}
-                  placeholder="e.g. 25"
-                />
-              </Field>
-              <Field label="Duration (minutes)">
-                <input
-                  className={inputClass}
-                  type="number"
-                  min="0"
-                  value={durationMinutes}
-                  onChange={(e) => setDurationMinutes(e.target.value)}
-                  placeholder="e.g. 180"
-                />
-              </Field>
-            </div>
+            <Field label="Price (USDC)">
+              <input
+                className={inputClass}
+                type="number"
+                min="0"
+                step="0.01"
+                value={priceUsdc}
+                onChange={(e) => setPriceUsdc(e.target.value)}
+                placeholder="e.g. 25"
+              />
+            </Field>
           )}
 
           {step === 4 && (
@@ -503,7 +484,6 @@ export function ExperienceWizard({
               <SlotTimeFields
                 experienceId={draft.id}
                 guideId={draft.guide_id}
-                durationMinutes={Number(durationMinutes) || 0}
                 onSlotsChanged={setFutureSlotCount}
               />
               <div className="border-t border-brand-border pt-4">

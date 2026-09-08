@@ -39,6 +39,26 @@ export function slotEndsAtIso(startsAtIso: string, durationMinutes: number): str
   return new Date(new Date(startsAtIso).getTime() + durationMinutes * 60_000).toISOString();
 }
 
+export function validateSlotRange(startsAtIso: string, endsAtIso: string): string | null {
+  const start = new Date(startsAtIso);
+  const end = new Date(endsAtIso);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return "Enter a valid start and end time.";
+  }
+  if (start < new Date()) {
+    return "Start time must be in the future.";
+  }
+  if (end <= start) {
+    return "End time must be after start time.";
+  }
+  return null;
+}
+
+export function defaultEndFromStart(startWallClock: string, durationMinutes: number): string {
+  if (!startWallClock || durationMinutes <= 0) return "";
+  return isoToEatWallClock(slotEndsAtIso(eatWallClockToIso(startWallClock), durationMinutes));
+}
+
 export function formatSlotDate(startsAt: string): string {
   const date = new Date(startsAt);
   const now = new Date();

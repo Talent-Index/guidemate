@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/Button";
 import {
   type ExperienceSlot,
   canAddAnotherSlot,
-  defaultEndFromStart,
   eatWallClockToIso,
   formatSlotDate,
   formatSlotTimeRange,
@@ -19,13 +18,10 @@ import { useToast } from "@/components/ui/Toast";
 export function SlotTimeFields({
   experienceId,
   guideId,
-  durationMinutes,
   onSlotsChanged,
 }: {
   experienceId: string;
   guideId: string;
-  /** Used only to suggest an end time when the guide picks a start time. */
-  durationMinutes?: number;
   onSlotsChanged?: (futureCount: number) => void;
 }) {
   const { toast } = useToast();
@@ -68,9 +64,8 @@ export function SlotTimeFields({
     setStartsAt(value);
     if (!value) return;
 
-    const suggestedEnd = defaultEndFromStart(value, durationMinutes ?? 0);
-    if (!endsAt || eatWallClockToIso(endsAt) <= eatWallClockToIso(value)) {
-      if (suggestedEnd) setEndsAt(suggestedEnd);
+    if (endsAt && eatWallClockToIso(endsAt) <= eatWallClockToIso(value)) {
+      setEndsAt("");
     }
   }
 

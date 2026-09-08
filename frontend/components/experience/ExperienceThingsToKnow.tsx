@@ -12,7 +12,7 @@ export function ExperienceThingsToKnow({
   location,
   languages,
 }: {
-  durationMinutes: number;
+  durationMinutes?: number | null;
   location: string | null;
   languages: string[];
 }) {
@@ -65,7 +65,9 @@ export function ExperienceThingsToKnow({
           </div>
         ))}
       </div>
-      <p className="mt-4 text-xs text-brand-muted">Typical duration: about {durationMinutes} minutes.</p>
+      {durationMinutes != null && durationMinutes > 0 && (
+        <p className="mt-4 text-xs text-brand-muted">Typical duration: about {durationMinutes} minutes.</p>
+      )}
     </section>
   );
 }

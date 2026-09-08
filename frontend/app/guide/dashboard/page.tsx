@@ -408,7 +408,6 @@ export default function GuideDashboardPage() {
             const gapHint = nextGapHint({
               title: exp.title,
               priceUsdc: exp.price_usdc,
-              durationMinutes: exp.duration_minutes,
               meetingLat: exp.meeting_lat,
               meetingLng: exp.meeting_lng,
               futureSlotCount: exp.futureSlotCount,
@@ -429,9 +428,7 @@ export default function GuideDashboardPage() {
                       <p className="text-xs text-brand-muted">
                         <span className="inline-flex items-baseline gap-2">
                           <Price amountUsdc={exp.price_usdc} size="sm" align="start" />
-                          <span>
-                            · {exp.duration_minutes} min{exp.location ? ` · ${exp.location}` : ""}
-                          </span>
+                          <span>{exp.location ? ` · ${exp.location}` : ""}</span>
                         </span>
                       </p>
                     )}

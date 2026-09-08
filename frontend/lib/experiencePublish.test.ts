@@ -4,7 +4,6 @@ import { canPublish, missingPublishPieces, nextGapHint } from "./experiencePubli
 const ready = {
   title: "Oloiden hike",
   priceUsdc: 100,
-  durationMinutes: 240,
   meetingLat: -0.78,
   meetingLng: 36.28,
   futureSlotCount: 2,
@@ -16,20 +15,19 @@ describe("missingPublishPieces", () => {
       missingPublishPieces({
         title: "  ",
         priceUsdc: 0,
-        durationMinutes: 0,
         meetingLat: null,
         meetingLng: null,
         futureSlotCount: 0,
       })
-    ).toEqual(["title", "price", "duration", "meeting point", "a future time slot"]);
+    ).toEqual(["title", "price", "meeting point", "a future time slot"]);
   });
 
-  it("allows publish when title, price, duration, pin, and a future slot exist", () => {
+  it("allows publish when title, price, pin, and a future slot exist", () => {
     expect(missingPublishPieces(ready)).toEqual([]);
     expect(canPublish(ready)).toBe(true);
   });
 
-  it("does not require photos or itinerary", () => {
+  it("does not require photos, itinerary, or duration", () => {
     expect(canPublish(ready)).toBe(true);
   });
 

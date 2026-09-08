@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/Button";
 import {
   type ExperienceSlot,
   canAddAnotherSlot,
-  defaultEndFromStart,
   eatWallClockToIso,
   formatSlotDate,
   formatSlotTimeRange,
@@ -20,12 +19,9 @@ import { useToast } from "@/components/ui/Toast";
 export function GuideAvailabilityPanel({
   experienceId,
   guideId,
-  durationMinutes,
 }: {
   experienceId: string;
   guideId: string;
-  /** Used only to suggest an end time when the guide picks a start time. */
-  durationMinutes?: number;
 }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -60,9 +56,8 @@ export function GuideAvailabilityPanel({
     setStartsAt(value);
     if (!value) return;
 
-    const suggestedEnd = defaultEndFromStart(value, durationMinutes ?? 0);
-    if (!endsAt || eatWallClockToIso(endsAt) <= eatWallClockToIso(value)) {
-      if (suggestedEnd) setEndsAt(suggestedEnd);
+    if (endsAt && eatWallClockToIso(endsAt) <= eatWallClockToIso(value)) {
+      setEndsAt("");
     }
   }
 

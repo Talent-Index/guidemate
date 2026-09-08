@@ -1,7 +1,6 @@
 export interface PublishDraftInput {
   title: string;
   priceUsdc: number;
-  durationMinutes: number;
   meetingLat: number | null;
   meetingLng: number | null;
   futureSlotCount: number;
@@ -10,7 +9,6 @@ export interface PublishDraftInput {
 const HINTS: Record<string, string> = {
   title: "Add a title",
   price: "Add a price",
-  duration: "Add a duration",
   "meeting point": "Add meeting point",
   "a future time slot": "Add a future time slot",
 };
@@ -19,7 +17,6 @@ export function missingPublishPieces(draft: PublishDraftInput): string[] {
   const missing: string[] = [];
   if (!draft.title.trim()) missing.push("title");
   if (!(draft.priceUsdc > 0)) missing.push("price");
-  if (!(draft.durationMinutes > 0)) missing.push("duration");
   if (draft.meetingLat == null || draft.meetingLng == null) missing.push("meeting point");
   if (draft.futureSlotCount < 1) missing.push("a future time slot");
   return missing;

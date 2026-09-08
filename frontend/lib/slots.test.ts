@@ -54,5 +54,6 @@ describe("slot range validation", () => {
 
   it("suggests end from experience duration", () => {
     expect(defaultEndFromStart("2026-09-12T11:00", 240)).toBe("2026-09-12T15:00");
+    expect(defaultEndFromStart("2026-09-12T11:00", 0)).toBe("");
   });
 });

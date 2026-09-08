@@ -14,7 +14,7 @@ export function ExperienceMetaList({
   guideRole: string;
   guideAvatarUrl?: string | null;
   location: string | null;
-  durationHours: number;
+  durationHours?: number | null;
   languages: string[];
   onHostClick?: () => void;
 }) {
@@ -44,13 +44,25 @@ export function ExperienceMetaList({
         </div>
       )}
 
-      <div className="flex items-center gap-4 p-4">
-        <ClockIcon />
-        <div>
-          <p className="font-semibold text-[var(--gm-ink)]">Around {durationHours} hr experience</p>
-          <p className="text-sm text-brand-muted">Offered in {langText}</p>
+      {durationHours != null && durationHours > 0 && (
+        <div className="flex items-center gap-4 p-4">
+          <ClockIcon />
+          <div>
+            <p className="font-semibold text-[var(--gm-ink)]">Around {durationHours} hr experience</p>
+            <p className="text-sm text-brand-muted">Offered in {langText}</p>
+          </div>
         </div>
-      </div>
+      )}
+
+      {(durationHours == null || durationHours <= 0) && (
+        <div className="flex items-center gap-4 p-4">
+          <ClockIcon />
+          <div>
+            <p className="font-semibold text-[var(--gm-ink)]">Times vary by date</p>
+            <p className="text-sm text-brand-muted">Offered in {langText}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

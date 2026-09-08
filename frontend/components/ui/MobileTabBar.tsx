@@ -117,7 +117,7 @@ export function MobileTabBar() {
         icon: (a) => <DashboardNavIcon active={a} />,
       },
       { href: "/wallet", label: "Wallet", match: (p) => p.startsWith("/wallet"), icon: (a) => <WalletNavIcon active={a} /> },
-      { href: "/live", label: "Live", match: (p) => p.startsWith("/live"), icon: (a) => <LiveNavIcon active={a} /> },
+      { href: "/live", label: "Livestream", match: (p) => p.startsWith("/live"), icon: (a) => <LiveNavIcon active={a} /> },
     ];
     if (profileTab) tabs.push(profileTab);
   } else if (isSuperAdmin(profile?.role)) {
@@ -129,7 +129,7 @@ export function MobileTabBar() {
         match: (p) => p.startsWith("/admin/applications"),
         icon: (a) => <DashboardNavIcon active={a} />,
       },
-      { href: "/live", label: "Live", match: (p) => p.startsWith("/live"), icon: (a) => <LiveNavIcon active={a} /> },
+      { href: "/live", label: "Livestream", match: (p) => p.startsWith("/live"), icon: (a) => <LiveNavIcon active={a} /> },
     ];
     if (profileTab) tabs.push(profileTab);
   } else if (profile?.role === "staff") {
@@ -164,7 +164,7 @@ export function MobileTabBar() {
     tabs = [
       { href: "/", label: "Home", match: (p) => p === "/", icon: (a) => <HomeNavIcon active={a} /> },
       { href: "/explore", label: "Explore", match: (p) => p.startsWith("/explore"), icon: (a) => <CompassNavIcon active={a} /> },
-      { href: "/live", label: "Live", match: (p) => p.startsWith("/live"), icon: (a) => <LiveNavIcon active={a} /> },
+      { href: "/live", label: "Livestream", match: (p) => p.startsWith("/live"), icon: (a) => <LiveNavIcon active={a} /> },
       { href: "/auth/sign-in", label: "Sign in", match: (p) => p.startsWith("/auth"), icon: (a) => <SignInIcon active={a} /> },
     ];
   }

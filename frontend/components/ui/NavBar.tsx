@@ -79,19 +79,30 @@ export function NavBar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, [signedIn]);
 
-  const linkClass =
-    "text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-800 transition hover:text-black dark:text-white dark:hover:text-white";
+  const onMarketingHero = pathname === "/" && !signedIn;
+  const linkClass = onMarketingHero
+    ? "text-[11px] font-semibold uppercase tracking-[0.18em] text-white/90 transition hover:text-white"
+    : "text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-800 transition hover:text-black dark:text-white dark:hover:text-white";
   const dashboardSettings = pathname.startsWith("/guide/dashboard") && searchParams.get("tab") === "settings";
   const showNavAccountActions = !signedIn;
 
   return (
     <header
-      className={`fixed top-0 z-50 w-full border-b border-[var(--gm-border)] bg-[var(--gm-nav)]/90 backdrop-blur-md transition-transform duration-300 ${
-        hidden ? "md:-translate-y-full" : "translate-y-0"
-      }`}
+      className={`fixed top-0 z-50 w-full backdrop-blur-md transition-transform duration-300 ${
+        onMarketingHero
+          ? "border-b border-white/15 bg-black/40"
+          : "border-b border-[var(--gm-border)] bg-[var(--gm-nav)]/90"
+      } ${hidden ? "md:-translate-y-full" : "translate-y-0"}`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 md:py-4">
-        <Link href={profile ? homeForRole(profile.role) : "/"} className="flex items-center border border-[var(--gm-border)] bg-[#ffffff] px-3 py-1.5 dark:bg-[#000000]">
+        <Link
+          href={profile ? homeForRole(profile.role) : "/"}
+          className={`flex items-center border px-3 py-1.5 ${
+            onMarketingHero
+              ? "border-white/25 bg-white"
+              : "border-[var(--gm-border)] bg-[#ffffff] dark:bg-[#000000]"
+          }`}
+        >
           <BrandLogo className="h-6 w-auto sm:h-7" priority />
         </Link>
 
@@ -111,7 +122,7 @@ export function NavBar() {
                     Tour
                   </PillLink>
                   <PillLink href="/live" active={pathname.startsWith("/live")} icon={<LiveNavIcon active={pathname.startsWith("/live")} />}>
-                    Live
+                    Livestream
                   </PillLink>
                   <PillLink href="/chat" active={pathname.startsWith("/chat")} icon={<MessagesNavIcon active={pathname.startsWith("/chat")} />}>
                     Messages
@@ -141,7 +152,7 @@ export function NavBar() {
                     Bookings
                   </PillLink>
                   <PillLink href="/live" active={pathname.startsWith("/live")} icon={<LiveNavIcon active={pathname.startsWith("/live")} />}>
-                    Live
+                    Livestream
                   </PillLink>
                   <PillLink href="/chat" active={pathname.startsWith("/chat")} icon={<MessagesNavIcon active={pathname.startsWith("/chat")} />}>
                     Messages
@@ -178,7 +189,7 @@ export function NavBar() {
                     Settings
                   </PillLink>
                   <PillLink href="/live" active={pathname.startsWith("/live")} icon={<LiveNavIcon active={pathname.startsWith("/live")} />}>
-                    Live
+                    Livestream
                   </PillLink>
                 </>
               )}
@@ -204,7 +215,7 @@ export function NavBar() {
                   Explore
                 </Link>
                 <Link href="/live" className={linkClass}>
-                  Live
+                  Livestream
                 </Link>
               </div>
               <Link

@@ -2,17 +2,36 @@
 
 import { useState, type FormEvent } from "react";
 import { FormField, FormShell } from "@/components/ui/FormShell";
-import { createClient } from "@/lib/supabase/client";
+import { submitGuideApplication, type GuideApplicationFilePayload } from "@/lib/api";
 
-async function uploadGuideDoc(supabase: ReturnType<typeof createClient>, file: File): Promise<string> {
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path = `${crypto.randomUUID()}/${safeName}`;
-  const { error: uploadError } = await supabase.storage.from("guide-proofs").upload(path, file, {
-    cacheControl: "3600",
-    upsert: false,
+async function fileToPayload(file: File): Promise<GuideApplicationFilePayload> {
+  const base64 = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") {
+        reject(new Error(`Could not read ${file.name}.`));
+        return;
+      }
+      const comma = result.indexOf(",");
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}.`));
+    reader.readAsDataURL(file);
   });
-  if (uploadError) throw uploadError;
-  return path;
+
+  return {
+    filename: file.name,
+    contentType: file.type || "application/octet-stream",
+    base64,
+  };
+}
+
+function friendlyApplyError(message: string): string {
+  if (message === "Failed to fetch") {
+    return "Could not reach the server. Check your connection and try again.";
+  }
+  return message;
 }
 
 export default function ApplyPage() {
@@ -35,38 +54,41 @@ export default function ApplyPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!cvFile) {
+      setError("Upload your CV to continue.");
+      return;
+    }
+
     setError(null);
     setLoading(true);
 
-    const supabase = createClient();
-
     try {
-      const [cvPath, proofOfWorkPath] = await Promise.all([
-        cvFile ? uploadGuideDoc(supabase, cvFile) : Promise.resolve(null),
-        proofFile ? uploadGuideDoc(supabase, proofFile) : Promise.resolve(null),
+      const [cv, proof] = await Promise.all([
+        fileToPayload(cvFile),
+        proofFile ? fileToPayload(proofFile) : Promise.resolve(null),
       ]);
 
-      const { error: insertError } = await supabase.from("guide_applications").insert({
-        full_name: fullName,
-        email,
-        phone,
-        id_number: idNumber,
-        location,
-        experience_pitch: experiencePitch,
-        portfolio_links: portfolioLinks
+      await submitGuideApplication({
+        fullName: fullName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        idNumber: idNumber.trim(),
+        location: location.trim(),
+        experiencePitch: experiencePitch.trim(),
+        portfolioLinks: portfolioLinks
           .split(",")
           .map((link) => link.trim())
           .filter(Boolean),
-        cv_path: cvPath,
-        proof_of_work_path: proofOfWorkPath,
-        referee_name: refereeName,
-        referee_phone: refereePhone,
-        referee_email: refereeEmail.trim() || null,
+        refereeName: refereeName.trim(),
+        refereePhone: refereePhone.trim(),
+        refereeEmail: refereeEmail.trim() || null,
+        cv,
+        proof,
       });
-      if (insertError) throw insertError;
+
       setSubmitted(true);
     } catch (err) {
-      setError((err as Error).message);
+      setError(friendlyApplyError((err as Error).message));
     } finally {
       setLoading(false);
     }

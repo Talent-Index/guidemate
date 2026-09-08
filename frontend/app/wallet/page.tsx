@@ -183,171 +183,175 @@ export default function WalletPage() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Button variant="primary" onClick={() => setPanel(panel === "fund" ? null : "fund")}>
-          Fund wallet
-        </Button>
-        {isGuide ? (
-          <Button variant="secondary" onClick={() => setPanel(panel === "withdraw" ? null : "withdraw")}>
-            Withdraw
-          </Button>
-        ) : (
-          <Button variant="secondary" onClick={() => router.push("/explore")}>
-            Book a tour
-          </Button>
-        )}
-      </div>
-
-      {panel === "fund" && (
-        <Card>
-          <h2 className="text-sm font-bold text-brand-blueDark">Fund wallet</h2>
-          {!wallet?.address ? (
-            <>
-              <p className="mt-2 text-sm text-brand-muted">Create an in-app wallet to hold mUSDC from bookings.</p>
-              <Button variant="primary" className="mt-3" disabled={provisioning} onClick={() => void handleProvision()}>
-                {provisioning ? "Creating…" : "Create wallet"}
-              </Button>
-            </>
-          ) : isGuide ? (
-            <p className="mt-2 text-sm text-brand-muted">
-              Tour earnings and live-stream payouts credit this balance automatically. There is no manual top-up in this demo.
-            </p>
-          ) : (
-            <p className="mt-2 text-sm text-brand-muted">
-              Bookings can debit this in-app balance. Connect MetaMask or Core below and use the faucet for test mUSDC.
-            </p>
-          )}
-        </Card>
-      )}
-
-      {panel === "withdraw" && isGuide && (
-        <Card>
-          <h2 className="text-sm font-bold text-brand-blueDark">Withdraw to M-Pesa</h2>
-          <p className="mt-1 text-sm text-brand-muted">
-            Uses the phone number on your guide profile. Simulated M-Pesa in this demo.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              className="form-input-light w-28 text-sm"
-              placeholder="USDC"
-              value={withdrawAmount}
-              onChange={(e) => setWithdrawAmount(e.target.value)}
-            />
-            <Button variant="accent" disabled={withdrawing || !wallet?.balanceUsdc} onClick={() => void handleWithdraw()}>
-              {withdrawing ? "Sending…" : "Withdraw"}
+      <div className="md:grid md:grid-cols-2 md:gap-6">
+        <div className="flex flex-col gap-6">
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant="primary" onClick={() => setPanel(panel === "fund" ? null : "fund")}>
+              Fund wallet
             </Button>
-          </div>
-        </Card>
-      )}
-
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Quick actions</p>
-        <div className="mt-3 grid grid-cols-3 gap-3">
-          <button
-            type="button"
-            onClick={() => setPanel(panel === "send" ? null : "send")}
-            className="rounded-card border border-brand-border bg-white p-4 text-center shadow-card"
-          >
-            <p className="text-sm font-semibold text-brand-blueDark">Send</p>
-          </button>
-          <Link
-            href={payHref}
-            className="rounded-card border border-brand-border bg-white p-4 text-center shadow-card"
-          >
-            <p className="text-sm font-semibold text-brand-blueDark">Pay</p>
-          </Link>
-          <button
-            type="button"
-            onClick={() => setPanel(panel === "receive" ? null : "receive")}
-            className="rounded-card border border-brand-border bg-white p-4 text-center shadow-card"
-          >
-            <p className="text-sm font-semibold text-brand-blueDark">Receive</p>
-          </button>
-        </div>
-      </div>
-
-      {panel === "send" && (
-        <Card>
-          <p className="text-sm text-brand-muted">
-            Custodial transfers between Guidemate wallets are coming in this demo. Use Pay to book a tour, or Withdraw
-            (guides) to send earnings to M-Pesa.
-          </p>
-        </Card>
-      )}
-
-      {panel === "receive" && (
-        <Card className="flex flex-col items-center text-center">
-          {wallet?.address ? (
-            <>
-              <QRCodeSVG value={wallet.address} size={168} />
-              <p className="mt-3 font-mono text-xs text-brand-muted">{wallet.address}</p>
-              <p className="mt-2 text-sm text-brand-muted">Show this in-app address to receive mUSDC on Fuji.</p>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-brand-muted">Create a wallet first to get a receive address.</p>
-              <Button variant="primary" className="mt-3" disabled={provisioning} onClick={() => void handleProvision()}>
-                {provisioning ? "Creating…" : "Create wallet"}
+            {isGuide ? (
+              <Button variant="secondary" onClick={() => setPanel(panel === "withdraw" ? null : "withdraw")}>
+                Withdraw
               </Button>
-            </>
+            ) : (
+              <Button variant="secondary" onClick={() => router.push("/explore")}>
+                Book a tour
+              </Button>
+            )}
+          </div>
+
+          {panel === "fund" && (
+            <Card>
+              <h2 className="text-sm font-bold text-brand-blueDark">Fund wallet</h2>
+              {!wallet?.address ? (
+                <>
+                  <p className="mt-2 text-sm text-brand-muted">Create an in-app wallet to hold mUSDC from bookings.</p>
+                  <Button variant="primary" className="mt-3" disabled={provisioning} onClick={() => void handleProvision()}>
+                    {provisioning ? "Creating…" : "Create wallet"}
+                  </Button>
+                </>
+              ) : isGuide ? (
+                <p className="mt-2 text-sm text-brand-muted">
+                  Tour earnings and live-stream payouts credit this balance automatically. There is no manual top-up in this demo.
+                </p>
+              ) : (
+                <p className="mt-2 text-sm text-brand-muted">
+                  Bookings can debit this in-app balance. Connect MetaMask or Core below and use the faucet for test mUSDC.
+                </p>
+              )}
+            </Card>
+          )}
+
+          {panel === "withdraw" && isGuide && (
+            <Card>
+              <h2 className="text-sm font-bold text-brand-blueDark">Withdraw to M-Pesa</h2>
+              <p className="mt-1 text-sm text-brand-muted">
+                Uses the phone number on your guide profile. Simulated M-Pesa in this demo.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="form-input-light w-28 text-sm"
+                  placeholder="USDC"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                />
+                <Button variant="accent" disabled={withdrawing || !wallet?.balanceUsdc} onClick={() => void handleWithdraw()}>
+                  {withdrawing ? "Sending…" : "Withdraw"}
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Quick actions</p>
+            <div className="mt-3 grid grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => setPanel(panel === "send" ? null : "send")}
+                className="rounded-card border border-brand-border bg-white p-4 text-center shadow-card"
+              >
+                <p className="text-sm font-semibold text-brand-blueDark">Send</p>
+              </button>
+              <Link
+                href={payHref}
+                className="rounded-card border border-brand-border bg-white p-4 text-center shadow-card"
+              >
+                <p className="text-sm font-semibold text-brand-blueDark">Pay</p>
+              </Link>
+              <button
+                type="button"
+                onClick={() => setPanel(panel === "receive" ? null : "receive")}
+                className="rounded-card border border-brand-border bg-white p-4 text-center shadow-card"
+              >
+                <p className="text-sm font-semibold text-brand-blueDark">Receive</p>
+              </button>
+            </div>
+          </div>
+
+          {panel === "send" && (
+            <Card>
+              <p className="text-sm text-brand-muted">
+                Custodial transfers between Guidemate wallets are coming in this demo. Use Pay to book a tour, or Withdraw
+                (guides) to send earnings to M-Pesa.
+              </p>
+            </Card>
+          )}
+
+          {panel === "receive" && (
+            <Card className="flex flex-col items-center text-center">
+              {wallet?.address ? (
+                <>
+                  <QRCodeSVG value={wallet.address} size={168} />
+                  <p className="mt-3 font-mono text-xs text-brand-muted">{wallet.address}</p>
+                  <p className="mt-2 text-sm text-brand-muted">Show this in-app address to receive mUSDC on Fuji.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-brand-muted">Create a wallet first to get a receive address.</p>
+                  <Button variant="primary" className="mt-3" disabled={provisioning} onClick={() => void handleProvision()}>
+                    {provisioning ? "Creating…" : "Create wallet"}
+                  </Button>
+                </>
+              )}
+            </Card>
+          )}
+
+          {isTourist && (
+            <Card>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-bold text-brand-blueDark">Connected wallet</h2>
+                  <p className="mt-1 text-sm text-brand-muted">
+                    MetaMask or Core on Avalanche Fuji. AVAX for gas, mUSDC for bookings.
+                  </p>
+                </div>
+                <WalletConnectButton />
+              </div>
+            </Card>
+          )}
+
+          {message && <p className="text-sm text-brand-success">{message}</p>}
+          {error && <p className="text-sm text-red-600">{error}</p>}
+        </div>
+
+        <Card>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-brand-muted">Recent activity</h2>
+          {loading ? (
+            <p className="mt-3 text-sm text-brand-muted">Loading…</p>
+          ) : !wallet?.transactions.length ? (
+            <p className="mt-3 text-sm text-brand-muted">No transactions yet.</p>
+          ) : (
+            <ul className="mt-3 divide-y divide-brand-border">
+              {wallet.transactions.map((tx) => (
+                <li key={tx.id} className="flex items-center justify-between gap-3 py-3">
+                  <div>
+                    <p className="text-sm font-semibold capitalize text-brand-blueDark">{tx.type.replace(/_/g, " ")}</p>
+                    <p className="text-xs text-brand-muted">{new Date(tx.createdAt).toLocaleString()}</p>
+                    {tx.txHash && (
+                      <a
+                        href={`${SNOWTRACE_TX_BASE}/${tx.txHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-semibold text-brand-accent hover:underline"
+                      >
+                        View on Snowtrace
+                      </a>
+                    )}
+                  </div>
+                  {hideAmounts ? (
+                    <span className="text-sm text-brand-muted">••••</span>
+                  ) : (
+                    <Price amountUsdc={tx.amountUsdc} size="sm" />
+                  )}
+                </li>
+              ))}
+            </ul>
           )}
         </Card>
-      )}
-
-      {isTourist && (
-        <Card>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-bold text-brand-blueDark">Connected wallet</h2>
-              <p className="mt-1 text-sm text-brand-muted">
-                MetaMask or Core on Avalanche Fuji. AVAX for gas, mUSDC for bookings.
-              </p>
-            </div>
-            <WalletConnectButton />
-          </div>
-        </Card>
-      )}
-
-      {message && <p className="text-sm text-brand-success">{message}</p>}
-      {error && <p className="text-sm text-red-600">{error}</p>}
-
-      <Card>
-        <h2 className="text-sm font-bold uppercase tracking-wide text-brand-muted">Recent activity</h2>
-        {loading ? (
-          <p className="mt-3 text-sm text-brand-muted">Loading…</p>
-        ) : !wallet?.transactions.length ? (
-          <p className="mt-3 text-sm text-brand-muted">No transactions yet.</p>
-        ) : (
-          <ul className="mt-3 divide-y divide-brand-border">
-            {wallet.transactions.map((tx) => (
-              <li key={tx.id} className="flex items-center justify-between gap-3 py-3">
-                <div>
-                  <p className="text-sm font-semibold capitalize text-brand-blueDark">{tx.type.replace(/_/g, " ")}</p>
-                  <p className="text-xs text-brand-muted">{new Date(tx.createdAt).toLocaleString()}</p>
-                  {tx.txHash && (
-                    <a
-                      href={`${SNOWTRACE_TX_BASE}/${tx.txHash}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs font-semibold text-brand-accent hover:underline"
-                    >
-                      View on Snowtrace
-                    </a>
-                  )}
-                </div>
-                {hideAmounts ? (
-                  <span className="text-sm text-brand-muted">••••</span>
-                ) : (
-                  <Price amountUsdc={tx.amountUsdc} size="sm" />
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+      </div>
     </div>
   );
 }

@@ -94,11 +94,11 @@ export default function ChatInboxPage() {
         </Card>
       )}
 
-      <div className="flex flex-col gap-3">
+      <div className="flex w-full flex-col gap-3">
         {bookings.map((booking) => (
-          <Link key={booking.bookingId} href={`/chat/${booking.bookingId}`}>
+          <Link key={booking.bookingId} href={`/chat/${booking.bookingId}`} className="block w-full">
             <Card className="transition hover:border-brand-accent/40">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-3 md:flex md:items-center md:justify-between">
                 <div>
                   <p className="font-semibold text-brand-blueDark">
                     {chatPartnerName(booking, session.user.id)}

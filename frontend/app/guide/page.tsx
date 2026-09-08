@@ -86,21 +86,10 @@ export default function GuideActiveTourPage() {
   );
 
   return (
-    <div className="flex flex-col items-center gap-6">
+    <div className="flex flex-col gap-6">
       <MobilePageBanner eyebrow="Tour" title="Your active tour" />
-      <div className="hidden w-full max-w-sm justify-center gap-2 md:flex">
-        <Link href="/guide" className="rounded-full bg-brand-blue px-4 py-1.5 text-xs font-semibold text-white">
-          Active tour
-        </Link>
-        <Link
-          href="/guide/dashboard"
-          className="rounded-full border border-brand-border px-4 py-1.5 text-xs font-semibold text-brand-muted hover:border-brand-accent hover:text-brand-accent"
-        >
-          Dashboard
-        </Link>
-      </div>
 
-      <div className="flex w-full max-w-sm flex-col gap-4">
+      <div className="flex w-full flex-col gap-4">
         <p className="text-center text-sm text-brand-muted">
           When the tourist taps <span className="font-semibold text-brand-blueDark">End trip</span>, type their 6-digit
           PIN here or scan their QR.
@@ -125,46 +114,50 @@ export default function GuideActiveTourPage() {
 
         {locked.map((booking) => (
           <Card key={booking.bookingId}>
-            <div className="flex flex-col items-center gap-4 text-center">
-              <Chip tone={booking.status} />
-              <TouristDetails booking={booking} />
-              <p className="font-semibold text-brand-blueDark">{booking.experienceTitle ?? "Experience"}</p>
-              {booking.request && <p className="text-sm text-brand-muted">{booking.request}</p>}
-              <Price amountUsdc={booking.amountUsdc} />
+            <div className="grid gap-6 md:grid-cols-2 md:items-start">
+              <div className="flex flex-col items-center gap-4 text-center md:items-start md:text-left">
+                <Chip tone={booking.status} />
+                <TouristDetails booking={booking} />
+                <p className="font-semibold text-brand-blueDark">{booking.experienceTitle ?? "Experience"}</p>
+                {booking.request && <p className="text-sm text-brand-muted">{booking.request}</p>}
+                <Price amountUsdc={booking.amountUsdc} />
 
-              <EndTripPinForm
-                bookingId={booking.bookingId}
-                accessToken={session.access_token}
-                onReleased={(updated) =>
-                  setBookings((prev) => prev.map((b) => (b.bookingId === updated.bookingId ? updated : b)))
-                }
-              />
+                <Link
+                  href={`/chat/${booking.bookingId}`}
+                  className="inline-flex w-full items-center justify-center rounded-full border border-brand-border bg-white px-4 py-2.5 text-sm font-semibold text-brand-blueDark transition hover:border-brand-accent/40 md:w-auto md:px-6"
+                >
+                  Message {booking.touristName ?? "tourist"}
+                </Link>
 
-              <Link
-                href={`/chat/${booking.bookingId}`}
-                className="inline-flex w-full items-center justify-center rounded-full border border-brand-border bg-white px-4 py-2.5 text-sm font-semibold text-brand-blueDark transition hover:border-brand-accent/40"
-              >
-                Message {booking.touristName ?? "tourist"}
-              </Link>
+                <div className="w-full border-t border-brand-border pt-4">
+                  {Date.now() - new Date(booking.createdAt).getTime() >= NO_SHOW_GRACE_PERIOD_MS ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void handleReportNoShow(booking)}
+                        disabled={reportingId === booking.bookingId}
+                        className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-50"
+                      >
+                        {reportingId === booking.bookingId ? "Reporting..." : "Tourist didn't show up"}
+                      </button>
+                      {noShowError && <p className="mt-1 text-xs text-red-600">{noShowError}</p>}
+                    </>
+                  ) : (
+                    <p className="text-xs text-brand-muted">
+                      &quot;Tourist didn&apos;t show up&quot; unlocks 30 minutes after booking.
+                    </p>
+                  )}
+                </div>
+              </div>
 
-              <div className="w-full border-t border-brand-border pt-4">
-                {Date.now() - new Date(booking.createdAt).getTime() >= NO_SHOW_GRACE_PERIOD_MS ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => void handleReportNoShow(booking)}
-                      disabled={reportingId === booking.bookingId}
-                      className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-50"
-                    >
-                      {reportingId === booking.bookingId ? "Reporting..." : "Tourist didn't show up"}
-                    </button>
-                    {noShowError && <p className="mt-1 text-xs text-red-600">{noShowError}</p>}
-                  </>
-                ) : (
-                  <p className="text-xs text-brand-muted">
-                    &quot;Tourist didn&apos;t show up&quot; unlocks 30 minutes after booking.
-                  </p>
-                )}
+              <div className="md:sticky md:top-24">
+                <EndTripPinForm
+                  bookingId={booking.bookingId}
+                  accessToken={session.access_token}
+                  onReleased={(updated) =>
+                    setBookings((prev) => prev.map((b) => (b.bookingId === updated.bookingId ? updated : b)))
+                  }
+                />
               </div>
             </div>
           </Card>

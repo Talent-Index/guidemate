@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormField, FormShell } from "@/components/ui/FormShell";
 import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { createClient } from "@/lib/supabase/client";
 import { homeForRole, type AccountRole } from "@/lib/auth/home";
 import { provisionWallet } from "@/lib/api";
@@ -85,9 +86,6 @@ export default function SignInPage() {
             <a href="/apply" className="font-semibold text-brand-accent underline">
               Apply here
             </a>
-            <br />
-            Admin? Use this same form. Your profile must have role{" "}
-            <span className="text-[var(--gm-ink)]">admin</span> — there is no separate admin password.
           </>
         }
       >
@@ -96,13 +94,7 @@ export default function SignInPage() {
             <input required type="email" className="form-input-light" value={email} onChange={(e) => setEmail(e.target.value)} />
           </FormField>
           <FormField label="Password *">
-            <input
-              required
-              type="password"
-              className="form-input-light"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required />
           </FormField>
 
           {error && <p className="mb-4 text-sm text-red-600">{error}</p>}

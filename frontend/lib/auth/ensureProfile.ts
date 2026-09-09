@@ -47,10 +47,3 @@ export async function ensureTouristProfile(
   localStorage.removeItem("guidemate_pending_profile_google");
   return profile;
 }
-
-export function isInviteCallback(): boolean {
-  if (typeof window === "undefined") return false;
-  const hash = new URLSearchParams(window.location.hash.slice(1));
-  const query = new URLSearchParams(window.location.search);
-  return hash.get("type") === "invite" || query.get("type") === "invite";
-}

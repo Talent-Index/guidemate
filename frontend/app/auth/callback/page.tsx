@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { homeForRole, type AccountRole } from "@/lib/auth/home";
-import { ensureTouristProfile, isInviteCallback } from "@/lib/auth/ensureProfile";
+import { ensureTouristProfile } from "@/lib/auth/ensureProfile";
+import {
+  completeAuthCallback,
+  inferInviteFlowFromProfile,
+} from "@/lib/auth/callbackSession";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 export default function AuthCallbackPage() {
@@ -15,17 +19,23 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     (async () => {
       const supabase = createClient();
-      const { data, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !data.session) {
-        setError(sessionError?.message ?? "Could not complete sign-in");
+      const { session, flow, error: callbackError, hadCallbackParams } = await completeAuthCallback(supabase);
+
+      if (callbackError || !session) {
+        setError(callbackError ?? "Could not complete sign-in");
         return;
       }
 
-      const user = data.session.user;
+      const user = session.user;
       const email = user.email ?? "";
       const meta = user.user_metadata as Record<string, unknown> | undefined;
 
-      if (isInviteCallback()) {
+      const needsPasswordSetup =
+        flow === "invite" ||
+        flow === "recovery" ||
+        (hadCallbackParams && (await inferInviteFlowFromProfile(supabase, user.id)));
+
+      if (needsPasswordSetup) {
         await refreshProfile();
         router.replace("/auth/set-password");
         return;

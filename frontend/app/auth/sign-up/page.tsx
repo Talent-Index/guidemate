@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormField, FormShell } from "@/components/ui/FormShell";
 import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { createClient } from "@/lib/supabase/client";
 import { homeForRole } from "@/lib/auth/home";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -152,11 +153,9 @@ export default function SignUpPage() {
             />
           </FormField>
           <FormField label="Password *">
-            <input
+            <PasswordInput
               required
-              type="password"
               minLength={6}
-              className="form-input-light"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 6 characters"

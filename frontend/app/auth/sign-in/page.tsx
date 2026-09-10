@@ -14,6 +14,13 @@ import { ensureTouristProfile } from "@/lib/auth/ensureProfile";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/components/ui/Toast";
 
+function friendlySignInError(message: string): string {
+  if (message.toLowerCase().includes("invalid login credentials")) {
+    return "Invalid email or password. If you usually sign in with Google, tap Continue with Google below.";
+  }
+  return message;
+}
+
 function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -51,14 +58,18 @@ function SignInForm() {
     const supabase = createClient();
 
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const trimmedEmail = email.trim();
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password,
+      });
       if (signInError) throw signInError;
 
       const userId = data.user.id;
       const profile = await ensureTouristProfile(
         supabase,
         userId,
-        email,
+        trimmedEmail,
         data.user.user_metadata as Record<string, unknown>
       );
       if (profile?.role === "guide") {
@@ -69,7 +80,7 @@ function SignInForm() {
       const returnTo = consumeAuthReturnTo();
       router.replace(returnTo ?? homeForRole((profile?.role ?? "tourist") as AccountRole));
     } catch (err) {
-      const message = (err as Error).message;
+      const message = friendlySignInError((err as Error).message);
       setError(message);
       toast(message, "error");
     } finally {
@@ -102,6 +113,11 @@ function SignInForm() {
           </FormField>
           <FormField label="Password *">
             <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <div className="mt-2 text-right">
+              <a href="/auth/forgot-password" className="text-xs font-semibold text-brand-accent hover:underline">
+                Forgot password?
+              </a>
+            </div>
           </FormField>
 
           {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
@@ -121,6 +137,9 @@ function SignInForm() {
           </div>
 
           <GoogleSignInButton onClick={handleGoogleSignIn} disabled={loading} loading={loading} />
+          <p className="mt-3 text-center text-xs text-brand-muted">
+            Signed in with Google before? Use Continue with Google — no password needed.
+          </p>
         </form>
       </FormShell>
     </SignedInRedirect>

@@ -18,7 +18,7 @@ import {
   type WalletSummary,
   SNOWTRACE_TX_BASE,
 } from "@/lib/api";
-import { Price } from "@/lib/fx";
+import { Price, useCurrency } from "@/lib/fx";
 
 function shorten(address: string) {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
@@ -27,6 +27,7 @@ function shorten(address: string) {
 export default function WalletPage() {
   const router = useRouter();
   const { loading: authLoading, session, profile, user } = useAuth();
+  const { formatFiat } = useCurrency();
   const [wallet, setWallet] = useState<WalletSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [hideAmounts, setHideAmounts] = useState(false);
@@ -151,8 +152,10 @@ export default function WalletPage() {
               <p className="mt-2 text-3xl font-bold tracking-widest">••••</p>
             ) : (
               <div className="mt-2">
-                <p className="text-3xl font-bold">{wallet?.balanceUsdc ?? 0} USDC</p>
-                <p className="mt-1 text-sm text-white/70">≈ KES {(wallet?.balanceKes ?? 0).toLocaleString()}</p>
+                <p className="text-3xl font-bold">
+                  {formatFiat(wallet?.balanceUsdc ?? 0, "KES") ?? `KES ${(wallet?.balanceKes ?? 0).toLocaleString()}`}
+                </p>
+                <p className="mt-1 text-sm text-white/70">{wallet?.balanceUsdc ?? 0} USDC</p>
               </div>
             )}
           </div>

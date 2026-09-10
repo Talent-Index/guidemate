@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ExperiencePhotoGallery } from "@/components/experience/ExperiencePhotoGallery";
 import { ExperienceBookingPanel } from "@/components/experience/ExperienceBookingPanel";
+import { GuestCountModal } from "@/components/experience/GuestCountModal";
 import { ExperienceThingsToKnow } from "@/components/experience/ExperienceThingsToKnow";
 import { ExperienceMetaList } from "@/components/experience/ExperienceMetaList";
 import { ExperienceWhatYoullDo } from "@/components/experience/ExperienceWhatYoullDo";
@@ -80,6 +81,7 @@ function osmEmbedSrc(lat: number, lng: number) {
 
 export default function ExperienceDetailPage() {
   const params = useParams<{ experienceId: string }>();
+  const router = useRouter();
   const { session } = useAuth();
   const [experience, setExperience] = useState<ExperienceDetail | null>(null);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
@@ -89,6 +91,20 @@ export default function ExperienceDetailPage() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [messageOpen, setMessageOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<ExperienceSlot | null>(null);
+  const [guestModalOpen, setGuestModalOpen] = useState(false);
+  const [slotRefreshKey, setSlotRefreshKey] = useState(0);
+
+  function handleGuestConfirm(adults: number, children: number) {
+    if (!experience || !selectedSlot) return;
+    setGuestModalOpen(false);
+    setSlotRefreshKey((k) => k + 1);
+    const params = new URLSearchParams({
+      slot: selectedSlot.id,
+      adults: String(adults),
+      children: String(children),
+    });
+    router.push(`/book/${experience.id}?${params.toString()}`);
+  }
 
   useEffect(() => {
     (async () => {
@@ -297,6 +313,8 @@ export default function ExperienceDetailPage() {
                 experienceId={experience.id}
                 selectedSlot={selectedSlot}
                 onSelectSlot={setSelectedSlot}
+                onReserve={() => setGuestModalOpen(true)}
+                slotRefreshKey={slotRefreshKey}
                 compact
               />
             </div>
@@ -320,6 +338,8 @@ export default function ExperienceDetailPage() {
             experienceId={experience.id}
             selectedSlot={selectedSlot}
             onSelectSlot={setSelectedSlot}
+            onReserve={() => setGuestModalOpen(true)}
+            slotRefreshKey={slotRefreshKey}
           />
         </aside>
       </div>
@@ -340,9 +360,9 @@ export default function ExperienceDetailPage() {
             <p className="text-xs text-brand-muted">/ guest · free cancellation</p>
           </div>
           {selectedSlot ? (
-            <Link href={`/book/${experience.id}?slot=${selectedSlot.id}`}>
-              <Button variant="accent" className="rounded-xl px-6">Reserve</Button>
-            </Link>
+            <Button variant="accent" className="rounded-xl px-6" onClick={() => setGuestModalOpen(true)}>
+              Reserve
+            </Button>
           ) : (
             <a href="#experience-times-mobile">
               <Button variant="accent" className="rounded-xl px-6">Show dates</Button>
@@ -363,6 +383,16 @@ export default function ExperienceDetailPage() {
             signedIn={Boolean(session)}
           />
         </>
+      )}
+
+      {selectedSlot && (
+        <GuestCountModal
+          open={guestModalOpen}
+          onClose={() => setGuestModalOpen(false)}
+          priceUsdc={experience.price_usdc}
+          maxGuests={selectedSlot.max_guests}
+          onConfirm={handleGuestConfirm}
+        />
       )}
     </div>
   );

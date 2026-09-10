@@ -31,6 +31,14 @@ completeRouter.post("/", async (req, res) => {
       return res.status(400).json({ error: "invalid or tampered QR token" });
     }
     bookingId = verified.bookingId;
+    const userId = await getUserIdFromAuthHeader(req.headers.authorization);
+    if (!userId) {
+      return res.status(401).json({ error: "sign in required" });
+    }
+    const preview = await getBooking(bookingId);
+    if (preview && preview.guideId !== userId) {
+      return res.status(403).json({ error: "only the assigned guide can verify this QR" });
+    }
   } else {
     const userId = await getUserIdFromAuthHeader(req.headers.authorization);
     if (!userId) {

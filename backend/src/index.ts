@@ -13,7 +13,7 @@ import { streamsRouter } from "./routes/streams.js";
 import { walletRouter } from "./routes/wallet.js";
 import { adminRouter } from "./routes/admin.js";
 import { fxRouter } from "./routes/fx.js";
-import { paymentsRouter, kotaniWebhookHandler } from "./routes/payments.js";
+import { paymentsRouter, kotaniWebhookHandler, minisendWebhookHandler } from "./routes/payments.js";
 import { chatRouter } from "./routes/chat.js";
 import { applicationsRouter } from "./routes/applications.js";
 
@@ -45,11 +45,16 @@ app.use(
   })
 );
 
-// Kotani webhooks must verify HMAC against the raw request body before JSON parsing.
+// Ramp webhooks must verify HMAC against the raw request body before JSON parsing.
 app.post(
   "/api/payments/mpesa/webhook",
   express.raw({ type: "application/json" }),
   kotaniWebhookHandler
+);
+app.post(
+  "/api/payments/minisend/webhook",
+  express.raw({ type: "application/json" }),
+  minisendWebhookHandler
 );
 
 // Guide applications include base64-encoded CV/proof attachments.

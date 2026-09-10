@@ -45,7 +45,7 @@ export function EndTripPanel({ bookingId, accessToken }: { bookingId: string; ac
     <div className="mt-3 rounded-lg border border-brand-border bg-brand-bg p-4">
       <p className="text-sm font-semibold text-brand-blueDark">End trip</p>
       <p className="mt-1 text-xs text-brand-muted">
-        Show the PIN or QR to your guide. They release payment from the Guidemate app (Tour → Scan tourist QR).
+        Show the PIN or QR to your guide. They release payment after signing in as the assigned guide.
       </p>
 
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
@@ -61,7 +61,10 @@ export function EndTripPanel({ bookingId, accessToken }: { bookingId: string; ac
           <div className="bg-[#ffffff] p-3">
             <QRCodeSVG value={getCompletionQrValue(qrToken)} size={160} />
           </div>
-          <p className="text-xs text-brand-muted">Guide scans this inside Guidemate — not with the phone camera app</p>
+          <p className="text-xs text-brand-muted">
+            Your guide can scan this with their phone camera (production) or inside Guidemate. They must sign in as
+            the assigned guide before payment is released.
+          </p>
         </div>
       )}
 

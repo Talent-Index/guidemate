@@ -31,12 +31,16 @@ export default function AuthCallbackPage() {
       const email = user.email ?? "";
       const meta = user.user_metadata as Record<string, unknown> | undefined;
 
-      const needsPasswordSetup =
-        flow === "invite" ||
-        flow === "recovery" ||
-        (hadCallbackParams && (await inferInviteFlowFromProfile(supabase, user.id)));
+      if (flow === "recovery") {
+        await refreshProfile();
+        router.replace("/auth/reset-password");
+        return;
+      }
 
-      if (needsPasswordSetup) {
+      const needsGuideInviteSetup =
+        flow === "invite" || (hadCallbackParams && (await inferInviteFlowFromProfile(supabase, user.id)));
+
+      if (needsGuideInviteSetup) {
         await refreshProfile();
         router.replace("/auth/set-password");
         return;

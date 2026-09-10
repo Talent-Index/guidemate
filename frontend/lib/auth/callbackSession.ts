@@ -59,12 +59,11 @@ export async function completeAuthCallback(supabase: SupabaseClient): Promise<Au
     };
   }
 
-  await supabase.auth.signOut({ scope: "local" });
-
+  // PKCE (Google OAuth, etc.) — exchange first. signOut would delete the code verifier.
   if (code) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
-      return { session: null, flow: explicitFlow ?? "invite", error: error.message, hadCallbackParams: true };
+      return { session: null, flow: explicitFlow ?? "oauth", error: error.message, hadCallbackParams: true };
     }
     clearAuthCallbackUrl();
     return {
@@ -74,6 +73,9 @@ export async function completeAuthCallback(supabase: SupabaseClient): Promise<Au
       hadCallbackParams: true,
     };
   }
+
+  // Hash-token flows (invite / recovery links) — clear stale local session first.
+  await supabase.auth.signOut({ scope: "local" });
 
   if (accessToken && refreshToken) {
     const { data, error } = await supabase.auth.setSession({

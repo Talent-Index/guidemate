@@ -171,15 +171,8 @@ export function NavBar() {
               )}
               {isSuperAdmin(profile.role) && (
                 <>
-                  <PillLink href="/admin" active={pathname === "/admin"} icon={<AnalyticsNavIcon active={pathname === "/admin"} />}>
-                    Analytics
-                  </PillLink>
-                  <PillLink
-                    href="/admin/applications"
-                    active={pathname.startsWith("/admin/applications")}
-                    icon={<DashboardNavIcon active={pathname.startsWith("/admin/applications")} />}
-                  >
-                    Applications
+                  <PillLink href="/admin" active={pathname.startsWith("/admin")} icon={<AnalyticsNavIcon active={pathname.startsWith("/admin")} />}>
+                    Dashboard
                   </PillLink>
                   <PillLink
                     href="/admin/settings"

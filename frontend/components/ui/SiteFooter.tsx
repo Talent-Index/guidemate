@@ -40,6 +40,18 @@ export function SiteFooter() {
           </SocialLink>
         </div>
       </div>
+      <div className="border-t border-[var(--gm-border)] px-4 py-4 text-center text-sm text-[var(--gm-muted)]">
+        An{" "}
+        <a
+          href="https://mundeimmaculate.vercel.app"
+          target="_blank"
+          rel="noreferrer"
+          className="font-semibold text-[var(--gm-ink)] underline decoration-brand-accent/40 underline-offset-2 transition hover:text-brand-accent"
+        >
+          Immaculate
+        </a>
+        &apos;s production
+      </div>
     </footer>
   );
 }

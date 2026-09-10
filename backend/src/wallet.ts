@@ -3,7 +3,9 @@ import { Contract, formatUnits, parseUnits, Wallet } from "ethers";
 import mockUsdcAbi from "./abi/MockUSDC.json" with { type: "json" };
 import { provider, requireChain } from "./chain.js";
 import { listWalletTransactions, recordWalletTransaction } from "./ledger.js";
-import { getRampProvider, isSimulatedRamp } from "./ramp/index.js";
+import { MinisendRampProvider } from "./ramp/minisend.js";
+import { getRampProvider, isKotaniRamp, isMinisendRamp, isSimulatedRamp } from "./ramp/index.js";
+import { sendUsdcOnBase } from "./treasuryBase.js";
 import { usdcToKes } from "./fx.js";
 import { supabaseAdmin } from "./supabase.js";
 
@@ -105,22 +107,25 @@ export async function getWalletSummary(profileId: string) {
 export async function withdrawToMpesa(
   profileId: string,
   amountUsdc: number,
-  phone: string
+  phone: string,
+  opts?: { bookingId?: string }
 ): Promise<{ withdrawalId: string; reference: string; kesAmount: number; pending?: true }> {
   if (amountUsdc <= 0) throw new Error("amount must be positive");
   const balance = await getWalletBalance(profileId);
   if (amountUsdc > balance) throw new Error("insufficient wallet balance");
 
   const ramp = getRampProvider();
-  const quote = await ramp.getQuote(amountUsdc, "off");
-  const kesAmount = quote.kes;
-
-  const address = await getWalletAddress(profileId);
   const { data: profile } = await supabaseAdmin
     .from("profiles")
     .select("full_name")
     .eq("id", profileId)
     .maybeSingle();
+  const accountName = (profile?.full_name as string) ?? "Guide";
+
+  const quote = await ramp.getQuote(amountUsdc, "off", { phone, accountName });
+  const kesAmount = quote.kes;
+
+  const address = await getWalletAddress(profileId);
 
   const { data: withdrawal, error: insertError } = await supabaseAdmin
     .from("withdrawal_requests")
@@ -140,13 +145,31 @@ export async function withdrawToMpesa(
     phone,
     amountUsdc,
     kesAmount,
-    accountName: (profile?.full_name as string) ?? "Guide",
+    accountName,
     senderAddress: address ?? undefined,
+    bookingId: opts?.bookingId,
   });
 
   if (offRamp.escrowAddress && !isSimulatedRamp()) {
-    const txHash = await signUsdcTransfer(profileId, offRamp.escrowAddress, amountUsdc);
-    await supabaseAdmin.from("withdrawal_requests").update({ tx_hash: txHash }).eq("id", withdrawal.id);
+    let txHash: string;
+
+    if (isMinisendRamp()) {
+      const { signer } = requireChain();
+      const sweepTx = await signUsdcTransfer(profileId, await signer.getAddress(), amountUsdc);
+      const depositAmount = offRamp.depositAmountUsdc ?? amountUsdc;
+      txHash = await sendUsdcOnBase(offRamp.escrowAddress, depositAmount);
+      if (offRamp.orderId && ramp instanceof MinisendRampProvider) {
+        await ramp.submitOfframpDeposit(offRamp.orderId, txHash);
+      }
+      await supabaseAdmin
+        .from("withdrawal_requests")
+        .update({ tx_hash: txHash, ramp_ref: offRamp.orderId ?? offRamp.reference })
+        .eq("id", withdrawal.id);
+      console.log(`[wallet] minisend off-ramp: swept Fuji ${sweepTx}, sent Base ${txHash}`);
+    } else if (isKotaniRamp()) {
+      txHash = await signUsdcTransfer(profileId, offRamp.escrowAddress, amountUsdc);
+      await supabaseAdmin.from("withdrawal_requests").update({ tx_hash: txHash }).eq("id", withdrawal.id);
+    }
   }
 
   if (isSimulatedRamp() || !offRamp.async) {

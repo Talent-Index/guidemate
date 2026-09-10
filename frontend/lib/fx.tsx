@@ -8,9 +8,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getFxRates, type FxSnapshot } from "@/lib/api";
 
 const STORAGE_KEY = "guidemate-display-currency";
+const FX_POLL_MS = 60_000;
+const FALLBACK_KES = Number(process.env.NEXT_PUBLIC_USDC_TO_KES_RATE ?? 145);
 
 export const FEATURED_CURRENCIES = [
   "KES",
@@ -33,11 +36,22 @@ interface CurrencyContextValue {
   setCurrency: (code: string) => void;
   rates: Record<string, number>;
   asOf: string | null;
+  source: string | null;
+  isLive: boolean;
   convert: (amountUsdc: number, code?: string) => number | null;
   formatFiat: (amountUsdc: number, code?: string) => string | null;
 }
 
 const CurrencyContext = createContext<CurrencyContextValue | null>(null);
+
+function fallbackSnapshot(): FxSnapshot {
+  return {
+    base: "USDC",
+    rates: { USDC: 1, USD: 1, KES: FALLBACK_KES },
+    asOf: new Date().toISOString(),
+    source: "fallback",
+  };
+}
 
 function guessCurrency(): string {
   const locale = typeof navigator !== "undefined" ? navigator.language : "en-KE";
@@ -76,35 +90,31 @@ function formatMoney(amount: number, currency: string): string {
   }
 }
 
+async function fetchFxSnapshot(): Promise<FxSnapshot> {
+  try {
+    return await getFxRates();
+  } catch {
+    return fallbackSnapshot();
+  }
+}
+
 export function CurrencyProvider({ children }: { children: ReactNode }) {
   const [currency, setCurrencyState] = useState("KES");
-  const [snapshot, setSnapshot] = useState<FxSnapshot | null>(null);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     setCurrencyState(stored && stored.length === 3 ? stored.toUpperCase() : guessCurrency());
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    getFxRates()
-      .then((data) => {
-        if (!cancelled) setSnapshot(data);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setSnapshot({
-            base: "USDC",
-            rates: { USDC: 1, USD: 1 },
-            asOf: new Date().toISOString(),
-            source: "unavailable",
-          });
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { data: snapshot = fallbackSnapshot() } = useQuery({
+    queryKey: ["fx-rates"],
+    queryFn: fetchFxSnapshot,
+    refetchInterval: FX_POLL_MS,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+    staleTime: 30_000,
+    initialData: () => fallbackSnapshot(),
+  });
 
   function setCurrency(code: string) {
     const next = code.toUpperCase();
@@ -113,18 +123,21 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   }
 
   const value = useMemo<CurrencyContextValue>(() => {
-    const rates = snapshot?.rates ?? { USDC: 1 };
+    const rates = snapshot.rates;
     const convert = (amountUsdc: number, code = currency) => {
       if (code === "USDC") return amountUsdc;
       const rate = rates[code];
       if (!rate) return null;
       return amountUsdc * rate;
     };
+    const isLive = snapshot.source !== "fallback" && snapshot.source !== "unavailable";
     return {
       currency,
       setCurrency,
       rates,
-      asOf: snapshot?.asOf ?? null,
+      asOf: snapshot.asOf ?? null,
+      source: snapshot.source ?? null,
+      isLive,
       convert,
       formatFiat: (amountUsdc, code = currency) => {
         if (code === "USDC") return `${amountUsdc} USDC`;
@@ -149,25 +162,39 @@ export function Price({
   className = "",
   size = "md",
   align = "end",
+  showLiveHint = false,
 }: {
   amountUsdc: number;
   className?: string;
   size?: "sm" | "md" | "lg";
   align?: "start" | "end";
+  showLiveHint?: boolean;
 }) {
-  const { currency, formatFiat } = useCurrency();
-  const fiat = currency === "USDC" ? null : formatFiat(amountUsdc);
-  const usdcClass =
+  const { formatFiat, isLive } = useCurrency();
+  const kes = formatFiat(amountUsdc, "KES");
+  const primaryClass =
     size === "lg"
       ? "text-xl font-bold text-brand-blueDark"
       : size === "sm"
         ? "text-sm font-semibold text-brand-blueDark"
         : "text-lg font-bold text-brand-blueDark";
+  const secondaryClass = "whitespace-nowrap text-xs text-brand-muted";
 
   return (
     <span className={`inline-flex flex-col ${align === "end" ? "items-end" : "items-start"} ${className}`}>
-      <span className={`whitespace-nowrap ${usdcClass}`}>{amountUsdc} USDC</span>
-      {fiat && <span className="whitespace-nowrap text-xs text-brand-muted">≈ {fiat}</span>}
+      {kes ? (
+        <>
+          <span className={`whitespace-nowrap ${primaryClass}`}>{kes}</span>
+          <span className={secondaryClass}>
+            {amountUsdc} USDC
+            {showLiveHint && isLive && <span className="ml-1 text-[10px] uppercase tracking-wide">· live</span>}
+          </span>
+        </>
+      ) : (
+        <>
+          <span className={`whitespace-nowrap ${primaryClass}`}>{amountUsdc} USDC</span>
+        </>
+      )}
     </span>
   );
 }

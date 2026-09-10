@@ -17,6 +17,8 @@ export interface OffRampRequest {
   kesAmount: number;
   accountName?: string;
   senderAddress?: string;
+  /** When set, Minisend external_reference becomes booking-{id} for auto-payout webhooks */
+  bookingId?: string;
 }
 
 export interface RampQuote {
@@ -37,10 +39,17 @@ export interface OffRampResult {
   reference: string;
   escrowAddress?: string;
   async: boolean;
+  orderId?: string;
+  depositAmountUsdc?: number;
+}
+
+export interface RampQuoteOptions {
+  phone?: string;
+  accountName?: string;
 }
 
 export interface RampProvider {
   createOnRamp(req: OnRampRequest): Promise<OnRampResult>;
   createOffRamp(req: OffRampRequest): Promise<OffRampResult>;
-  getQuote(usdc: number, direction: "on" | "off"): Promise<RampQuote>;
+  getQuote(usdc: number, direction: "on" | "off", opts?: RampQuoteOptions): Promise<RampQuote>;
 }

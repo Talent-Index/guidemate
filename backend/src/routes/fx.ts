@@ -6,6 +6,7 @@ export const fxRouter = Router();
 fxRouter.get("/", async (_req, res) => {
   try {
     const snapshot = await getFxRates();
+    res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=120");
     res.json(snapshot);
   } catch (err) {
     console.error("[fx] route failed", err);

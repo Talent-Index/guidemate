@@ -4,6 +4,7 @@ import {
   buildReportCsv,
   getAdminTransactions,
   getAnalyticsOverview,
+  getGuidePerformance,
   getSignupsTimeseries,
 } from "../analytics.js";
 import { getAdminUserIdFromAuthHeader, getAnalyticsUserIdFromAuthHeader, supabaseAdmin } from "../supabase.js";
@@ -34,6 +35,18 @@ adminRouter.get("/analytics/overview", async (req, res) => {
     const to = req.query.to as string | undefined;
     const overview = await getAnalyticsOverview(from, to);
     res.json({ overview });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+adminRouter.get("/analytics/guides", async (req, res) => {
+  const userId = await getAnalyticsUserIdFromAuthHeader(req.headers.authorization);
+  if (!userId) return res.status(403).json({ error: "analytics access required" });
+
+  try {
+    const guides = await getGuidePerformance();
+    res.json({ guides });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

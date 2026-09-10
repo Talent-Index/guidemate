@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Price } from "@/lib/fx";
 import { ExperienceSlotPicker } from "@/components/experience/ExperienceSlotPicker";
@@ -12,15 +11,17 @@ export function ExperienceBookingPanel({
   compact,
   selectedSlot,
   onSelectSlot,
+  onReserve,
+  slotRefreshKey = 0,
 }: {
   priceUsdc: number;
   experienceId: string;
   compact?: boolean;
   selectedSlot: ExperienceSlot | null;
   onSelectSlot: (slot: ExperienceSlot) => void;
+  onReserve: () => void;
+  slotRefreshKey?: number;
 }) {
-  const bookHref = selectedSlot ? `/book/${experienceId}?slot=${selectedSlot.id}` : undefined;
-
   return (
     <div
       className={`rounded-2xl border border-brand-border bg-[var(--gm-surface)] p-6 shadow-card ${
@@ -34,12 +35,10 @@ export function ExperienceBookingPanel({
       </div>
       <p className="mt-1 text-xs font-semibold text-brand-accent">Free cancellation within 24 hours</p>
 
-      {bookHref ? (
-        <Link href={bookHref} className="mt-5 block">
-          <Button variant="accent" className="w-full rounded-xl py-3.5 text-base font-bold">
-            Reserve
-          </Button>
-        </Link>
+      {selectedSlot ? (
+        <Button variant="accent" className="mt-5 w-full rounded-xl py-3.5 text-base font-bold" onClick={onReserve}>
+          Reserve
+        </Button>
       ) : (
         <p className="mt-5 text-center text-sm font-medium text-brand-muted">Select a time below</p>
       )}
@@ -51,6 +50,7 @@ export function ExperienceBookingPanel({
           onSelect={onSelectSlot}
           compact
           variant="sidebar"
+          refreshKey={slotRefreshKey}
         />
       </div>
 

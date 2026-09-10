@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getExperienceById } from "../experiences.js";
 import { bookingIdToBytes32, requireChain } from "../chain.js";
 import { saveBooking } from "../bookings.js";
-import { reserveSlot } from "../slots.js";
+import { reserveSlot, releaseSlot } from "../slots.js";
 import { ensureConversation } from "../chat.js";
 import { recordWalletTransaction } from "../ledger.js";
 import { getCompletedPaymentIntent } from "./payments.js";
@@ -25,6 +25,8 @@ const bookSchema = z.object({
   txHash: z.string().optional(),
   slotId: z.string().uuid().optional(),
   guests: z.number().int().min(1).max(20).optional().default(1),
+  adults: z.number().int().min(0).max(20).optional(),
+  children: z.number().int().min(0).max(20).optional(),
 });
 
 bookRouter.post("/", async (req, res) => {
@@ -33,8 +35,15 @@ bookRouter.post("/", async (req, res) => {
     return res.status(400).json({ error: parsed.error.flatten() });
   }
 
-  const { request, experienceId, matchReason, hotelName, hotelWallet, paymentMethod, paymentIntentId, slotId, guests } =
+  const { request, experienceId, matchReason, hotelName, hotelWallet, paymentMethod, paymentIntentId, slotId, guests: guestsParam, adults: adultsParam, children: childrenParam } =
     parsed.data;
+
+  const adults = adultsParam != null ? adultsParam : (guestsParam ?? 1);
+  const children = childrenParam ?? 0;
+  const guests = adults + children;
+  if (guests < 1) {
+    return res.status(400).json({ error: "At least one guest is required" });
+  }
 
   const experience = await getExperienceById(experienceId);
   if (!experience) {
@@ -44,6 +53,7 @@ bookRouter.post("/", async (req, res) => {
     return res.status(422).json({ error: "this guide has not set a payout wallet address yet" });
   }
 
+  let slotReserved = false;
   try {
     const { signer, escrow, usdc } = requireChain();
     const touristId = await getUserIdFromAuthHeader(req.headers.authorization);
@@ -65,11 +75,13 @@ bookRouter.post("/", async (req, res) => {
       return res.status(400).json({ error: "slotId required: choose an available time before booking" });
     }
     await reserveSlot(slotId, experienceId, guests);
+    slotReserved = true;
 
     const bookingId = randomUUID();
     const bytes32Id = bookingIdToBytes32(bookingId);
     const decimals = await usdc.decimals();
-    const amountUnits = parseUnits(experience.priceUsdc.toString(), decimals);
+    const totalUsdc = Math.round(experience.priceUsdc * guests * 100) / 100;
+    const amountUnits = parseUnits(totalUsdc.toString(), decimals);
     const resolvedHotelWallet = hotelWallet ?? (await escrow.protocolTreasury());
 
     if (paymentMethod === "demo" || paymentMethod === "mpesa" || paymentMethod === "custodial") {
@@ -95,18 +107,21 @@ bookRouter.post("/", async (req, res) => {
       hotelWallet: hotelWallet ?? null,
       request,
       matchReason,
-      amountUsdc: experience.priceUsdc,
+      amountUsdc: totalUsdc,
       lockTxHash: receipt?.hash ?? lockTx.hash,
       paymentMethod,
       paymentRef: paymentIntentId ?? undefined,
       slotId,
+      guestCount: guests,
+      adults,
+      children,
     });
 
     if (touristId) {
       await recordWalletTransaction({
         profileId: touristId,
         type: "escrow_lock",
-        amountUsdc: -experience.priceUsdc,
+        amountUsdc: -totalUsdc,
         referenceType: "booking",
         referenceId: bookingId,
         txHash: receipt?.hash ?? lockTx.hash,
@@ -120,6 +135,11 @@ bookRouter.post("/", async (req, res) => {
       qrToken: signBookingToken(bookingId),
     });
   } catch (err) {
+    if (slotReserved && slotId) {
+      await releaseSlot(slotId).catch((releaseErr) => {
+        console.error("[book] failed to release slot after error", releaseErr);
+      });
+    }
     console.error("[book] failed", err);
     res.status(500).json({ error: (err as Error).message ?? "booking failed" });
   }

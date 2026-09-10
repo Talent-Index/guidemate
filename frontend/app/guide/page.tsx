@@ -277,7 +277,7 @@ function EndTripPinForm({
     setSubmitting(true);
     setError(null);
     try {
-      const { booking } = await completeBooking(extractToken(raw));
+      const { booking } = await completeBooking(extractToken(raw), accessToken);
       await scannerRef.current?.stop();
       setScanning(false);
       toast("Payment released to your wallet", "success");

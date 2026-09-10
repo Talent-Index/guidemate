@@ -9,6 +9,7 @@ import {
   completeAuthCallback,
   inferInviteFlowFromProfile,
 } from "@/lib/auth/callbackSession";
+import { consumeAuthReturnTo } from "@/lib/auth/returnTo";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 export default function AuthCallbackPage() {
@@ -43,7 +44,8 @@ export default function AuthCallbackPage() {
 
       const profile = await ensureTouristProfile(supabase, user.id, email, meta);
       await refreshProfile();
-      router.replace(homeForRole((profile?.role ?? "tourist") as AccountRole));
+      const returnTo = consumeAuthReturnTo();
+      router.replace(returnTo ?? homeForRole((profile?.role ?? "tourist") as AccountRole));
     })();
   }, [router, refreshProfile]);
 

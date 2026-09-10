@@ -10,6 +10,7 @@ import { StarRating } from "@/components/ui/StarRating";
 import { WalletConnectButton } from "@/components/WalletConnectButton";
 import { BookingConfirmation } from "@/components/BookingConfirmation";
 import { ExperienceSlotPicker } from "@/components/experience/ExperienceSlotPicker";
+import { GuestCountModal } from "@/components/experience/GuestCountModal";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -61,7 +62,12 @@ export default function BookExperiencePage() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [selectedSlot, setSelectedSlot] = useState<ExperienceSlot | null>(null);
-  const [guests, setGuests] = useState(1);
+  const [adults, setAdults] = useState(2);
+  const [children, setChildren] = useState(0);
+  const [guestModalOpen, setGuestModalOpen] = useState(false);
+  const [slotRefreshKey, setSlotRefreshKey] = useState(0);
+
+  const guests = adults + children;
 
   const [booking, setBooking] = useState<BookingRecord | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
@@ -105,6 +111,13 @@ export default function BookExperiencePage() {
     })();
   }, [slotParam]);
 
+  useEffect(() => {
+    const adultsParam = searchParams.get("adults");
+    const childrenParam = searchParams.get("children");
+    if (adultsParam) setAdults(Math.max(1, Number(adultsParam) || 1));
+    if (childrenParam) setChildren(Math.max(0, Number(childrenParam) || 0));
+  }, [searchParams]);
+
   async function handleConfirm() {
     if (!experience || !session || !selectedSlot) return;
     setBookingError(null);
@@ -137,10 +150,14 @@ export default function BookExperiencePage() {
           paymentIntentId,
           slotId: selectedSlot.id,
           guests,
+          adults,
+          children,
         },
         session.access_token
       );
       setBooking(created);
+      setSlotRefreshKey((k) => k + 1);
+      setSelectedSlot(null);
       toast(
         paymentMethod === "mpesa" ? "M-Pesa payment received. Booking confirmed." : "Booking confirmed",
         "success"
@@ -219,6 +236,7 @@ export default function BookExperiencePage() {
                 experienceId={experience.id}
                 selectedSlotId={selectedSlot?.id}
                 onSelect={setSelectedSlot}
+                refreshKey={slotRefreshKey}
               />
             </div>
           </section>
@@ -327,20 +345,18 @@ export default function BookExperiencePage() {
                   <div className="flex items-center justify-between border-b border-brand-border pb-4">
                     <div>
                       <p className="font-semibold text-brand-blueDark">Guests</p>
-                      <p className="text-brand-muted">{guests} guest{guests !== 1 ? "s" : ""}</p>
+                      <p className="text-brand-muted">
+                        {adults} adult{adults !== 1 ? "s" : ""}
+                        {children > 0 ? ` · ${children} child${children !== 1 ? "ren" : ""}` : ""}
+                      </p>
                     </div>
-                    <select
-                      className="rounded-lg border border-brand-border bg-white px-2 py-1 text-sm"
-                      value={guests}
-                      onChange={(e) => setGuests(Number(e.target.value))}
-                      aria-label="Number of guests"
+                    <button
+                      type="button"
+                      onClick={() => setGuestModalOpen(true)}
+                      className="text-sm font-semibold text-brand-accent hover:underline"
                     >
-                      {Array.from({ length: Math.min(10, selectedSlot.max_guests - selectedSlot.booked_guests) }, (_, i) => i + 1).map(
-                        (n) => (
-                          <option key={n} value={n}>{n}</option>
-                        )
-                      )}
-                    </select>
+                      Edit
+                    </button>
                   </div>
                 </>
               ) : (
@@ -367,6 +383,22 @@ export default function BookExperiencePage() {
           </Card>
         </aside>
       </div>
+
+      {selectedSlot && (
+        <GuestCountModal
+          open={guestModalOpen}
+          onClose={() => setGuestModalOpen(false)}
+          priceUsdc={experience.price_usdc}
+          maxGuests={selectedSlot.max_guests}
+          initialAdults={adults}
+          initialChildren={children}
+          onConfirm={(nextAdults, nextChildren) => {
+            setAdults(nextAdults);
+            setChildren(nextChildren);
+            setGuestModalOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

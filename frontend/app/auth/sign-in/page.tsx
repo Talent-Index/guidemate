@@ -1,26 +1,32 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FormField, FormShell } from "@/components/ui/FormShell";
 import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { createClient } from "@/lib/supabase/client";
 import { homeForRole, type AccountRole } from "@/lib/auth/home";
+import { consumeAuthReturnTo, storeAuthReturnTo } from "@/lib/auth/returnTo";
 import { provisionWallet } from "@/lib/api";
 import { ensureTouristProfile } from "@/lib/auth/ensureProfile";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/components/ui/Toast";
 
-export default function SignInPage() {
+function SignInForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { refreshProfile } = useAuth();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    storeAuthReturnTo(searchParams.get("returnTo"));
+  }, [searchParams]);
 
   async function handleGoogleSignIn() {
     setError(null);
@@ -60,7 +66,8 @@ export default function SignInPage() {
       }
       await refreshProfile();
       toast("Signed in successfully", "success");
-      router.replace(homeForRole((profile?.role ?? "tourist") as AccountRole));
+      const returnTo = consumeAuthReturnTo();
+      router.replace(returnTo ?? homeForRole((profile?.role ?? "tourist") as AccountRole));
     } catch (err) {
       const message = (err as Error).message;
       setError(message);
@@ -117,5 +124,13 @@ export default function SignInPage() {
         </form>
       </FormShell>
     </SignedInRedirect>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<p className="p-8 text-center text-sm text-brand-muted">Loading…</p>}>
+      <SignInForm />
+    </Suspense>
   );
 }

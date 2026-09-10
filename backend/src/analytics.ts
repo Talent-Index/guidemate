@@ -221,3 +221,101 @@ export async function buildReportCsv(from?: string, to?: string): Promise<string
   }
   return lines.join("\n");
 }
+
+export interface GuidePerformanceRow {
+  guideId: string;
+  guideName: string;
+  totalGuests: number;
+  completedTours: number;
+  activeBookings: number;
+  grossVolumeUsdc: number;
+  guideEarningsUsdc: number;
+  platformRevenueUsdc: number;
+  platformSharePct: number;
+  ratingAvg: number;
+  ratingCount: number;
+}
+
+export async function getGuidePerformance(): Promise<GuidePerformanceRow[]> {
+  const [{ data: guides }, { data: bookings }] = await Promise.all([
+    supabaseAdmin
+      .from("profiles")
+      .select("id, full_name, rating_avg, rating_count")
+      .eq("role", "guide")
+      .order("full_name", { ascending: true }),
+    supabaseAdmin
+      .from("bookings")
+      .select("guide_id, status, amount_usdc, guide_split, protocol_split, hotel_split, guest_count"),
+  ]);
+
+  const byGuide = new Map<
+    string,
+    {
+      totalGuests: number;
+      completedTours: number;
+      activeBookings: number;
+      grossVolumeUsdc: number;
+      guideEarningsUsdc: number;
+      platformRevenueUsdc: number;
+    }
+  >();
+
+  for (const row of bookings ?? []) {
+    const guideId = row.guide_id as string;
+    if (!guideId) continue;
+    const agg = byGuide.get(guideId) ?? {
+      totalGuests: 0,
+      completedTours: 0,
+      activeBookings: 0,
+      grossVolumeUsdc: 0,
+      guideEarningsUsdc: 0,
+      platformRevenueUsdc: 0,
+    };
+    const status = row.status as string;
+    const guests = Number(row.guest_count ?? 1);
+    const amount = Number(row.amount_usdc ?? 0);
+    const guideSplit = Number(row.guide_split ?? 0);
+    const platformSplit = Number(row.protocol_split ?? 0) + Number(row.hotel_split ?? 0);
+
+    if (status === "paid" || status === "released") {
+      agg.totalGuests += guests;
+      if (status === "paid") agg.completedTours += 1;
+      agg.grossVolumeUsdc += amount;
+      agg.guideEarningsUsdc += guideSplit > 0 ? guideSplit : amount * 0.85;
+      agg.platformRevenueUsdc += platformSplit > 0 ? platformSplit : amount * 0.15;
+    } else if (status === "locked") {
+      agg.activeBookings += 1;
+      agg.totalGuests += guests;
+    }
+
+    byGuide.set(guideId, agg);
+  }
+
+  return (guides ?? []).map((guide) => {
+    const agg = byGuide.get(guide.id as string) ?? {
+      totalGuests: 0,
+      completedTours: 0,
+      activeBookings: 0,
+      grossVolumeUsdc: 0,
+      guideEarningsUsdc: 0,
+      platformRevenueUsdc: 0,
+    };
+    const totalEarned = agg.guideEarningsUsdc + agg.platformRevenueUsdc;
+    const platformSharePct =
+      totalEarned > 0 ? Math.round((agg.platformRevenueUsdc / totalEarned) * 1000) / 10 : 15;
+
+    return {
+      guideId: guide.id as string,
+      guideName: (guide.full_name as string) ?? "Guide",
+      totalGuests: agg.totalGuests,
+      completedTours: agg.completedTours,
+      activeBookings: agg.activeBookings,
+      grossVolumeUsdc: Math.round(agg.grossVolumeUsdc * 100) / 100,
+      guideEarningsUsdc: Math.round(agg.guideEarningsUsdc * 100) / 100,
+      platformRevenueUsdc: Math.round(agg.platformRevenueUsdc * 100) / 100,
+      platformSharePct,
+      ratingAvg: Math.round(Number(guide.rating_avg ?? 0) * 10) / 10,
+      ratingCount: Number(guide.rating_count ?? 0),
+    };
+  });
+}

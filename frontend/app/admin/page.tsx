@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { AnalyticsGate } from "@/components/auth/AdminGate";
 import { AdminIntakePanel } from "@/components/admin/AdminIntakePanel";
+import { AdminGuidePerformancePanel } from "@/components/admin/AdminGuidePerformancePanel";
 import { BarChart } from "@/components/admin/BarChart";
 import { DonutChart } from "@/components/admin/DonutChart";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -160,6 +161,8 @@ export default function AdminDashboardPage() {
         )}
 
         {superAdmin && <AdminIntakePanel onChanged={() => setRefreshKey((k) => k + 1)} />}
+
+        <AdminGuidePerformancePanel />
 
         <Card>
           <h2 className="text-lg font-bold text-brand-blueDark">Recent transactions</h2>

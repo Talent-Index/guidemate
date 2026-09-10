@@ -5,6 +5,7 @@ import { bookingIdToBytes32, escrowForLockTx, requireChain } from "../chain.js";
 import { getBooking, updateBooking, type BookingRecord } from "../bookings.js";
 import { verifyBookingToken, verifyCompletionPin } from "../qr.js";
 import { recordWalletTransaction } from "../ledger.js";
+import { autoPayoutOnRelease } from "../payout.js";
 import { getUserIdFromAuthHeader } from "../supabase.js";
 
 export const completeRouter = Router();
@@ -124,9 +125,15 @@ async function releaseAndCredit(booking: BookingRecord): Promise<BookingRecord> 
     metadata: { splits },
   });
 
-  const updated = await updateBooking(booking.bookingId, { status: "paid" });
+  let updated = await updateBooking(booking.bookingId, { status: "paid" });
   if (!updated) {
     throw new Error("booking update failed after release");
   }
+
+  const payout = await autoPayoutOnRelease(updated, splits.guideAmount);
+  if (payout) {
+    updated = (await getBooking(booking.bookingId)) ?? updated;
+  }
+
   return updated;
 }

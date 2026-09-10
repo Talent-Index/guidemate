@@ -17,6 +17,9 @@ export interface AnalyticsOverview {
   streamTipsUsdc: number;
   waitlistCount: number;
   pendingApplications: number;
+  applicationsApproved: number;
+  applicationsRejected: number;
+  applicationsTotal: number;
 }
 
 export async function getAnalyticsOverview(from?: string, to?: string): Promise<AnalyticsOverview> {
@@ -40,13 +43,23 @@ export async function getAnalyticsOverview(from?: string, to?: string): Promise<
     0
   );
 
-  const [{ count: streamsTotal }, { count: streamsLive }, { count: waitlistCount }, { count: pendingApplications }] =
-    await Promise.all([
-      supabaseAdmin.from("live_streams").select("*", { count: "exact", head: true }),
-      supabaseAdmin.from("live_streams").select("*", { count: "exact", head: true }).eq("status", "live"),
-      supabaseAdmin.from("waitlist").select("*", { count: "exact", head: true }),
-      supabaseAdmin.from("guide_applications").select("*", { count: "exact", head: true }).eq("status", "pending"),
-    ]);
+  const [
+    { count: streamsTotal },
+    { count: streamsLive },
+    { count: waitlistCount },
+    { count: pendingApplications },
+    { count: applicationsApproved },
+    { count: applicationsRejected },
+    { count: applicationsTotal },
+  ] = await Promise.all([
+    supabaseAdmin.from("live_streams").select("*", { count: "exact", head: true }),
+    supabaseAdmin.from("live_streams").select("*", { count: "exact", head: true }).eq("status", "live"),
+    supabaseAdmin.from("waitlist").select("*", { count: "exact", head: true }),
+    supabaseAdmin.from("guide_applications").select("*", { count: "exact", head: true }).eq("status", "pending"),
+    supabaseAdmin.from("guide_applications").select("*", { count: "exact", head: true }).eq("status", "approved"),
+    supabaseAdmin.from("guide_applications").select("*", { count: "exact", head: true }).eq("status", "rejected"),
+    supabaseAdmin.from("guide_applications").select("*", { count: "exact", head: true }),
+  ]);
 
   const { data: tips } = await supabaseAdmin.from("stream_tips").select("amount_usdc");
   const streamTipsUsdc = (tips ?? []).reduce((s, t) => s + Number(t.amount_usdc ?? 0), 0);
@@ -67,6 +80,9 @@ export async function getAnalyticsOverview(from?: string, to?: string): Promise<
     streamTipsUsdc: Math.round(streamTipsUsdc * 100) / 100,
     waitlistCount: waitlistCount ?? 0,
     pendingApplications: pendingApplications ?? 0,
+    applicationsApproved: applicationsApproved ?? 0,
+    applicationsRejected: applicationsRejected ?? 0,
+    applicationsTotal: applicationsTotal ?? 0,
   };
 }
 
@@ -98,28 +114,96 @@ export async function getAdminTransactions(opts: {
   return listAllTransactions(opts);
 }
 
+function csvEscape(value: string | number | null | undefined): string {
+  const text = String(value ?? "");
+  if (text.includes(",") || text.includes('"') || text.includes("\n")) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
 export async function buildReportCsv(from?: string, to?: string): Promise<string> {
   const overview = await getAnalyticsOverview(from, to);
   const transactions = await listAllTransactions({ limit: 5000, from, to });
+  const [{ data: applications }, { data: waitlist }] = await Promise.all([
+    supabaseAdmin
+      .from("guide_applications")
+      .select("full_name, email, phone, location, status, created_at")
+      .order("created_at", { ascending: false }),
+    supabaseAdmin
+      .from("waitlist")
+      .select("full_name, email, interest, created_at")
+      .order("created_at", { ascending: false }),
+  ]);
+
   const lines: string[] = [
-    "Guidemate Analytics Report",
+    "Guidemate Platform Audit Report",
     `Generated,${new Date().toISOString()}`,
     `Period,${from ?? "all"} to ${to ?? "now"}`,
     "",
+    "=== USER BASE ===",
     "Metric,Value",
     `Guides,${overview.guides}`,
     `Tourists,${overview.tourists}`,
-    `Bookings Total,${overview.bookingsTotal}`,
-    `Bookings Locked,${overview.bookingsLocked}`,
-    `Bookings Paid,${overview.bookingsPaid}`,
-    `GMV USDC,${overview.gmvUsdc}`,
-    `Platform Revenue USDC,${overview.platformRevenueUsdc}`,
-    `Guide Earnings USDC,${overview.guideEarningsUsdc}`,
-    `Streams Total,${overview.streamsTotal}`,
-    `Stream Tips USDC,${overview.streamTipsUsdc}`,
+    `Admins,${overview.admins}`,
     "",
-    "Transaction ID,Profile ID,Type,Amount USDC,Amount KES,Status,Reference,Tx Hash,Created At",
+    "=== BOOKING CUSTODY ===",
+    "Status,Count",
+    `Locked (in escrow),${overview.bookingsLocked}`,
+    `Paid / released,${overview.bookingsPaid}`,
+    `Refunded,${overview.bookingsRefunded}`,
+    `Total bookings,${overview.bookingsTotal}`,
+    "",
+    "=== FINANCIALS (USDC) ===",
+    "Metric,Amount",
+    `Gross volume (GMV),${overview.gmvUsdc}`,
+    `Platform revenue,${overview.platformRevenueUsdc}`,
+    `Guide earnings,${overview.guideEarningsUsdc}`,
+    `Stream tips,${overview.streamTipsUsdc}`,
+    "",
+    "=== GUIDE INTAKE PIPELINE ===",
+    "Status,Count",
+    `Pending review,${overview.pendingApplications}`,
+    `Approved,${overview.applicationsApproved}`,
+    `Rejected,${overview.applicationsRejected}`,
+    `Total applications,${overview.applicationsTotal}`,
+    `Waitlist signups,${overview.waitlistCount}`,
+    "",
+    "=== LIVE STREAMS ===",
+    "Metric,Value",
+    `Total streams,${overview.streamsTotal}`,
+    `Currently live,${overview.streamsLive}`,
+    "",
+    "=== GUIDE APPLICATIONS (DETAIL) ===",
+    "Name,Email,Phone,Location,Status,Submitted At",
   ];
+
+  for (const app of applications ?? []) {
+    lines.push(
+      [
+        csvEscape(app.full_name),
+        csvEscape(app.email),
+        csvEscape(app.phone),
+        csvEscape(app.location),
+        csvEscape(app.status),
+        csvEscape(app.created_at),
+      ].join(",")
+    );
+  }
+
+  lines.push("", "=== WAITLIST (DETAIL) ===", "Name,Email,Interest,Joined At");
+  for (const row of waitlist ?? []) {
+    lines.push(
+      [
+        csvEscape(row.full_name),
+        csvEscape(row.email),
+        csvEscape(row.interest),
+        csvEscape(row.created_at),
+      ].join(",")
+    );
+  }
+
+  lines.push("", "=== TRANSACTIONS ===", "Transaction ID,Profile ID,Type,Amount USDC,Amount KES,Status,Reference,Tx Hash,Created At");
   for (const tx of transactions) {
     lines.push(
       [

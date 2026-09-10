@@ -1,4 +1,4 @@
-const CACHE_MS = 15 * 60 * 1000;
+const CACHE_MS = 2 * 60 * 1000;
 const FALLBACK_KES = Number(process.env.USDC_TO_KES_RATE ?? 145);
 
 export interface FxSnapshot {

@@ -2,7 +2,9 @@ import { randomUUID } from "node:crypto";
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { recordWalletTransaction } from "../ledger.js";
-import { getRampProvider, isSimulatedRamp } from "../ramp/index.js";
+import { MinisendRampProvider } from "../ramp/minisend.js";
+import { getRampProvider, isMinisendRamp, isSimulatedRamp } from "../ramp/index.js";
+import { handleMinisendWebhook } from "../ramp/minisendWebhook.js";
 import { handleKotaniWebhook } from "../ramp/webhook.js";
 import { usdcToKes } from "../fx.js";
 import { getUserIdFromAuthHeader, supabaseAdmin } from "../supabase.js";
@@ -125,6 +127,45 @@ paymentsRouter.get("/mpesa/:intentId", async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
   if (!data) return res.status(404).json({ error: "payment intent not found" });
 
+  if (data.status === "processing" && isMinisendRamp() && data.checkout_request_id) {
+    try {
+      const ramp = getRampProvider();
+      if (ramp instanceof MinisendRampProvider) {
+        const order = await ramp.getOnrampOrder(data.checkout_request_id as string);
+        if (order.status === "completed") {
+          const mpesaRef = order.receipt_number ?? data.checkout_request_id;
+          await supabaseAdmin
+            .from("payment_intents")
+            .update({
+              status: "completed",
+              mpesa_receipt: mpesaRef,
+              completed_at: new Date().toISOString(),
+            })
+            .eq("id", data.id);
+
+          await recordWalletTransaction({
+            profileId: userId,
+            type: "mpesa_onramp",
+            amountUsdc: Number(data.amount_usdc),
+            amountKes: Number(data.amount_kes),
+            referenceType: data.purpose,
+            referenceId: data.reference_id,
+            mpesaRef,
+            status: "completed",
+          });
+
+          data.status = "completed";
+          data.mpesa_receipt = mpesaRef;
+        } else if (order.status === "failed" || order.status === "expired") {
+          await supabaseAdmin.from("payment_intents").update({ status: "failed" }).eq("id", data.id);
+          data.status = "failed";
+        }
+      }
+    } catch (pollErr) {
+      console.warn("[payments] minisend poll failed", pollErr);
+    }
+  }
+
   res.json({
     intentId: data.id,
     status: data.status,
@@ -143,7 +184,19 @@ export async function kotaniWebhookHandler(req: Request, res: Response) {
     await handleKotaniWebhook(rawBody, signature);
     res.json({ ok: true });
   } catch (err) {
-    console.error("[payments] webhook failed", err);
+    console.error("[payments] kotani webhook failed", err);
+    res.status(400).json({ error: (err as Error).message });
+  }
+}
+
+export async function minisendWebhookHandler(req: Request, res: Response) {
+  try {
+    const rawBody = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : String(req.body ?? "");
+    const signature = req.headers["x-minisend-signature"] as string | undefined;
+    await handleMinisendWebhook(rawBody, signature);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[payments] minisend webhook failed", err);
     res.status(400).json({ error: (err as Error).message });
   }
 }

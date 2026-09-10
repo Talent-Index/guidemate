@@ -122,13 +122,7 @@ export function MobileTabBar() {
     if (profileTab) tabs.push(profileTab);
   } else if (isSuperAdmin(profile?.role)) {
     tabs = [
-      { href: "/admin", label: "Analytics", match: (p) => p === "/admin", icon: (a) => <AnalyticsNavIcon active={a} /> },
-      {
-        href: "/admin/applications",
-        label: "Applications",
-        match: (p) => p.startsWith("/admin/applications"),
-        icon: (a) => <DashboardNavIcon active={a} />,
-      },
+      { href: "/admin", label: "Dashboard", match: (p) => p.startsWith("/admin"), icon: (a) => <AnalyticsNavIcon active={a} /> },
       { href: "/live", label: "Livestream", match: (p) => p.startsWith("/live"), icon: (a) => <LiveNavIcon active={a} /> },
     ];
     if (profileTab) tabs.push(profileTab);

@@ -19,6 +19,7 @@ import {
   submitRating,
   type BookingRecord,
 } from "@/lib/api";
+import { Price } from "@/lib/fx";
 
 export default function TouristBookingsPage() {
   const { loading: authLoading, session, profile } = useAuth();
@@ -183,7 +184,9 @@ function TripCard({
             </div>
             <Chip tone={booking.status} />
           </div>
-          <p className="mt-3 text-lg font-bold text-brand-blueDark">{booking.amountUsdc} USDC</p>
+          <div className="mt-3">
+            <Price amountUsdc={booking.amountUsdc} size="md" align="start" />
+          </div>
           {booking.status === "paid" && <p className="mt-2 text-sm text-brand-success">Trip completed</p>}
           {booking.status === "refunded" && (
             <p className="mt-2 text-sm text-red-700">Cancelled or marked as a no-show</p>

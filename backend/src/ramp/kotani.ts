@@ -1,7 +1,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { requireChain } from "../chain.js";
-import type { OffRampRequest, OnRampRequest, RampProvider, RampQuote } from "./types.js";
+import type { OffRampRequest, OnRampRequest, RampProvider, RampQuote, RampQuoteOptions } from "./types.js";
 import { usdcToKes } from "../fx.js";
+import { normalizeKenyaPhone } from "./phone.js";
 
 interface KotaniEnvelope<T> {
   success: boolean;
@@ -35,13 +36,7 @@ function callbackUrl(path: string): string {
   return `${root}${path}`;
 }
 
-export function normalizeKenyaPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
-  if (digits.startsWith("254")) return digits;
-  if (digits.startsWith("0")) return `254${digits.slice(1)}`;
-  if (digits.startsWith("7")) return `254${digits}`;
-  return digits;
-}
+export { normalizeKenyaPhone } from "./phone.js";
 
 async function kotaniRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${baseUrl()}${path}`, {
@@ -82,7 +77,7 @@ function onrampReceiverAddress(): string {
 export class KotaniRampProvider implements RampProvider {
   readonly name = "kotani";
 
-  async getQuote(usdc: number, direction: "on" | "off"): Promise<RampQuote> {
+  async getQuote(usdc: number, direction: "on" | "off", _opts?: RampQuoteOptions): Promise<RampQuote> {
     try {
       if (direction === "on") {
         const kes = await usdcToKes(usdc);

@@ -1,4 +1,4 @@
-import type { OffRampRequest, OnRampRequest, RampProvider, RampQuote } from "./types.js";
+import type { OffRampRequest, OnRampRequest, RampProvider, RampQuote, RampQuoteOptions } from "./types.js";
 import { usdcToKes } from "../fx.js";
 
 function randomRef(): string {
@@ -23,7 +23,7 @@ export class SimulateRampProvider implements RampProvider {
     return { reference: randomRef(), async: false };
   }
 
-  async getQuote(usdc: number, _direction: "on" | "off"): Promise<RampQuote> {
+  async getQuote(usdc: number, _direction: "on" | "off", _opts?: RampQuoteOptions): Promise<RampQuote> {
     const kes = await usdcToKes(usdc);
     const fee = Math.round(kes * 0.015 * 100) / 100;
     return { kes, fee, rate: kes / usdc };

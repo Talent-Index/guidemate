@@ -43,6 +43,9 @@ export interface BookingRecord {
   request: string | null;
   matchReason: string | null;
   amountUsdc: number;
+  guestCount?: number;
+  adults?: number;
+  children?: number;
   status: BookingStatus;
   lockTxHash: string | null;
   releaseTxHash: string | null;
@@ -65,7 +68,7 @@ function normalizeExperienceImageUrls(experience: { image_urls?: string[] | null
 }
 
 const SELECT = `
-  id, tourist_id, guide_id, experience_id, request_text, match_reason, amount_usdc, status,
+  id, tourist_id, guide_id, experience_id, request_text, match_reason, amount_usdc, guest_count, adults, children, status,
   guide_wallet, hotel_name, hotel_wallet, lock_tx_hash, release_tx_hash, refund_tx_hash,
   guide_split, hotel_split, protocol_split, payout, refund, created_at,
   guide:guide_id ( full_name, phone ),
@@ -101,6 +104,9 @@ function toBookingRecord(
     request: row.request_text,
     matchReason: row.match_reason,
     amountUsdc: Number(row.amount_usdc),
+    guestCount: Number(row.guest_count ?? 1),
+    adults: Number(row.adults ?? row.guest_count ?? 1),
+    children: Number(row.children ?? 0),
     status: row.status,
     lockTxHash: row.lock_tx_hash,
     releaseTxHash: row.release_tx_hash,
@@ -197,6 +203,9 @@ export interface CreateBookingInput {
   paymentMethod?: string;
   paymentRef?: string;
   slotId?: string;
+  guestCount?: number;
+  adults?: number;
+  children?: number;
 }
 
 export async function saveBooking(input: CreateBookingInput): Promise<BookingRecord> {
@@ -218,6 +227,9 @@ export async function saveBooking(input: CreateBookingInput): Promise<BookingRec
       payment_method: input.paymentMethod ?? "demo",
       payment_ref: input.paymentRef ?? null,
       slot_id: input.slotId ?? null,
+      guest_count: input.guestCount ?? 1,
+      adults: input.adults ?? input.guestCount ?? 1,
+      children: input.children ?? 0,
     })
     .select(SELECT)
     .single();

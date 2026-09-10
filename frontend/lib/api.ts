@@ -640,6 +640,9 @@ export interface AnalyticsOverview {
   streamTipsUsdc: number;
   waitlistCount: number;
   pendingApplications: number;
+  applicationsApproved: number;
+  applicationsRejected: number;
+  applicationsTotal: number;
 }
 
 export function getAdminOverview(accessToken: string, from?: string, to?: string) {

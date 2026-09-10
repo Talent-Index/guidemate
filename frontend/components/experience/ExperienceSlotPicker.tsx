@@ -6,8 +6,18 @@ import {
   type ExperienceSlot,
   formatSlotDate,
   formatSlotTimeRange,
-  spotsLeft,
 } from "@/lib/slots";
+
+async function loadAvailableSlots(experienceId: string, compact?: boolean): Promise<ExperienceSlot[]> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("experience_slots")
+    .select("id, experience_id, guide_id, starts_at, ends_at, max_guests, booked_guests, is_cancelled")
+    .eq("experience_id", experienceId)
+    .order("starts_at", { ascending: true })
+    .limit(compact ? 4 : 12);
+  return (data as ExperienceSlot[]) ?? [];
+}
 
 export function ExperienceSlotPicker({
   experienceId,
@@ -15,34 +25,47 @@ export function ExperienceSlotPicker({
   onSelect,
   compact,
   variant = "default",
+  refreshKey = 0,
 }: {
   experienceId: string;
   selectedSlotId?: string | null;
   onSelect?: (slot: ExperienceSlot) => void;
   compact?: boolean;
   variant?: "default" | "sidebar";
+  refreshKey?: number;
 }) {
   const [slots, setSlots] = useState<ExperienceSlot[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("experience_slots")
-        .select("id, experience_id, guide_id, starts_at, ends_at, max_guests, booked_guests, is_cancelled")
-        .eq("experience_id", experienceId)
-        .order("starts_at", { ascending: true })
-        .limit(compact ? 4 : 12);
-
+    setLoading(true);
+    loadAvailableSlots(experienceId, compact).then((rows) => {
       if (!cancelled) {
-        setSlots((data as ExperienceSlot[]) ?? []);
+        setSlots(rows);
         setLoading(false);
       }
-    })();
+    });
     return () => {
       cancelled = true;
+    };
+  }, [experienceId, compact, refreshKey]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`experience-slots-${experienceId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "experience_slots", filter: `experience_id=eq.${experienceId}` },
+        () => {
+          void loadAvailableSlots(experienceId, compact).then(setSlots);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
     };
   }, [experienceId, compact]);
 
@@ -61,7 +84,6 @@ export function ExperienceSlotPicker({
   return (
     <ul className={`flex flex-col ${variant === "sidebar" ? "gap-3" : "gap-2"}`}>
       {slots.map((slot) => {
-        const left = spotsLeft(slot);
         const selected = selectedSlotId === slot.id;
         const itemClass =
           variant === "sidebar"
@@ -91,7 +113,7 @@ export function ExperienceSlotPicker({
                 <p className="text-brand-muted">{formatSlotTimeRange(slot.starts_at, slot.ends_at)}</p>
               </div>
               <span className="shrink-0 text-xs font-semibold text-[var(--gm-ink)]">
-                {left} {left === 1 ? "spot" : "spots"} available
+                Up to {slot.max_guests} guest{slot.max_guests === 1 ? "" : "s"}
               </span>
             </button>
           </li>

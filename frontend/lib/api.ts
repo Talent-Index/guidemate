@@ -81,6 +81,9 @@ export interface BookingRecord {
   request: string | null;
   matchReason: string | null;
   amountUsdc: number;
+  guestCount?: number;
+  adults?: number;
+  children?: number;
   status: BookingStatus;
   lockTxHash: string | null;
   releaseTxHash: string | null;
@@ -148,6 +151,8 @@ export function createBooking(
     txHash?: string;
     slotId?: string;
     guests?: number;
+    adults?: number;
+    children?: number;
   },
   accessToken?: string
 ) {
@@ -651,6 +656,26 @@ export function getAdminOverview(accessToken: string, from?: string, to?: string
   if (to) params.set("to", to);
   const qs = params.toString();
   return request<{ overview: AnalyticsOverview }>(`/api/admin/analytics/overview${qs ? `?${qs}` : ""}`, {
+    headers: authHeaders(accessToken),
+  });
+}
+
+export interface GuidePerformanceRow {
+  guideId: string;
+  guideName: string;
+  totalGuests: number;
+  completedTours: number;
+  activeBookings: number;
+  grossVolumeUsdc: number;
+  guideEarningsUsdc: number;
+  platformRevenueUsdc: number;
+  platformSharePct: number;
+  ratingAvg: number;
+  ratingCount: number;
+}
+
+export function getAdminGuidePerformance(accessToken: string) {
+  return request<{ guides: GuidePerformanceRow[] }>("/api/admin/analytics/guides", {
     headers: authHeaders(accessToken),
   });
 }

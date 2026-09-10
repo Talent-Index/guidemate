@@ -186,9 +186,10 @@ export function getCompletionCode(bookingId: string, accessToken?: string) {
 
 export const SNOWTRACE_TX_BASE = "https://testnet.snowtrace.io/tx";
 
-export function completeBooking(token: string) {
+export function completeBooking(token: string, accessToken: string) {
   return request<{ booking: BookingRecord }>("/api/complete", {
     method: "POST",
+    headers: authHeaders(accessToken),
     body: JSON.stringify({ token }),
   });
 }

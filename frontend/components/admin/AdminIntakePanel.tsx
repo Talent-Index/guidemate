@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { ListRowSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
-import { approveApplication } from "@/lib/api";
+import { approveApplication, resendGuideLoginEmail } from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
 
 type ApplicationStatus = "pending" | "approved" | "rejected";
 type AdminTab = "guides" | "waitlist";
@@ -39,6 +40,7 @@ interface ApplicationRow {
 
 export function AdminIntakePanel({ onChanged }: { onChanged?: () => void }) {
   const { session, profile } = useAuth();
+  const { toast } = useToast();
   const [tab, setTab] = useState<AdminTab>("guides");
   const [applications, setApplications] = useState<ApplicationRow[]>([]);
   const [waitlist, setWaitlist] = useState<WaitlistRow[]>([]);
@@ -128,9 +130,28 @@ export function AdminIntakePanel({ onChanged }: { onChanged?: () => void }) {
     setActingId(id);
     setError(null);
     try {
-      await approveApplication(id, session.access_token);
+      const result = await approveApplication(id, session.access_token);
+      const emailHint =
+        result.emailType === "magiclink"
+          ? "They already had an account — a sign-in link was emailed."
+          : "Invite email sent to set their password.";
+      toast(emailHint, "success");
       await loadApplications();
       onChanged?.();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setActingId(null);
+    }
+  }
+
+  async function handleResendLogin(id: string) {
+    if (!session) return;
+    setActingId(id);
+    setError(null);
+    try {
+      await resendGuideLoginEmail(id, session.access_token);
+      toast("Sign-in email sent again.", "success");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -334,6 +355,17 @@ export function AdminIntakePanel({ onChanged }: { onChanged?: () => void }) {
                 <Button variant="secondary" disabled={actingId === app.id} onClick={() => handleReject(app.id)}>
                   Reject
                 </Button>
+              </div>
+            )}
+
+            {app.status === "approved" && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button variant="secondary" disabled={actingId === app.id} onClick={() => handleResendLogin(app.id)}>
+                  {actingId === app.id ? "Sending..." : "Resend sign-in email"}
+                </Button>
+                <p className="self-center text-xs text-brand-muted">
+                  If they already had a Guidemate account, they can sign in with that password.
+                </p>
               </div>
             )}
           </div>

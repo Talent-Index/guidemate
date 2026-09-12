@@ -712,10 +712,23 @@ export async function downloadAdminReport(accessToken: string, from?: string, to
 }
 
 export function approveApplication(id: string, accessToken: string) {
-  return request<{ ok: true; userId: string; walletAddress: string }>(`/api/admin/applications/${id}/approve`, {
-    method: "POST",
-    headers: authHeaders(accessToken),
-  });
+  return request<{ ok: true; userId: string; walletAddress: string; emailType: "invite" | "magiclink" }>(
+    `/api/admin/applications/${id}/approve`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+    }
+  );
+}
+
+export function resendGuideLoginEmail(id: string, accessToken: string) {
+  return request<{ ok: true; emailType: "invite" | "magiclink" }>(
+    `/api/admin/applications/${id}/resend-login`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+    }
+  );
 }
 
 export interface StaffMember {

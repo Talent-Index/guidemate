@@ -103,7 +103,7 @@ export function isInviteCallback(): boolean {
   return hash.get("type") === "invite" || query.get("type") === "invite";
 }
 
-/// PKCE invite links may omit type=invite — approved guides still need password setup.
+/// PKCE invite links may omit type=invite — only prompt password setup once.
 export async function inferInviteFlowFromProfile(
   supabase: SupabaseClient,
   userId: string
@@ -113,5 +113,13 @@ export async function inferInviteFlowFromProfile(
     .select("role, is_vetted")
     .eq("id", userId)
     .maybeSingle();
-  return profile?.role === "guide" && Boolean(profile.is_vetted);
+  if (profile?.role !== "guide" || !profile.is_vetted) return false;
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user || user.id !== userId) return false;
+
+  const meta = user.user_metadata as Record<string, unknown> | undefined;
+  return meta?.guide_setup_complete !== true;
 }

@@ -15,6 +15,8 @@ import {
   type ExperienceDraftRow,
   patchExperienceDraft,
 } from "@/lib/experienceDraft";
+import { createClient } from "@/lib/supabase/client";
+import { nextAvailableSlug } from "@/lib/slug";
 import {
   canPublish,
   missingPublishPieces,
@@ -274,7 +276,19 @@ export function ExperienceWizard({
 
     setPublishing(true);
     try {
-      await saveDraft({ status: "published", is_active: true, wizard_step: 6 });
+      const extra: Partial<ExperienceDraftRow> = { status: "published", is_active: true, wizard_step: 6 };
+      if (!draft.slug) {
+        const supabase = createClient();
+        extra.slug = await nextAvailableSlug(
+          title,
+          async (candidate) => {
+            const { data } = await supabase.from("experiences").select("id").eq("slug", candidate).maybeSingle();
+            return Boolean(data && data.id !== draft.id);
+          },
+          "experience"
+        );
+      }
+      await saveDraft(extra);
       toast("Experience published", "success");
       router.push("/guide/dashboard");
     } catch {

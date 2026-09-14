@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { GuideAvatar } from "@/components/ui/GuideAvatar";
 import { StarRating } from "@/components/ui/StarRating";
+import { getGuideSharePath } from "@/lib/share";
 
 export function GuideAboutModal({
   open,
@@ -20,6 +21,7 @@ export function GuideAboutModal({
     languages: string[];
     rating_avg: number;
     rating_count: number;
+    slug?: string | null;
   };
 }) {
   if (!open) return null;
@@ -53,7 +55,7 @@ export function GuideAboutModal({
               guide.languages.length ? `. I speak ${guide.languages.join(", ")}` : ""
             }.`}
         </p>
-        <Link href={`/guides/${guide.id}`} className="mt-6 block">
+        <Link href={getGuideSharePath(guide.id, guide.slug)} className="mt-6 block">
           <Button variant="secondary" className="w-full">View full profile</Button>
         </Link>
         <p className="mt-4 text-center text-xs text-brand-muted">

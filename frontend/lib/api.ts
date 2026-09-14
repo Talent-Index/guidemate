@@ -119,7 +119,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export function friendlyPaymentError(message: string): string {
   const lower = message.toLowerCase();
   if (lower.includes("onramp") && lower.includes("not enabled")) {
-    return "M-Pesa is not available yet. Pay with a USDC wallet instead, or try again later.";
+    return "M-Pesa is not available yet. Pay with USDC / USDT instead, or try again later.";
   }
   return message;
 }
@@ -146,7 +146,7 @@ export function createBooking(
     matchReason: string;
     hotelName?: string;
     hotelWallet?: string;
-    paymentMethod?: "demo" | "mpesa" | "custodial" | "external";
+    paymentMethod?: "demo" | "mpesa" | "custodial" | "external" | "checkout";
     paymentIntentId?: string;
     txHash?: string;
     slotId?: string;
@@ -534,6 +534,49 @@ export function initiateMpesaPayment(
   });
 }
 
+export function initiateCheckoutPayment(
+  input: {
+    purpose: "booking" | "stream_ppv" | "stream_tip";
+    referenceId: string;
+    amountUsdc: number;
+    description?: string;
+    returnPath?: string;
+    customerEmail?: string;
+  },
+  accessToken: string
+) {
+  return request<{
+    intentId: string;
+    checkoutUrl: string | null;
+    amountUsdc: number;
+    amountKes: number;
+    status: "completed" | "processing" | "failed";
+    message?: string;
+  }>("/api/payments/checkout/initiate", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
+}
+
+export interface PaymentQuote {
+  amountUsdc: number;
+  kesDirect: number;
+  touristKes: number;
+  touristFeeKes: number;
+  guideShareUsdc: number;
+  guideNetKes: number;
+  guideFeeKes: number;
+  onRamp: { kes: number; fee: number; rate: number };
+  offRamp: { kes: number; fee: number; rate: number };
+}
+
+export function getPaymentQuote(amountUsdc: number, phone?: string) {
+  const params = new URLSearchParams({ amountUsdc: String(amountUsdc) });
+  if (phone) params.set("phone", phone);
+  return request<PaymentQuote>(`/api/payments/quote?${params.toString()}`);
+}
+
 export function getMpesaPaymentStatus(intentId: string, accessToken: string) {
   return request<{
     intentId: string;
@@ -560,11 +603,11 @@ export async function pollMpesaPayment(
       return { status: status.status, mpesaReceipt: status.mpesaReceipt };
     }
     if (status.status === "failed" || status.status === "cancelled") {
-      throw new Error("M-Pesa payment was not completed");
+      throw new Error("Payment was not completed");
     }
     await new Promise((r) => setTimeout(r, intervalMs));
   }
-  throw new Error("Timed out waiting for M-Pesa payment — check your phone and try again");
+  throw new Error("Timed out waiting for payment — check your phone or wallet and try again");
 }
 
 export interface ChatMessage {

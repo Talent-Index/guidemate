@@ -1,6 +1,6 @@
 import { SimulateRampProvider } from "./simulate.js";
 import { KotaniRampProvider } from "./kotani.js";
-import { MinisendRampProvider } from "./minisend.js";
+import { MinisendRampProvider, assertMinisendConfig } from "./minisend.js";
 import type { RampProvider } from "./types.js";
 
 let provider: RampProvider | null = null;
@@ -13,6 +13,7 @@ export function getRampProvider(): RampProvider {
   if (!provider) {
     const name = getRampProviderName();
     if (name === "minisend") {
+      assertMinisendConfig();
       provider = new MinisendRampProvider();
     } else if (name === "kotani") {
       provider = new KotaniRampProvider();

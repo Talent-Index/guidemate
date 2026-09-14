@@ -82,7 +82,7 @@ function osmEmbedSrc(lat: number, lng: number) {
   return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - d}%2C${lat - d}%2C${lng + d}%2C${lat + d}&layer=mapnik&marker=${lat}%2C${lng}`;
 }
 
-export function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
+function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const { session } = useAuth();

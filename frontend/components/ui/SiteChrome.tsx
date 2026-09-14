@@ -6,13 +6,12 @@ import { CookieToast } from "@/components/ui/CookieToast";
 import { MobileTabBar } from "@/components/ui/MobileTabBar";
 import { NavBar } from "@/components/ui/NavBar";
 import { SiteFooter } from "@/components/ui/SiteFooter";
-import { FirstRunTour } from "@/components/onboarding/FirstRunTour";
 
 export function SiteChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isHome = pathname === "/";
   const isChatThread = pathname.startsWith("/chat/") && pathname !== "/chat";
-const isLiveRoom = /^\/live\/[^/]+$/.test(pathname);
+  const isLiveRoom = /^\/live\/[^/]+$/.test(pathname);
   const hideTabs = isHome || pathname.startsWith("/auth/") || isChatThread || isLiveRoom;
 
   return (
@@ -33,7 +32,6 @@ const isLiveRoom = /^\/live\/[^/]+$/.test(pathname);
       </main>
       {isHome && <SiteFooter />}
       {!hideTabs && <MobileTabBar />}
-      <FirstRunTour />
       <CookieToast />
     </div>
   );

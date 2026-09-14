@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { getGuideSharePath } from "@/lib/share";
 
 export function MessageGuideModal({
   open,
@@ -10,6 +11,7 @@ export function MessageGuideModal({
   guideName,
   experienceTitle,
   guideId,
+  guideSlug,
   signedIn,
 }: {
   open: boolean;
@@ -17,6 +19,7 @@ export function MessageGuideModal({
   guideName: string;
   experienceTitle: string;
   guideId: string;
+  guideSlug?: string | null;
   signedIn: boolean;
 }) {
   const [message, setMessage] = useState("");
@@ -48,7 +51,7 @@ export function MessageGuideModal({
         />
         <p className="mt-1 text-xs text-brand-muted">{message.length}/20 characters</p>
         {signedIn ? (
-          <Link href={`/guides/${guideId}`} className="mt-4 block">
+          <Link href={getGuideSharePath(guideId, guideSlug)} className="mt-4 block">
             <Button variant="accent" className="w-full" disabled={message.length < 20}>
               View guide & book to message
             </Button>

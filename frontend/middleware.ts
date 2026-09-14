@@ -4,6 +4,12 @@ import { NextResponse, type NextRequest } from "next/server";
 /// Refreshes the Supabase auth session cookie on every request so server
 /// components always see an up-to-date session.
 export async function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname === "/auth/callback" && request.nextUrl.searchParams.has("code")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/confirm";
+    return NextResponse.redirect(url);
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

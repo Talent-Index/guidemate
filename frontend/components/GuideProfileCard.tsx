@@ -10,12 +10,15 @@ import { createClient } from "@/lib/supabase/client";
 import { provisionWallet } from "@/lib/api";
 import { uploadGuideAvatar } from "@/lib/uploads";
 import { useToast } from "@/components/ui/Toast";
+import { PayoutDestinationPicker } from "@/components/guide/PayoutDestinationPicker";
+import type { PayoutDestination } from "@/lib/payoutDestination";
 
 export function GuideProfileCard() {
   const { session, profile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [payoutDestination, setPayoutDestination] = useState<PayoutDestination>("mpesa");
   const [bio, setBio] = useState("");
   const [languages, setLanguages] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -30,6 +33,7 @@ export function GuideProfileCard() {
     if (!profile) return;
     setFullName(profile.fullName ?? "");
     setPhone(profile.phone ?? "");
+    setPayoutDestination(profile.payoutDestination ?? "mpesa");
     setBio(profile.bio ?? "");
     setLanguages(profile.languages.join(", "));
     setAvatarUrl(profile.avatarUrl);
@@ -71,6 +75,7 @@ export function GuideProfileCard() {
         .update({
           full_name: fullName,
           phone,
+          payout_destination: payoutDestination,
           bio,
           languages: languages
             .split(",")
@@ -138,6 +143,14 @@ export function GuideProfileCard() {
             required
           />
         </Field>
+        <div className="sm:col-span-2">
+          <PayoutDestinationPicker
+            value={payoutDestination}
+            onChange={(next) => {
+              if (next === "mpesa" || next === "wallet") setPayoutDestination(next);
+            }}
+          />
+        </div>
         <Field label="Languages (comma separated)">
           <input
             className="form-input-light"

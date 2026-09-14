@@ -2,6 +2,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000"
 
 export interface ExperienceGuide {
   id: string;
+  slug: string | null;
   fullName: string;
   phone: string | null;
   walletAddress: string | null;
@@ -14,6 +15,7 @@ export interface ExperienceGuide {
 
 export interface Experience {
   id: string;
+  slug: string | null;
   title: string;
   description: string;
   tags: string[];
@@ -257,6 +259,7 @@ export interface GuidePublicReview {
 
 export interface GuidePublicExperience {
   id: string;
+  slug: string | null;
   title: string;
   description: string;
   tags: string[];
@@ -269,6 +272,7 @@ export interface GuidePublicExperience {
 
 export interface GuidePublicProfile {
   id: string;
+  slug: string | null;
   fullName: string;
   bio: string | null;
   avatarUrl: string | null;

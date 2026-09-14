@@ -26,7 +26,7 @@ export default function EditExperiencePage() {
       const { data, error } = await supabase
         .from("experiences")
         .select(
-          "id, guide_id, title, description, tags, category, price_usdc, duration_minutes, location, image_url, image_urls, itinerary, is_active, status, wizard_step, meeting_lat, meeting_lng, meeting_label, created_at"
+          "id, guide_id, title, description, tags, category, price_usdc, duration_minutes, location, image_url, image_urls, itinerary, is_active, status, wizard_step, meeting_lat, meeting_lng, meeting_label, slug, created_at"
         )
         .eq("id", experienceId)
         .eq("guide_id", guideId)

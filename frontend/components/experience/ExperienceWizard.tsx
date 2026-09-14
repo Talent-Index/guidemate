@@ -26,6 +26,7 @@ import {
   type ItineraryStep,
 } from "@/lib/itinerary";
 import { uploadExperiencePhoto } from "@/lib/uploads";
+import { getPaymentQuote, type PaymentQuote } from "@/lib/api";
 
 const STEP_LABELS = [
   "Basics",
@@ -79,6 +80,7 @@ export function ExperienceWizard({
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [navigating, setNavigating] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [payoutQuote, setPayoutQuote] = useState<PaymentQuote | null>(null);
 
   const formRef = useRef({
     title,
@@ -107,6 +109,25 @@ export function ExperienceWizard({
     meetingLabel,
     step,
   };
+
+  useEffect(() => {
+    const amount = Number(priceUsdc);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setPayoutQuote(null);
+      return;
+    }
+    let cancelled = false;
+    getPaymentQuote(amount)
+      .then((next) => {
+        if (!cancelled) setPayoutQuote(next);
+      })
+      .catch(() => {
+        if (!cancelled) setPayoutQuote(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [priceUsdc]);
 
   const buildPatch = useCallback(
     (wizardStep = formRef.current.step): Partial<ExperienceDraftRow> => {
@@ -448,17 +469,37 @@ export function ExperienceWizard({
           )}
 
           {step === 3 && (
-            <Field label="Price (USDC)">
-              <input
-                className={inputClass}
-                type="number"
-                min="0"
-                step="0.01"
-                value={priceUsdc}
-                onChange={(e) => setPriceUsdc(e.target.value)}
-                placeholder="e.g. 25"
-              />
-            </Field>
+            <>
+              <Field label="Price (USDC)">
+                <input
+                  className={inputClass}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={priceUsdc}
+                  onChange={(e) => setPriceUsdc(e.target.value)}
+                  placeholder="e.g. 25"
+                />
+              </Field>
+              {payoutQuote && (
+                <div className="rounded-xl border border-brand-border bg-brand-bg/40 p-3 text-sm text-brand-muted">
+                  <p>
+                    Tourists paying with M-Pesa are charged about{" "}
+                    <span className="font-semibold text-brand-blueDark">
+                      KES {payoutQuote.touristKes.toLocaleString()}
+                    </span>{" "}
+                    including conversion.
+                  </p>
+                  <p className="mt-1">
+                    You keep 85%. After M-Pesa off-ramp fees you should receive about{" "}
+                    <span className="font-semibold text-brand-blueDark">
+                      KES {payoutQuote.guideNetKes.toLocaleString()}
+                    </span>{" "}
+                    per guest on your phone.
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
           {step === 4 && (

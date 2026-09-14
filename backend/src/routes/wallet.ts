@@ -4,6 +4,7 @@ import { getUserIdFromAuthHeader, supabaseAdmin } from "../supabase.js";
 import {
   getWalletSummary,
   provisionCustodialWallet,
+  sendUsdcFromWallet,
   withdrawToMpesa,
 } from "../wallet.js";
 
@@ -45,6 +46,27 @@ walletRouter.get("/transactions", async (req, res) => {
   } catch (err) {
     console.error("[wallet] transactions failed", err);
     res.status(500).json({ error: (err as Error).message ?? "transactions lookup failed" });
+  }
+});
+
+const sendSchema = z.object({
+  to: z.string().min(8),
+  amountUsdc: z.number().positive(),
+});
+
+walletRouter.post("/send", async (req, res) => {
+  const userId = await getUserIdFromAuthHeader(req.headers.authorization);
+  if (!userId) return res.status(401).json({ error: "sign in required" });
+
+  const parsed = sendSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  try {
+    const result = await sendUsdcFromWallet(userId, parsed.data.to, parsed.data.amountUsdc);
+    res.json(result);
+  } catch (err) {
+    console.error("[wallet] send failed", err);
+    res.status(400).json({ error: (err as Error).message ?? "send failed" });
   }
 });
 

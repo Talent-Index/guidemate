@@ -46,6 +46,7 @@ interface ExperienceRow {
   meeting_lat: number | null;
   meeting_lng: number | null;
   meeting_label: string | null;
+  slug: string | null;
   created_at: string;
   futureSlotCount: number;
 }
@@ -150,7 +151,7 @@ export default function GuideDashboardPage() {
     const { data } = await supabase
       .from("experiences")
       .select(
-        "id, title, description, tags, category, price_usdc, duration_minutes, location, image_url, image_urls, itinerary, is_active, status, wizard_step, meeting_lat, meeting_lng, meeting_label, created_at"
+        "id, slug, title, description, tags, category, price_usdc, duration_minutes, location, image_url, image_urls, itinerary, is_active, status, wizard_step, meeting_lat, meeting_lng, meeting_label, created_at"
       )
       .eq("guide_id", guideId);
 
@@ -485,7 +486,7 @@ export default function GuideDashboardPage() {
                   ) : (
                     <>
                       <ShareLinkButton
-                        path={getExperienceSharePath(exp.id)}
+                        path={getExperienceSharePath(exp.id, exp.slug)}
                         label="Share"
                         shareTitle={displayTitle}
                         shareText={`Book ${displayTitle} on Guidemate`}

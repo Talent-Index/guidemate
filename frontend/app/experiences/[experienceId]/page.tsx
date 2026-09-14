@@ -21,7 +21,7 @@ import { experiencePhotoUrls } from "@/components/ui/ExperiencePhotoStrip";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import { getExperienceSharePath } from "@/lib/share";
-import { isUuid } from "@/lib/slug";
+import { isUuid, slugify } from "@/lib/slug";
 import { Price } from "@/lib/fx";
 import type { ExperienceSlot } from "@/lib/slots";
 
@@ -82,6 +82,14 @@ function osmEmbedSrc(lat: number, lng: number) {
   return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - d}%2C${lat - d}%2C${lng + d}%2C${lat + d}&layer=mapnik&marker=${lat}%2C${lng}`;
 }
 
+function decodeIdOrSlug(value: string) {
+  try {
+    return decodeURIComponent(value).trim();
+  } catch {
+    return value.trim();
+  }
+}
+
 function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -116,9 +124,27 @@ function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
         "id, slug, guide_id, title, description, tags, category, price_usdc, duration_minutes, location, meeting_lat, meeting_lng, meeting_label, image_url, image_urls, itinerary, guide:guide_id ( id, slug, full_name, bio, avatar_url, languages, rating_avg, rating_count, is_vetted )";
       const published = () =>
         supabase.from("experiences").select(select).eq("status", "published").eq("is_active", true);
-      const { data, error: loadError } = isUuid(idOrSlug)
-        ? await published().eq("id", idOrSlug).maybeSingle()
-        : await published().eq("slug", idOrSlug).maybeSingle();
+      const raw = decodeIdOrSlug(idOrSlug);
+
+      let data: unknown = null;
+      let loadError: { message?: string } | null = null;
+      if (isUuid(raw)) {
+        const result = await published().eq("id", raw).maybeSingle();
+        data = result.data;
+        loadError = result.error;
+      } else {
+        const exact = await published().eq("slug", raw).maybeSingle();
+        data = exact.data;
+        loadError = exact.error;
+        if (!data) {
+          const guessed = slugify(raw);
+          if (guessed && guessed !== raw) {
+            const fallback = await published().eq("slug", guessed).maybeSingle();
+            data = fallback.data;
+            loadError = fallback.error;
+          }
+        }
+      }
 
       if (loadError || !data) {
         setError("Experience not found.");
@@ -128,8 +154,8 @@ function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
 
       const row = data as unknown as ExperienceDetail;
       setExperience(row);
-      if (row.slug && pathname.startsWith("/experiences/")) {
-        router.replace(`/e/${row.slug}`);
+      if (row.slug && (pathname.startsWith("/experiences/") || decodeIdOrSlug(idOrSlug) !== row.slug)) {
+        router.replace(`/e/${encodeURIComponent(row.slug)}`);
       }
 
       if (row.guide?.id) {
@@ -405,5 +431,9 @@ function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
 
 export default function ExperienceDetailPage() {
   const params = useParams<{ experienceId: string }>();
-  return <ExperienceDetailClient idOrSlug={params.experienceId} />;
+  const idOrSlug = params.experienceId;
+  if (!idOrSlug) {
+    return <p className="text-sm text-brand-muted">Loading...</p>;
+  }
+  return <ExperienceDetailClient idOrSlug={idOrSlug} />;
 }

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { recordWalletTransaction } from "../ledger.js";
-import { MinisendRampProvider } from "../ramp/minisend.js";
+import { MinisendRampProvider, createCheckoutSession, getCheckoutSession } from "../ramp/minisend.js";
 import { getRampProvider, isMinisendRamp, isSimulatedRamp } from "../ramp/index.js";
 import { handleMinisendWebhook } from "../ramp/minisendWebhook.js";
 import { handleKotaniWebhook } from "../ramp/webhook.js";
@@ -10,6 +10,16 @@ import { usdcToKes } from "../fx.js";
 import { getUserIdFromAuthHeader, supabaseAdmin } from "../supabase.js";
 
 export const paymentsRouter = Router();
+
+const GUIDE_SHARE = 0.85;
+
+function frontendUrl(): string {
+  return (process.env.FRONTEND_URL ?? "http://localhost:3000").replace(/\/$/, "");
+}
+
+function paidCheckoutStatus(status: string): boolean {
+  return status === "completed" || status === "deposit_received" || status === "settling";
+}
 
 const initiateSchema = z.object({
   purpose: z.enum(["booking", "stream_ppv", "stream_tip"]),
@@ -129,20 +139,19 @@ paymentsRouter.get("/mpesa/:intentId", async (req, res) => {
 
   if (data.status === "processing" && isMinisendRamp() && data.checkout_request_id) {
     try {
-      const ramp = getRampProvider();
-      if (ramp instanceof MinisendRampProvider) {
-        const order = await ramp.getOnrampOrder(data.checkout_request_id as string);
-        if (order.status === "completed") {
-          const mpesaRef = order.receipt_number ?? data.checkout_request_id;
+      const checkoutId = data.checkout_request_id as string;
+      if (checkoutId.startsWith("cs_")) {
+        const session = await getCheckoutSession(checkoutId);
+        if (paidCheckoutStatus(session.status)) {
+          const receipt = session.settlement_receipt ?? checkoutId;
           await supabaseAdmin
             .from("payment_intents")
             .update({
               status: "completed",
-              mpesa_receipt: mpesaRef,
+              mpesa_receipt: receipt,
               completed_at: new Date().toISOString(),
             })
             .eq("id", data.id);
-
           await recordWalletTransaction({
             profileId: userId,
             type: "mpesa_onramp",
@@ -150,15 +159,47 @@ paymentsRouter.get("/mpesa/:intentId", async (req, res) => {
             amountKes: Number(data.amount_kes),
             referenceType: data.purpose,
             referenceId: data.reference_id,
-            mpesaRef,
+            mpesaRef: receipt,
             status: "completed",
           });
-
           data.status = "completed";
-          data.mpesa_receipt = mpesaRef;
-        } else if (order.status === "failed" || order.status === "expired") {
+          data.mpesa_receipt = receipt;
+        } else if (session.status === "failed" || session.status === "expired") {
           await supabaseAdmin.from("payment_intents").update({ status: "failed" }).eq("id", data.id);
           data.status = "failed";
+        }
+      } else {
+        const ramp = getRampProvider();
+        if (ramp instanceof MinisendRampProvider) {
+          const order = await ramp.getOnrampOrder(checkoutId);
+          if (order.status === "completed") {
+            const mpesaRef = order.receipt_number ?? checkoutId;
+            await supabaseAdmin
+              .from("payment_intents")
+              .update({
+                status: "completed",
+                mpesa_receipt: mpesaRef,
+                completed_at: new Date().toISOString(),
+              })
+              .eq("id", data.id);
+
+            await recordWalletTransaction({
+              profileId: userId,
+              type: "mpesa_onramp",
+              amountUsdc: Number(data.amount_usdc),
+              amountKes: Number(data.amount_kes),
+              referenceType: data.purpose,
+              referenceId: data.reference_id,
+              mpesaRef,
+              status: "completed",
+            });
+
+            data.status = "completed";
+            data.mpesa_receipt = mpesaRef;
+          } else if (order.status === "failed" || order.status === "expired") {
+            await supabaseAdmin.from("payment_intents").update({ status: "failed" }).eq("id", data.id);
+            data.status = "failed";
+          }
         }
       }
     } catch (pollErr) {
@@ -175,6 +216,101 @@ paymentsRouter.get("/mpesa/:intentId", async (req, res) => {
     purpose: data.purpose,
     referenceId: data.reference_id,
   });
+});
+
+const checkoutSchema = z.object({
+  purpose: z.enum(["booking", "stream_ppv", "stream_tip"]),
+  referenceId: z.string().min(1),
+  amountUsdc: z.number().positive(),
+  description: z.string().min(1).max(200).optional(),
+  returnPath: z.string().min(1).max(500).optional(),
+  customerEmail: z.string().email().optional(),
+});
+
+paymentsRouter.post("/checkout/initiate", async (req, res) => {
+  const userId = await getUserIdFromAuthHeader(req.headers.authorization);
+  if (!userId) return res.status(401).json({ error: "sign in required" });
+
+  const parsed = checkoutSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  try {
+    const { purpose, referenceId, amountUsdc, description, returnPath, customerEmail } = parsed.data;
+    const kesDirect = await usdcToKes(amountUsdc);
+
+    const { data: intent, error } = await supabaseAdmin
+      .from("payment_intents")
+      .insert({
+        payer_id: userId,
+        purpose,
+        reference_id: referenceId,
+        amount_kes: kesDirect,
+        amount_usdc: amountUsdc,
+        phone: "",
+        status: "processing",
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+
+    if (isSimulatedRamp()) {
+      const receipt = `CHK-${randomUUID().slice(0, 8).toUpperCase()}`;
+      await supabaseAdmin
+        .from("payment_intents")
+        .update({
+          status: "completed",
+          mpesa_receipt: receipt,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", intent.id);
+
+      await recordWalletTransaction({
+        profileId: userId,
+        type: "mpesa_onramp",
+        amountUsdc,
+        amountKes: kesDirect,
+        referenceType: purpose,
+        referenceId,
+        mpesaRef: receipt,
+        status: "completed",
+      });
+
+      return res.status(201).json({
+        intentId: intent.id,
+        checkoutUrl: null,
+        amountUsdc,
+        amountKes: kesDirect,
+        status: "completed",
+        message: "Checkout simulated in dev.",
+      });
+    }
+
+    const redirectUrl = `${frontendUrl()}${returnPath ?? `/payments/return`}?paymentIntentId=${intent.id}`;
+    const session = await createCheckoutSession({
+      amountUsdc,
+      externalId: intent.id,
+      description: description ?? "Guidemate booking",
+      customerEmail,
+      redirectUrl,
+    });
+
+    await supabaseAdmin
+      .from("payment_intents")
+      .update({ checkout_request_id: session.sessionId })
+      .eq("id", intent.id);
+
+    res.status(201).json({
+      intentId: intent.id,
+      checkoutUrl: session.checkoutUrl,
+      amountUsdc,
+      amountKes: kesDirect,
+      status: "processing",
+      message: "Continue on Minisend Checkout to pay with USDC or USDT.",
+    });
+  } catch (err) {
+    console.error("[payments] checkout initiate failed", err);
+    res.status(500).json({ error: (err as Error).message ?? "checkout initiation failed" });
+  }
 });
 
 export async function kotaniWebhookHandler(req: Request, res: Response) {
@@ -206,13 +342,26 @@ paymentsRouter.get("/quote", async (req, res) => {
   if (!Number.isFinite(amountUsdc) || amountUsdc <= 0) {
     return res.status(400).json({ error: "amountUsdc must be positive" });
   }
+  const phone = typeof req.query.phone === "string" ? req.query.phone : undefined;
   const ramp = getRampProvider();
-  const [onQuote, offQuote] = await Promise.all([
+  const guideShareUsdc = Math.round(amountUsdc * GUIDE_SHARE * 100) / 100;
+  const [onQuote, offQuote, guideQuote] = await Promise.all([
     ramp.getQuote(amountUsdc, "on"),
-    ramp.getQuote(amountUsdc, "off"),
+    ramp.getQuote(amountUsdc, "off", phone ? { phone } : undefined),
+    ramp.getQuote(guideShareUsdc, "off", phone ? { phone } : undefined),
   ]);
   const kesDirect = await usdcToKes(amountUsdc);
-  res.json({ amountUsdc, kesDirect, onRamp: onQuote, offRamp: offQuote });
+  res.json({
+    amountUsdc,
+    kesDirect,
+    onRamp: onQuote,
+    offRamp: offQuote,
+    touristKes: Math.round((onQuote.kes + onQuote.fee) * 100) / 100,
+    touristFeeKes: onQuote.fee,
+    guideShareUsdc,
+    guideNetKes: guideQuote.kes,
+    guideFeeKes: guideQuote.fee,
+  });
 });
 
 export async function getCompletedPaymentIntent(intentId: string, payerId: string) {

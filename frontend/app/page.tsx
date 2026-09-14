@@ -69,7 +69,7 @@ const ROLE_ADVANTAGES = [
       "Keep 85% of every booking. Guidemate takes 15% of your listed rate.",
       "Get paid the moment the tourist ends the trip. No weekly settlement wait.",
       "List food, safari and culture experiences with photos, prices and categories.",
-      "A custodial payout wallet is provisioned for you. M-Pesa payout is simulated in this demo.",
+      "A custodial payout wallet is provisioned for you. Completed tours pay out to M-Pesa automatically.",
     ],
   },
   {

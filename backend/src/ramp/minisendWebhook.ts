@@ -27,11 +27,19 @@ export async function handleMinisendWebhook(
     return handleOfframpFailed(payload);
   }
 
+  if (event === "checkout.completed") {
+    return handleCheckoutCompleted(payload);
+  }
+  if (event === "checkout.failed" || event === "checkout.expired") {
+    return handleOnrampFailed(payload);
+  }
+
   return { handled: false };
 }
 
 async function handleOnrampCompleted(payload: Record<string, unknown>): Promise<{ handled: boolean }> {
   const referenceId =
+    (typeof payload.external_id === "string" && payload.external_id) ||
     (typeof payload.external_reference === "string" && payload.external_reference) ||
     (typeof payload.reference === "string" && payload.reference);
   if (!referenceId) return { handled: false };
@@ -74,8 +82,55 @@ async function handleOnrampCompleted(payload: Record<string, unknown>): Promise<
   return { handled: true };
 }
 
+async function handleCheckoutCompleted(payload: Record<string, unknown>): Promise<{ handled: boolean }> {
+  const referenceId =
+    (typeof payload.external_id === "string" && payload.external_id) ||
+    (typeof payload.external_reference === "string" && payload.external_reference) ||
+    (typeof payload.reference === "string" && payload.reference);
+  if (!referenceId) return { handled: false };
+
+  const { data: intent } = await supabaseAdmin
+    .from("payment_intents")
+    .select("*")
+    .eq("id", referenceId)
+    .maybeSingle();
+
+  if (!intent || intent.status === "completed" || intent.status === "failed") {
+    return { handled: Boolean(intent) };
+  }
+
+  const receipt =
+    (typeof payload.settlement_receipt === "string" && payload.settlement_receipt) ||
+    (typeof payload.session_id === "string" && payload.session_id) ||
+    (typeof payload.order_id === "string" && payload.order_id) ||
+    referenceId;
+
+  await supabaseAdmin
+    .from("payment_intents")
+    .update({
+      status: "completed",
+      mpesa_receipt: receipt,
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", referenceId);
+
+  await recordWalletTransaction({
+    profileId: intent.payer_id,
+    type: "mpesa_onramp",
+    amountUsdc: Number(intent.amount_usdc),
+    amountKes: Number(intent.amount_kes),
+    referenceType: intent.purpose,
+    referenceId: intent.reference_id,
+    mpesaRef: receipt,
+    status: "completed",
+  });
+
+  return { handled: true };
+}
+
 async function handleOnrampFailed(payload: Record<string, unknown>): Promise<{ handled: boolean }> {
   const referenceId =
+    (typeof payload.external_id === "string" && payload.external_id) ||
     (typeof payload.external_reference === "string" && payload.external_reference) ||
     (typeof payload.reference === "string" && payload.reference);
   if (!referenceId) return { handled: false };

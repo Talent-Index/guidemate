@@ -7,6 +7,7 @@ import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { createClient } from "@/lib/supabase/client";
+import { authConfirmUrl } from "@/lib/auth/oauthRedirect";
 import { homeForRole, type AccountRole } from "@/lib/auth/home";
 import { consumeAuthReturnTo, storeAuthReturnTo } from "@/lib/auth/returnTo";
 import { provisionWallet } from "@/lib/api";
@@ -41,7 +42,7 @@ function SignInForm() {
     const supabase = createClient();
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: authConfirmUrl(window.location.origin) },
     });
     if (oauthError) {
       setError(oauthError.message);

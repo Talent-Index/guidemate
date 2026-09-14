@@ -32,7 +32,7 @@ export default function TouristSettingsPage() {
     <SettingsPageShell subtitle={`Signed in as ${profile.fullName ?? session.user.email}`}>
       <TouristProfileCard />
 
-      <SettingsSection title="Wallet" description="Pay for tours, top up, and manage payouts on the wallet page.">
+      <SettingsSection title="Wallet" description="See your balance and withdraw to M-Pesa.">
         <Link href="/wallet">
           <Button variant="primary">Open wallet</Button>
         </Link>

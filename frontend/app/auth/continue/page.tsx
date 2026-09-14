@@ -3,43 +3,35 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { completeAuthCallback } from "@/lib/auth/callbackSession";
+import { flowFromTypeParam } from "@/lib/auth/callbackSession";
 import { destinationAfterAuth } from "@/lib/auth/completeSignIn";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
-function AuthCallbackInner() {
+function AuthContinueInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { refreshProfile } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const urlError = searchParams.get("error");
-    const code = searchParams.get("code");
-    if (code) {
-      window.location.replace(`/auth/confirm${window.location.search}`);
-      return;
-    }
-
     (async () => {
-      if (urlError) {
-        setError(urlError);
-        return;
-      }
-
       const supabase = createClient();
-      const { session, flow, error: callbackError, hadCallbackParams } = await completeAuthCallback(supabase);
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      if (callbackError || !session) {
-        setError(callbackError ?? "Could not complete sign-in");
+      if (sessionError || !session) {
+        setError(sessionError?.message ?? "Could not complete sign-in");
         return;
       }
 
+      const flow = flowFromTypeParam(searchParams.get("type")) ?? "oauth";
       const href = await destinationAfterAuth({
         supabase,
         session,
         flow,
-        hadCallbackParams,
+        hadCallbackParams: true,
       });
       await refreshProfile();
       router.replace(href);
@@ -61,10 +53,10 @@ function AuthCallbackInner() {
   );
 }
 
-export default function AuthCallbackPage() {
+export default function AuthContinuePage() {
   return (
     <Suspense fallback={<p className="p-8 text-center text-sm text-brand-muted">Completing sign-in…</p>}>
-      <AuthCallbackInner />
+      <AuthContinueInner />
     </Suspense>
   );
 }

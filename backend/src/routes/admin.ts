@@ -8,6 +8,7 @@ import {
   getSignupsTimeseries,
 } from "../analytics.js";
 import { getAdminUserIdFromAuthHeader, getAnalyticsUserIdFromAuthHeader, supabaseAdmin } from "../supabase.js";
+import { nextAvailableSlug } from "../slug.js";
 import { z } from "zod";
 
 export const adminRouter = Router();
@@ -24,6 +25,39 @@ async function findUserIdByEmail(email: string): Promise<string | undefined> {
     if (data.users.length < perPage) return undefined;
     page += 1;
   }
+}
+
+async function allocateGuideSlug(fullName: string, userId: string) {
+  const { data: existing } = await supabaseAdmin.from("profiles").select("slug").eq("id", userId).maybeSingle();
+  if (existing?.slug) return existing.slug as string;
+  return nextAvailableSlug(
+    fullName,
+    async (candidate) => {
+      const { data } = await supabaseAdmin.from("profiles").select("id").eq("slug", candidate).maybeSingle();
+      return Boolean(data && data.id !== userId);
+    },
+    "guide"
+  );
+}
+
+async function sendApprovedGuideLoginEmail(email: string, redirectTo: string, existingAccount: boolean) {
+  if (existingAccount) {
+    const { error } = await supabaseAdmin.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: redirectTo,
+        shouldCreateUser: false,
+      },
+    });
+    if (error) throw new Error(error.message);
+    return "magiclink" as const;
+  }
+
+  const invited = await supabaseAdmin.auth.admin.inviteUserByEmail(email, { redirectTo });
+  if (invited.error || !invited.data?.user?.id) {
+    throw new Error(invited.error?.message ?? "could not send guide invite email");
+  }
+  return { kind: "invite" as const, userId: invited.data.user.id };
 }
 
 adminRouter.get("/analytics/overview", async (req, res) => {
@@ -123,20 +157,27 @@ adminRouter.post("/applications/:id/approve", async (req, res) => {
   }
 
   try {
-    let userId: string | undefined;
     const frontendUrl = process.env.FRONTEND_URL ?? "https://yourguidemate.top";
-    const invited = await supabaseAdmin.auth.admin.inviteUserByEmail(application.email, {
-      redirectTo: `${frontendUrl}/auth/callback`,
-    });
-    if (invited.data?.user?.id) {
-      userId = invited.data.user.id;
-    } else {
-      userId = await findUserIdByEmail(application.email);
-    }
-    if (!userId) {
-      throw new Error(invited.error?.message ?? "could not create or find an auth user for this email");
-    }
+    const redirectTo = `${frontendUrl}/auth/callback`;
+    const existingUserId = await findUserIdByEmail(application.email);
+    const loginEmail = await sendApprovedGuideLoginEmail(
+      application.email,
+      redirectTo,
+      Boolean(existingUserId)
+    );
 
+    const userId =
+      typeof loginEmail === "string" ? existingUserId! : loginEmail.userId;
+
+    const { error: metadataError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      user_metadata: {
+        full_name: application.full_name,
+        guide_setup_complete: Boolean(existingUserId),
+      },
+    });
+    if (metadataError) throw new Error(metadataError.message);
+
+    const slug = await allocateGuideSlug(application.full_name, userId);
     const { error: profileError } = await supabaseAdmin.from("profiles").upsert({
       id: userId,
       role: "guide",
@@ -144,6 +185,7 @@ adminRouter.post("/applications/:id/approve", async (req, res) => {
       phone: application.phone,
       bio: [application.location, application.experience_pitch].filter(Boolean).join(" — "),
       is_vetted: true,
+      slug,
     });
     if (profileError) throw new Error(profileError.message);
 
@@ -160,10 +202,53 @@ adminRouter.post("/applications/:id/approve", async (req, res) => {
       .eq("id", applicationId);
     if (updateError) throw new Error(updateError.message);
 
-    res.json({ ok: true, userId, walletAddress });
+    res.json({
+      ok: true,
+      userId,
+      walletAddress,
+      emailType: typeof loginEmail === "string" ? loginEmail : "invite",
+    });
   } catch (err) {
     console.error("[admin] approve failed", err);
     res.status(500).json({ error: (err as Error).message ?? "approval failed" });
+  }
+});
+
+adminRouter.post("/applications/:id/resend-login", async (req, res) => {
+  const adminId = await getAdminUserIdFromAuthHeader(req.headers.authorization);
+  if (!adminId) {
+    return res.status(403).json({ error: "admin only" });
+  }
+
+  const applicationId = req.params.id;
+  const { data: application, error: loadError } = await supabaseAdmin
+    .from("guide_applications")
+    .select("*")
+    .eq("id", applicationId)
+    .maybeSingle();
+
+  if (loadError) {
+    return res.status(500).json({ error: loadError.message });
+  }
+  if (!application) {
+    return res.status(404).json({ error: "application not found" });
+  }
+  if (application.status !== "approved" || !application.approved_user_id) {
+    return res.status(409).json({ error: "application is not approved yet" });
+  }
+
+  try {
+    const frontendUrl = process.env.FRONTEND_URL ?? "https://yourguidemate.top";
+    const redirectTo = `${frontendUrl}/auth/callback`;
+    const emailType = await sendApprovedGuideLoginEmail(application.email, redirectTo, true);
+
+    res.json({
+      ok: true,
+      emailType: typeof emailType === "string" ? emailType : "invite",
+    });
+  } catch (err) {
+    console.error("[admin] resend login failed", err);
+    res.status(500).json({ error: (err as Error).message ?? "could not resend login email" });
   }
 });
 

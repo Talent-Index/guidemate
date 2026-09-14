@@ -15,6 +15,7 @@ export type ExperienceCategory = (typeof EXPERIENCE_CATEGORIES)[number];
 
 export interface ExperienceGuide {
   id: string;
+  slug: string | null;
   fullName: string;
   phone: string | null;
   walletAddress: string | null;
@@ -27,6 +28,7 @@ export interface ExperienceGuide {
 
 export interface Experience {
   id: string;
+  slug: string | null;
   title: string;
   description: string;
   tags: string[];
@@ -39,14 +41,15 @@ export interface Experience {
 }
 
 const SELECT = `
-  id, title, description, tags, category, price_usdc, duration_minutes, location, image_url,
-  guide:guide_id ( id, full_name, phone, wallet_address, bio, languages, rating_avg, rating_count, is_vetted )
+  id, slug, title, description, tags, category, price_usdc, duration_minutes, location, image_url,
+  guide:guide_id ( id, slug, full_name, phone, wallet_address, bio, languages, rating_avg, rating_count, is_vetted )
 `;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toExperience(row: any): Experience {
   return {
     id: row.id,
+    slug: row.slug ?? null,
     title: row.title,
     description: row.description,
     tags: row.tags ?? [],
@@ -57,6 +60,7 @@ function toExperience(row: any): Experience {
     imageUrl: row.image_url ?? null,
     guide: {
       id: row.guide?.id,
+      slug: row.guide?.slug ?? null,
       fullName: row.guide?.full_name ?? "Guide",
       phone: row.guide?.phone ?? null,
       walletAddress: row.guide?.wallet_address ?? null,

@@ -1,6 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async rewrites() {
+    return [
+      { source: "/e/:slug", destination: "/experiences/:slug" },
+      { source: "/g/:slug", destination: "/guides/:slug" },
+    ];
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },

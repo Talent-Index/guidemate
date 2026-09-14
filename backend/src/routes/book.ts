@@ -20,7 +20,7 @@ const bookSchema = z.object({
   matchReason: z.string().optional().default("Matched by Guidemate AI agent."),
   hotelName: z.string().optional(),
   hotelWallet: z.string().optional(),
-  paymentMethod: z.enum(["demo", "mpesa", "custodial", "external"]).optional().default("demo"),
+  paymentMethod: z.enum(["demo", "mpesa", "custodial", "external", "checkout"]).optional().default("demo"),
   paymentIntentId: z.string().uuid().optional(),
   txHash: z.string().optional(),
   slotId: z.string().uuid().optional(),
@@ -61,13 +61,13 @@ bookRouter.post("/", async (req, res) => {
       return res.status(401).json({ error: "sign in required for this payment method" });
     }
 
-    if (paymentMethod === "mpesa") {
+    if (paymentMethod === "mpesa" || paymentMethod === "checkout") {
       if (!paymentIntentId) {
-        return res.status(400).json({ error: "paymentIntentId required for M-Pesa payments" });
+        return res.status(400).json({ error: "paymentIntentId required for this payment method" });
       }
       const intent = await getCompletedPaymentIntent(paymentIntentId, touristId!);
       if (!intent || intent.reference_id !== experienceId) {
-        return res.status(402).json({ error: "M-Pesa payment not completed for this experience" });
+        return res.status(402).json({ error: "Payment not completed for this experience" });
       }
     }
 
@@ -84,7 +84,7 @@ bookRouter.post("/", async (req, res) => {
     const amountUnits = parseUnits(totalUsdc.toString(), decimals);
     const resolvedHotelWallet = hotelWallet ?? (await escrow.protocolTreasury());
 
-    if (paymentMethod === "demo" || paymentMethod === "mpesa" || paymentMethod === "custodial") {
+    if (paymentMethod === "demo" || paymentMethod === "mpesa" || paymentMethod === "custodial" || paymentMethod === "checkout") {
       const mintTx = await usdc.mint(await signer.getAddress(), amountUnits);
       await mintTx.wait();
     }

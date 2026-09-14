@@ -57,7 +57,10 @@ export default function SetPasswordPage() {
     const supabase = createClient();
 
     try {
-      const { error: updateError } = await supabase.auth.updateUser({ password });
+      const { error: updateError } = await supabase.auth.updateUser({
+        password,
+        data: { guide_setup_complete: true },
+      });
       if (updateError) throw updateError;
       await refreshProfile();
       toast("Password set — welcome to Guidemate", "success");

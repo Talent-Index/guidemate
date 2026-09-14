@@ -8,6 +8,7 @@ import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
 import { StarRating } from "@/components/ui/StarRating";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 import { matchExperience, type Experience, type MatchResult } from "@/lib/api";
+import { getExperienceSharePath } from "@/lib/share";
 import { Price } from "@/lib/fx";
 
 const EXAMPLE_REQUESTS = [
@@ -148,12 +149,12 @@ function MatchedExperience({ experience, reason }: { experience: Experience; rea
           </span>
         ))}
       </div>
-      <Link href={`/experiences/${experience.id}`}>
+      <Link href={getExperienceSharePath(experience.id, experience.slug)}>
         <Button variant="primary" className="mt-4">
           View this experience
         </Button>
       </Link>
-      <ViewGuideProfileButton guideId={experience.guide.id} className="mt-3 inline-block" />
+      <ViewGuideProfileButton guideId={experience.guide.id} slug={experience.guide.slug} className="mt-3 inline-block" />
     </div>
   );
 }

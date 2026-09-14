@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
@@ -13,10 +13,14 @@ import { StarRating } from "@/components/ui/StarRating";
 import { ProfilePageSkeleton } from "@/components/ui/Skeleton";
 import { getGuideProfile, type GuidePublicProfile } from "@/lib/api";
 import { Price } from "@/lib/fx";
+import { ShareLinkButton } from "@/components/ShareLinkButton";
+import { getExperienceSharePath, getGuideSharePath } from "@/lib/share";
 
 export default function GuideProfilePage() {
   const params = useParams<{ guideId: string }>();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const returnTo = searchParams.get("returnTo");
   const [guide, setGuide] = useState<GuidePublicProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,7 +32,12 @@ export default function GuideProfilePage() {
     setError(null);
     getGuideProfile(params.guideId)
       .then(({ guide: profile }) => {
-        if (!cancelled) setGuide(profile);
+        if (cancelled) return;
+        setGuide(profile);
+        if (profile.slug && pathname.startsWith("/guides/")) {
+          const qs = searchParams.toString();
+          router.replace(`/g/${profile.slug}${qs ? `?${qs}` : ""}`);
+        }
       })
       .catch((err) => {
         if (!cancelled) setError((err as Error).message);
@@ -39,7 +48,7 @@ export default function GuideProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [params.guideId]);
+  }, [params.guideId, pathname, router, searchParams]);
 
   if (loading) {
     return (
@@ -84,6 +93,14 @@ export default function GuideProfilePage() {
                   Vetted
                 </span>
               )}
+              <ShareLinkButton
+                path={getGuideSharePath(guide.id, guide.slug)}
+                label="Share"
+                shareTitle={guide.fullName}
+                shareText={`Meet ${guide.fullName} on Guidemate`}
+                variant="outline"
+                className="rounded-lg px-3 py-1.5 text-xs"
+              />
             </div>
             <StarRating value={guide.ratingAvg} count={guide.ratingCount} className="mt-1" />
             {guide.bio && <p className="mt-3 text-sm text-brand-muted">{guide.bio}</p>}
@@ -129,7 +146,7 @@ export default function GuideProfilePage() {
                   <p className="mt-2 text-sm text-brand-muted line-clamp-2">{exp.description}</p>
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                     <Price amountUsdc={exp.priceUsdc} />
-                    <Link href={`/experiences/${exp.id}`}>
+                    <Link href={getExperienceSharePath(exp.id, exp.slug)}>
                       <Button variant="primary">View</Button>
                     </Link>
                   </div>

@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
-import { Contract, formatUnits, parseUnits, Wallet } from "ethers";
+import { Contract, formatUnits, getAddress, isAddress, parseUnits, Wallet } from "ethers";
 import mockUsdcAbi from "./abi/MockUSDC.json" with { type: "json" };
 import { provider, requireChain } from "./chain.js";
 import { listWalletTransactions, recordWalletTransaction } from "./ledger.js";
@@ -211,4 +211,59 @@ export async function signUsdcTransfer(profileId: string, to: string, amountUsdc
   const tx = await token.transfer(to, amountUnits);
   const receipt = await tx.wait();
   return receipt?.hash ?? tx.hash;
+}
+
+export async function sendUsdcFromWallet(
+  profileId: string,
+  toRaw: string,
+  amountUsdc: number
+): Promise<{ txHash: string; to: string; amountUsdc: number }> {
+  if (amountUsdc <= 0) throw new Error("amount must be positive");
+  if (!isAddress(toRaw)) throw new Error("enter a valid wallet address");
+  const to = getAddress(toRaw);
+  const from = await getWalletAddress(profileId);
+  if (!from) throw new Error("create a wallet first");
+  if (getAddress(from) === to) throw new Error("cannot send to your own address");
+  const balance = await getWalletBalance(profileId);
+  if (amountUsdc > balance) throw new Error("insufficient wallet balance");
+
+  let txHash: string;
+  try {
+    txHash = await signUsdcTransfer(profileId, to, amountUsdc);
+  } catch (err) {
+    const message = (err as Error).message ?? "transfer failed";
+    if (/insufficient funds|gas/i.test(message)) {
+      throw new Error("this in-app wallet needs a little AVAX on Fuji for gas");
+    }
+    throw new Error(message);
+  }
+
+  await recordWalletTransaction({
+    profileId,
+    type: "transfer_out",
+    amountUsdc: -amountUsdc,
+    referenceType: "transfer",
+    referenceId: txHash,
+    txHash,
+    metadata: { to },
+  });
+
+  const { data: recipient } = await supabaseAdmin
+    .from("profiles")
+    .select("id")
+    .ilike("wallet_address", to)
+    .maybeSingle();
+  if (recipient?.id && recipient.id !== profileId) {
+    await recordWalletTransaction({
+      profileId: recipient.id as string,
+      type: "transfer_in",
+      amountUsdc,
+      referenceType: "transfer",
+      referenceId: txHash,
+      txHash,
+      metadata: { from: getAddress(from) },
+    });
+  }
+
+  return { txHash, to, amountUsdc };
 }

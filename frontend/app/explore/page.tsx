@@ -44,7 +44,7 @@ export default function ExplorePage() {
       const { data } = await supabase
         .from("experiences")
         .select(
-          "id, title, description, tags, category, price_usdc, duration_minutes, location, image_url, guide:guide_id ( full_name, rating_avg, rating_count )"
+          "id, slug, title, description, tags, category, price_usdc, duration_minutes, location, image_url, guide:guide_id ( full_name, rating_avg, rating_count )"
         )
         .eq("status", "published")
         .eq("is_active", true)

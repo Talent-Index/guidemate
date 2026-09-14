@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "./supabase.js";
+import { isUuid } from "./slug.js";
 
 export interface GuidePublicReview {
   stars: number;
@@ -9,6 +10,7 @@ export interface GuidePublicReview {
 
 export interface GuidePublicExperience {
   id: string;
+  slug: string | null;
   title: string;
   description: string;
   tags: string[];
@@ -21,6 +23,7 @@ export interface GuidePublicExperience {
 
 export interface GuidePublicProfile {
   id: string;
+  slug: string | null;
   fullName: string;
   bio: string | null;
   avatarUrl: string | null;
@@ -39,14 +42,16 @@ function firstName(fullName: string | null | undefined): string {
   return name.split(/\s+/)[0] ?? "Guest";
 }
 
-export async function getGuidePublicProfile(guideId: string): Promise<GuidePublicProfile | undefined> {
-  const { data: profile, error } = await supabaseAdmin
+export async function getGuidePublicProfile(guideIdOrSlug: string): Promise<GuidePublicProfile | undefined> {
+  const profileQuery = supabaseAdmin
     .from("profiles")
-    .select("id, role, full_name, bio, avatar_url, languages, rating_avg, rating_count, is_vetted")
-    .eq("id", guideId)
-    .maybeSingle();
+    .select("id, slug, role, full_name, bio, avatar_url, languages, rating_avg, rating_count, is_vetted");
+  const { data: profile, error } = isUuid(guideIdOrSlug)
+    ? await profileQuery.eq("id", guideIdOrSlug).maybeSingle()
+    : await profileQuery.eq("slug", guideIdOrSlug).maybeSingle();
 
   if (error || !profile || profile.role !== "guide") return undefined;
+  const guideId = profile.id as string;
 
   const [{ count: tripCount }, { data: ratingRows }, { data: experienceRows }] = await Promise.all([
     supabaseAdmin.from("bookings").select("id", { count: "exact", head: true }).eq("guide_id", guideId).eq("status", "paid"),
@@ -57,7 +62,7 @@ export async function getGuidePublicProfile(guideId: string): Promise<GuidePubli
       .order("created_at", { ascending: false }),
     supabaseAdmin
       .from("experiences")
-      .select("id, title, description, tags, category, price_usdc, duration_minutes, location, image_url")
+      .select("id, slug, title, description, tags, category, price_usdc, duration_minutes, location, image_url")
       .eq("guide_id", guideId)
       .eq("status", "published")
       .eq("is_active", true)
@@ -75,6 +80,7 @@ export async function getGuidePublicProfile(guideId: string): Promise<GuidePubli
 
   return {
     id: profile.id,
+    slug: (profile.slug as string | null) ?? null,
     fullName: profile.full_name ?? "Guide",
     bio: profile.bio ?? null,
     avatarUrl: (profile.avatar_url as string | null) ?? null,
@@ -91,6 +97,7 @@ export async function getGuidePublicProfile(guideId: string): Promise<GuidePubli
     })),
     experiences: (experienceRows ?? []).map((row) => ({
       id: row.id,
+      slug: (row.slug as string | null) ?? null,
       title: row.title,
       description: row.description,
       tags: row.tags ?? [],

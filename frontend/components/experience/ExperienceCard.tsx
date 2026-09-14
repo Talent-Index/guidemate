@@ -4,10 +4,12 @@ import Link from "next/link";
 import type { MouseEvent } from "react";
 import { useEffect, useState } from "react";
 import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
+import { getExperienceSharePath } from "@/lib/share";
 import { Price } from "@/lib/fx";
 
 export interface ExperienceCardData {
   id: string;
+  slug?: string | null;
   title: string;
   price_usdc: number;
   image_url: string | null;
@@ -58,7 +60,7 @@ export function ExperienceCard({
   const ratingCount = experience.guide?.rating_count ?? 0;
 
   return (
-    <Link href={`/experiences/${experience.id}`} className="group block w-[280px] shrink-0 sm:w-[300px]">
+    <Link href={getExperienceSharePath(experience.id, experience.slug)} className="group block w-[280px] shrink-0 sm:w-[300px]">
       <div className="relative overflow-hidden rounded-2xl">
         <ExperiencePhoto
           src={experience.image_url}

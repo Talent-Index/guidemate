@@ -7,6 +7,7 @@ import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { createClient } from "@/lib/supabase/client";
+import { authConfirmUrl } from "@/lib/auth/oauthRedirect";
 import { homeForRole } from "@/lib/auth/home";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/components/ui/Toast";
@@ -35,7 +36,7 @@ export default function SignUpPage() {
     const supabase = createClient();
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: authConfirmUrl(window.location.origin) },
     });
     if (oauthError) {
       setError(oauthError.message);

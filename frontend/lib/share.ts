@@ -10,16 +10,24 @@ export function buildAppUrl(path: string): string {
   return normalized;
 }
 
-export function getExperienceSharePath(experienceId: string) {
-  return `/experiences/${experienceId}`;
+export function getExperienceSharePath(experienceId: string, slug?: string | null) {
+  return slug ? `/e/${slug}` : `/experiences/${experienceId}`;
+}
+
+export function getGuideSharePath(guideId: string, slug?: string | null) {
+  return slug ? `/g/${slug}` : `/guides/${guideId}`;
 }
 
 export function getStreamSharePath(streamId: string) {
   return `/live/${streamId}`;
 }
 
-export function getExperienceShareUrl(experienceId: string) {
-  return buildAppUrl(getExperienceSharePath(experienceId));
+export function getExperienceShareUrl(experienceId: string, slug?: string | null) {
+  return buildAppUrl(getExperienceSharePath(experienceId, slug));
+}
+
+export function getGuideShareUrl(guideId: string, slug?: string | null) {
+  return buildAppUrl(getGuideSharePath(guideId, slug));
 }
 
 export function getStreamShareUrl(streamId: string) {

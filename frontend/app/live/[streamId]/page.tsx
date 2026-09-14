@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { StreamRoom } from "@/components/StreamRoom";
 import { parseUnits } from "viem";
 import { useAccount, useWriteContract } from "wagmi";
@@ -17,8 +17,10 @@ import mockUsdcAbi from "@/lib/abi/MockUSDC.json";
 import {
   endStream,
   friendlyPaymentError,
+  getPaymentQuote,
   getStream,
   getStreamStats,
+  initiateCheckoutPayment,
   initiateMpesaPayment,
   pollMpesaPayment,
   joinStream,
@@ -31,10 +33,12 @@ import {
   startScheduledStream,
   SNOWTRACE_TX_BASE,
   type LiveStreamRecord,
+  type PaymentQuote,
   type StreamComment,
   type StreamTip,
 } from "@/lib/api";
 import { Price } from "@/lib/fx";
+import { PaymentRailGuide } from "@/components/payments/PaymentRailGuide";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
 import { getStreamSharePath } from "@/lib/share";
@@ -43,9 +47,11 @@ import "@livekit/components-styles";
 
 const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? "";
 const USDC_ADDRESS = (process.env.NEXT_PUBLIC_MOCK_USDC_ADDRESS ?? "") as `0x${string}`;
+const LIVE_CHECKOUT_KEY = "guidemate-live-checkout-draft";
 
 export default function LiveStreamPage() {
   const params = useParams<{ streamId: string }>();
+  const searchParams = useSearchParams();
   const streamId = params.streamId;
   const { session, profile } = useAuth();
   const { toast } = useToast();
@@ -65,6 +71,8 @@ export default function LiveStreamPage() {
   const [tipAmount, setTipAmount] = useState("1");
   const [payError, setPayError] = useState<string | null>(null);
   const [mpesaPhone, setMpesaPhone] = useState("");
+  const [liveRail, setLiveRail] = useState<"mpesa" | "checkout">("mpesa");
+  const [quote, setQuote] = useState<PaymentQuote | null>(null);
   const [comments, setComments] = useState<StreamComment[]>([]);
   const [commentBody, setCommentBody] = useState("");
   const [stats, setStats] = useState({ viewerCount: 0, reactionCount: 0 });
@@ -99,6 +107,21 @@ export default function LiveStreamPage() {
     };
   }, [streamId, refreshTips]);
 
+  useEffect(() => {
+    if (!stream || stream.priceUsdc <= 0) return;
+    let cancelled = false;
+    getPaymentQuote(stream.priceUsdc, mpesaPhone.trim() || undefined)
+      .then((next) => {
+        if (!cancelled) setQuote(next);
+      })
+      .catch(() => {
+        if (!cancelled) setQuote(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [stream, mpesaPhone]);
+
   async function handleJoin(opts?: { txHash?: string; paymentIntentId?: string }) {
     setJoining(true);
     setError(null);
@@ -118,6 +141,35 @@ export default function LiveStreamPage() {
     }
   }
 
+  useEffect(() => {
+    if (!session || !stream || token) return;
+    const intentId = searchParams.get("paymentIntentId");
+    if (!intentId) return;
+    let cancelled = false;
+    (async () => {
+      setPaying(true);
+      try {
+        const raw = sessionStorage.getItem(LIVE_CHECKOUT_KEY);
+        const draft = raw ? (JSON.parse(raw) as { streamId: string; intentId: string }) : null;
+        if (draft && draft.streamId === stream.id && draft.intentId !== intentId) {
+          throw new Error("Checkout session mismatch. Try paying again.");
+        }
+        await pollMpesaPayment(intentId, session.access_token);
+        if (cancelled) return;
+        await handleJoin({ paymentIntentId: intentId });
+        sessionStorage.removeItem(LIVE_CHECKOUT_KEY);
+      } catch (err) {
+        if (!cancelled) showPayError((err as Error).message);
+      } finally {
+        if (!cancelled) setPaying(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, stream, searchParams, token]);
+
   async function transferUsdc(to: `0x${string}`, amount: number) {
     if (!USDC_ADDRESS) throw new Error("NEXT_PUBLIC_MOCK_USDC_ADDRESS is not set");
     const hash = await writeContractAsync({
@@ -136,13 +188,28 @@ export default function LiveStreamPage() {
     toast(friendly, "error");
   }
 
-  async function handlePayToWatch() {
-    if (!stream?.guideWallet || paying) return;
+  async function handleCheckoutPayToWatch() {
+    if (!session || !stream || paying) return;
     setPayError(null);
     setPaying(true);
     try {
-      const hash = await transferUsdc(stream.guideWallet as `0x${string}`, stream.priceUsdc);
-      await handleJoin({ txHash: hash });
+      const payment = await initiateCheckoutPayment(
+        {
+          purpose: "stream_ppv",
+          referenceId: stream.id,
+          amountUsdc: stream.priceUsdc,
+          description: `Watch ${stream.title}`,
+          returnPath: `/live/${stream.id}`,
+          customerEmail: session.user.email ?? undefined,
+        },
+        session.access_token
+      );
+      if (payment.checkoutUrl) {
+        sessionStorage.setItem(LIVE_CHECKOUT_KEY, JSON.stringify({ streamId: stream.id, intentId: payment.intentId }));
+        window.location.href = payment.checkoutUrl;
+        return;
+      }
+      await handleJoin({ paymentIntentId: payment.intentId });
     } catch (err) {
       showPayError((err as Error).message);
     } finally {
@@ -480,31 +547,63 @@ export default function LiveStreamPage() {
             Pay-per-view
             <Price amountUsdc={stream.priceUsdc} size="sm" align="start" />
           </h2>
-          <p className="mt-1 text-sm text-brand-muted">Pay with M-Pesa or crypto wallet to watch.</p>
+          <p className="mt-1 text-sm text-brand-muted">Kenya: pay with M-Pesa. Visiting: pay with USDC or USDT.</p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setLiveRail("mpesa")}
+              className={`rounded-xl border p-3 text-left text-sm ${
+                liveRail === "mpesa" ? "border-brand-accent bg-brand-accent/10" : "border-brand-border"
+              }`}
+            >
+              <p className="font-semibold text-brand-blueDark">M-Pesa</p>
+              <p className="mt-0.5 text-xs text-brand-muted">KES on your Safaricom phone</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLiveRail("checkout")}
+              className={`rounded-xl border p-3 text-left text-sm ${
+                liveRail === "checkout" ? "border-brand-accent bg-brand-accent/10" : "border-brand-border"
+              }`}
+            >
+              <p className="font-semibold text-brand-blueDark">USDC / USDT</p>
+              <p className="mt-0.5 text-xs text-brand-muted">Crypto wallet via Minisend</p>
+            </button>
+          </div>
           <div className="mt-4 space-y-3">
-            <div>
-              <label className="text-sm font-medium">M-Pesa phone</label>
-              <input
-                className="form-input-light mt-1 w-full"
-                value={mpesaPhone}
-                onChange={(e) => setMpesaPhone(e.target.value)}
-                placeholder="+2547..."
-              />
-              <Button
-                variant="primary"
-                className="mt-2 w-full"
-                disabled={!session || paying || joining}
-                onClick={handleMpesaPayToWatch}
-              >
-                {paying || joining ? "Processing…" : `Pay with M-Pesa & watch`}
-              </Button>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <WalletConnectButton />
-              <Button variant="secondary" disabled={!address || writing || paying || joining} onClick={handlePayToWatch}>
-                {writing || paying || joining ? "Paying..." : `Pay ${stream.priceUsdc} USDC`}
-              </Button>
-            </div>
+            {liveRail === "mpesa" && (
+              <div>
+                <label className="text-sm font-medium">M-Pesa phone</label>
+                <input
+                  className="form-input-light mt-1 w-full"
+                  value={mpesaPhone}
+                  onChange={(e) => setMpesaPhone(e.target.value)}
+                  placeholder="+2547..."
+                />
+                <PaymentRailGuide rail="mpesa" quote={quote} processing={paying || joining} />
+                <Button
+                  variant="primary"
+                  className="mt-3 w-full"
+                  disabled={!session || paying || joining}
+                  onClick={handleMpesaPayToWatch}
+                >
+                  {paying || joining ? "Processing…" : `Pay with M-Pesa & watch`}
+                </Button>
+              </div>
+            )}
+            {liveRail === "checkout" && (
+              <div>
+                <PaymentRailGuide rail="checkout" quote={quote} />
+                <Button
+                  variant="primary"
+                  className="mt-3 w-full"
+                  disabled={!session || paying || joining}
+                  onClick={() => void handleCheckoutPayToWatch()}
+                >
+                  {paying || joining ? "Processing…" : `Pay with USDC & watch`}
+                </Button>
+              </div>
+            )}
           </div>
           {payError && <p className="mt-2 text-sm text-red-600">{payError}</p>}
         </Card>
@@ -568,7 +667,7 @@ export default function LiveStreamPage() {
       <Card>
         <h2 className="text-sm font-bold text-brand-blueDark">Tip the guide</h2>
         <p className="mt-1 text-xs text-brand-muted">
-          Wallet-to-wallet MockUSDC on Fuji. Guidemate just logs the receipt for the feed.
+          Wallet-to-wallet tips still use test mUSDC on Fuji. Paid streams use M-Pesa or Minisend USDC checkout.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <WalletConnectButton />

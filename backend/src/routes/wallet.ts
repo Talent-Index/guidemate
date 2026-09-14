@@ -4,6 +4,7 @@ import { getUserIdFromAuthHeader, supabaseAdmin } from "../supabase.js";
 import {
   getWalletSummary,
   provisionCustodialWallet,
+  sendUsdcFromWallet,
   withdrawToMpesa,
 } from "../wallet.js";
 
@@ -48,6 +49,27 @@ walletRouter.get("/transactions", async (req, res) => {
   }
 });
 
+const sendSchema = z.object({
+  to: z.string().min(8),
+  amountUsdc: z.number().positive(),
+});
+
+walletRouter.post("/send", async (req, res) => {
+  const userId = await getUserIdFromAuthHeader(req.headers.authorization);
+  if (!userId) return res.status(401).json({ error: "sign in required" });
+
+  const parsed = sendSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  try {
+    const result = await sendUsdcFromWallet(userId, parsed.data.to, parsed.data.amountUsdc);
+    res.json(result);
+  } catch (err) {
+    console.error("[wallet] send failed", err);
+    res.status(400).json({ error: (err as Error).message ?? "send failed" });
+  }
+});
+
 const withdrawSchema = z.object({
   amountUsdc: z.number().positive(),
   phone: z.string().min(9).optional(),
@@ -66,8 +88,8 @@ walletRouter.post("/withdraw", async (req, res) => {
       .select("phone, role")
       .eq("id", userId)
       .maybeSingle();
-    if (profile?.role !== "guide") {
-      return res.status(403).json({ error: "only guides can withdraw to M-Pesa" });
+    if (profile?.role !== "guide" && profile?.role !== "tourist") {
+      return res.status(403).json({ error: "sign in as a guide or tourist to withdraw to M-Pesa" });
     }
     const phone = parsed.data.phone ?? (profile?.phone as string);
     if (!phone) return res.status(400).json({ error: "M-Pesa phone number required" });

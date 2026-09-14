@@ -40,14 +40,14 @@ describe("slot cap", () => {
 
 describe("slot range validation", () => {
   it("rejects end before start", () => {
-    const start = eatWallClockToIso("2026-09-12T11:00");
-    const end = eatWallClockToIso("2026-09-12T10:00");
+    const start = eatWallClockToIso("2026-10-20T11:00");
+    const end = eatWallClockToIso("2026-10-20T10:00");
     expect(validateSlotRange(start, end)).toBe("End time must be after start time.");
   });
 
   it("accepts 11:00 to 15:00 EAT", () => {
-    const start = eatWallClockToIso("2026-09-12T11:00");
-    const end = eatWallClockToIso("2026-09-12T15:00");
+    const start = eatWallClockToIso("2026-10-20T11:00");
+    const end = eatWallClockToIso("2026-10-20T15:00");
     expect(validateSlotRange(start, end)).toBeNull();
     expect(formatSlotTimeRange(start, end)).toBe("11:00 AM – 3:00 PM EAT");
   });

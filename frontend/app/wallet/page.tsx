@@ -215,7 +215,7 @@ export default function WalletPage() {
                 </>
               ) : isGuide ? (
                 <p className="mt-2 text-sm text-brand-muted">
-                  Tour earnings and live-stream payouts credit this balance automatically. There is no manual top-up in this demo.
+                  Tour earnings credit this balance automatically. Withdraw to M-Pesa after a completed tour.
                 </p>
               ) : (
                 <p className="mt-2 text-sm text-brand-muted">
@@ -229,7 +229,7 @@ export default function WalletPage() {
             <Card>
               <h2 className="text-sm font-bold text-brand-blueDark">Withdraw to M-Pesa</h2>
               <p className="mt-1 text-sm text-brand-muted">
-                Uses the phone number on your guide profile. Simulated M-Pesa in this demo.
+                Uses the phone number on your guide profile. After a tour is verified, Guidemate sends your 85% share to M-Pesa (Minisend conversion fees apply).
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <input
@@ -277,8 +277,7 @@ export default function WalletPage() {
           {panel === "send" && (
             <Card>
               <p className="text-sm text-brand-muted">
-                Custodial transfers between Guidemate wallets are coming in this demo. Use Pay to book a tour, or Withdraw
-                (guides) to send earnings to M-Pesa.
+                Use Pay to book a tour, or Withdraw (guides) to send earnings to M-Pesa.
               </p>
             </Card>
           )}

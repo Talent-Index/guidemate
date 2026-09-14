@@ -39,6 +39,7 @@ export async function handleMinisendWebhook(
 
 async function handleOnrampCompleted(payload: Record<string, unknown>): Promise<{ handled: boolean }> {
   const referenceId =
+    (typeof payload.external_id === "string" && payload.external_id) ||
     (typeof payload.external_reference === "string" && payload.external_reference) ||
     (typeof payload.reference === "string" && payload.reference);
   if (!referenceId) return { handled: false };

@@ -14,6 +14,8 @@ import { walletRouter } from "./routes/wallet.js";
 import { adminRouter } from "./routes/admin.js";
 import { fxRouter } from "./routes/fx.js";
 import { paymentsRouter, kotaniWebhookHandler, minisendWebhookHandler } from "./routes/payments.js";
+import { assertMinisendConfig } from "./ramp/minisend.js";
+import { getRampProviderName } from "./ramp/index.js";
 import { chatRouter } from "./routes/chat.js";
 import { applicationsRouter } from "./routes/applications.js";
 
@@ -79,7 +81,11 @@ app.use("/api/chat", chatRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/fx", fxRouter);
 
+if (getRampProviderName() === "minisend") {
+  assertMinisendConfig();
+}
+
 const port = Number(process.env.PORT ?? 4000);
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Guidemate backend listening on http://0.0.0.0:${port}`);
+  console.log(`Guidemate backend listening on http://0.0.0.0:${port} (ramp=${getRampProviderName()})`);
 });

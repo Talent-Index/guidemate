@@ -22,6 +22,7 @@ export interface ExperienceDraftRow {
   meeting_lat: number | null;
   meeting_lng: number | null;
   meeting_label: string | null;
+  slug: string | null;
   created_at: string;
 }
 

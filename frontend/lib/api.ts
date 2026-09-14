@@ -511,6 +511,14 @@ export function getWallet(accessToken: string) {
   return request<WalletSummary>("/api/wallet", { headers: authHeaders(accessToken) });
 }
 
+export function sendWallet(to: string, amountUsdc: number, accessToken: string) {
+  return request<{ txHash: string; to: string; amountUsdc: number }>("/api/wallet/send", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ to, amountUsdc }),
+  });
+}
+
 export function withdrawWallet(amountUsdc: number, accessToken: string, phone?: string) {
   return request<{ withdrawalId: string; reference: string; kesAmount: number; pending?: true }>("/api/wallet/withdraw", {
     method: "POST",

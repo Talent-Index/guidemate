@@ -193,9 +193,59 @@ export class MinisendRampProvider implements RampProvider {
   }
 }
 
+export async function createCheckoutSession(input: {
+  amountUsdc: number;
+  externalId: string;
+  description: string;
+  customerEmail?: string;
+  redirectUrl: string;
+}): Promise<{ sessionId: string; checkoutUrl: string }> {
+  const data = await minisendRequest<{ session_id: string; checkout_url: string }>(
+    "POST",
+    "/api/merchant/checkout",
+    {
+      amount: Math.round(input.amountUsdc * 100) / 100,
+      description: input.description,
+      external_id: input.externalId,
+      customer_email: input.customerEmail,
+      redirect_url: input.redirectUrl,
+      settlement_mode: "usdc",
+      settlement_chain: "BASE",
+    },
+    `checkout-${input.externalId}`
+  );
+
+  if (!data.session_id || !data.checkout_url) {
+    throw new Error("Minisend checkout did not return a session URL");
+  }
+  return { sessionId: data.session_id, checkoutUrl: data.checkout_url };
+}
+
+export async function getCheckoutSession(sessionId: string): Promise<{
+  status: string;
+  settlement_receipt?: string;
+  amount_usdc?: number;
+}> {
+  return minisendRequest("GET", `/api/merchant/checkout/${sessionId}`);
+}
+
+export function assertMinisendConfig(): void {
+  const missing: string[] = [];
+  if (!process.env.MINISEND_API_KEY) missing.push("MINISEND_API_KEY");
+  if (!process.env.MINISEND_ONRAMP_RECEIVE_ADDRESS) missing.push("MINISEND_ONRAMP_RECEIVE_ADDRESS");
+  if (!process.env.MINISEND_TREASURY_PRIVATE_KEY) missing.push("MINISEND_TREASURY_PRIVATE_KEY");
+  if (!process.env.MINISEND_WEBHOOK_SECRET) missing.push("MINISEND_WEBHOOK_SECRET");
+  if (missing.length) {
+    throw new Error(`Minisend is enabled but missing ${missing.join(", ")}`);
+  }
+}
+
 export function verifyMinisendWebhookSignature(rawBody: string, signature: string | undefined): boolean {
   const secret = process.env.MINISEND_WEBHOOK_SECRET;
-  if (!secret) return true;
+  if (!secret) {
+    if (process.env.RAMP_PROVIDER === "minisend") return false;
+    return true;
+  }
   if (!signature) return false;
 
   const expected = createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");

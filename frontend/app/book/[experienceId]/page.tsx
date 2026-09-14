@@ -7,7 +7,6 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
 import { StarRating } from "@/components/ui/StarRating";
-import { WalletConnectButton } from "@/components/WalletConnectButton";
 import { BookingConfirmation } from "@/components/BookingConfirmation";
 import { ExperienceSlotPicker } from "@/components/experience/ExperienceSlotPicker";
 import { GuestCountModal } from "@/components/experience/GuestCountModal";
@@ -15,13 +14,17 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import {
   createBooking,
+  getPaymentQuote,
+  initiateCheckoutPayment,
   initiateMpesaPayment,
   pollMpesaPayment,
   friendlyPaymentError,
   type BookingRecord,
+  type PaymentQuote,
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import { Price } from "@/lib/fx";
+import { PaymentRailGuide } from "@/components/payments/PaymentRailGuide";
 import {
   type ExperienceSlot,
   formatSlotDate,
@@ -47,7 +50,18 @@ interface ExperienceDetail {
   } | null;
 }
 
-type PaymentMethod = "demo" | "mpesa" | "custodial" | "external";
+type PaymentMethod = "mpesa" | "checkout" | "demo";
+
+const CHECKOUT_DRAFT_KEY = "guidemate-checkout-draft";
+const SHOW_DEMO_PAY = process.env.NODE_ENV !== "production";
+
+type CheckoutDraft = {
+  experienceId: string;
+  slotId: string;
+  adults: number;
+  children: number;
+  intentId: string;
+};
 
 export default function BookExperiencePage() {
   const params = useParams<{ experienceId: string }>();
@@ -72,8 +86,10 @@ export default function BookExperiencePage() {
   const [booking, setBooking] = useState<BookingRecord | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("demo");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("mpesa");
   const [mpesaPhone, setMpesaPhone] = useState("");
+  const [quote, setQuote] = useState<PaymentQuote | null>(null);
+  const [finishingCheckout, setFinishingCheckout] = useState(false);
 
   useEffect(() => {
     if (profile?.phone) setMpesaPhone(profile.phone);
@@ -112,11 +128,119 @@ export default function BookExperiencePage() {
   }, [slotParam]);
 
   useEffect(() => {
+    if (!experience) return;
+    const amount = experience.price_usdc * guests;
+    if (amount <= 0) return;
+    let cancelled = false;
+    getPaymentQuote(amount, mpesaPhone.trim() || undefined)
+      .then((next) => {
+        if (!cancelled) setQuote(next);
+      })
+      .catch(() => {
+        if (!cancelled) setQuote(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [experience, guests, mpesaPhone]);
+
+  useEffect(() => {
     const adultsParam = searchParams.get("adults");
     const childrenParam = searchParams.get("children");
     if (adultsParam) setAdults(Math.max(1, Number(adultsParam) || 1));
     if (childrenParam) setChildren(Math.max(0, Number(childrenParam) || 0));
   }, [searchParams]);
+
+  async function finishPaidBooking(opts: {
+    method: PaymentMethod;
+    paymentIntentId?: string;
+    slot: ExperienceSlot;
+    guestAdults: number;
+    guestChildren: number;
+  }) {
+    if (!experience || !session) return;
+    const guestTotal = opts.guestAdults + opts.guestChildren;
+    const { booking: created } = await createBooking(
+      {
+        request: `Booking: ${experience.title} on ${formatSlotDate(opts.slot.starts_at)}`,
+        experienceId: experience.id,
+        matchReason: "Selected from experience page.",
+        paymentMethod: opts.method,
+        paymentIntentId: opts.paymentIntentId,
+        slotId: opts.slot.id,
+        guests: guestTotal,
+        adults: opts.guestAdults,
+        children: opts.guestChildren,
+      },
+      session.access_token
+    );
+    setBooking(created);
+    setSlotRefreshKey((k) => k + 1);
+    setSelectedSlot(null);
+    toast(
+      opts.method === "mpesa"
+        ? "M-Pesa payment received. Booking confirmed."
+        : opts.method === "checkout"
+          ? "USDC payment received. Booking confirmed."
+          : "Booking confirmed",
+      "success"
+    );
+  }
+
+  useEffect(() => {
+    if (!session || !experience || finishingCheckout || booking) return;
+    const intentId = searchParams.get("paymentIntentId");
+    if (!intentId) return;
+    let cancelled = false;
+    (async () => {
+      setFinishingCheckout(true);
+      setBookingLoading(true);
+      try {
+        const raw = sessionStorage.getItem(CHECKOUT_DRAFT_KEY);
+        const draft = raw ? (JSON.parse(raw) as CheckoutDraft) : null;
+        if (!draft || draft.experienceId !== experience.id || draft.intentId !== intentId) {
+          throw new Error("Could not restore this checkout. Choose a time and pay again.");
+        }
+        await pollMpesaPayment(intentId, session.access_token);
+        if (cancelled) return;
+        const supabase = createClient();
+        const { data: slot } = await supabase
+          .from("experience_slots")
+          .select("id, experience_id, guide_id, starts_at, ends_at, max_guests, booked_guests, is_cancelled")
+          .eq("id", draft.slotId)
+          .maybeSingle();
+        if (!slot) throw new Error("That time slot is no longer available.");
+        setSelectedSlot(slot as ExperienceSlot);
+        setAdults(draft.adults);
+        setChildren(draft.children);
+        setPaymentMethod("checkout");
+        await finishPaidBooking({
+          method: "checkout",
+          paymentIntentId: intentId,
+          slot: slot as ExperienceSlot,
+          guestAdults: draft.adults,
+          guestChildren: draft.children,
+        });
+        sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
+      } catch (err) {
+        if (!cancelled) {
+          const message = friendlyPaymentError((err as Error).message);
+          setBookingError(message);
+          toast(message, "error");
+        }
+      } finally {
+        if (!cancelled) {
+          setBookingLoading(false);
+          setFinishingCheckout(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // finishPaidBooking is stable enough for this one-shot return handler
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, experience, searchParams]);
 
   async function handleConfirm() {
     if (!experience || !session || !selectedSlot) return;
@@ -141,27 +265,42 @@ export default function BookExperiencePage() {
         paymentIntentId = payment.intentId;
       }
 
-      const { booking: created } = await createBooking(
-        {
-          request: `Booking: ${experience.title} on ${formatSlotDate(selectedSlot.starts_at)}`,
-          experienceId: experience.id,
-          matchReason: "Selected from experience page.",
-          paymentMethod,
-          paymentIntentId,
-          slotId: selectedSlot.id,
-          guests,
-          adults,
-          children,
-        },
-        session.access_token
-      );
-      setBooking(created);
-      setSlotRefreshKey((k) => k + 1);
-      setSelectedSlot(null);
-      toast(
-        paymentMethod === "mpesa" ? "M-Pesa payment received. Booking confirmed." : "Booking confirmed",
-        "success"
-      );
+      if (paymentMethod === "checkout") {
+        const payment = await initiateCheckoutPayment(
+          {
+            purpose: "booking",
+            referenceId: experience.id,
+            amountUsdc: experience.price_usdc * guests,
+            description: `${experience.title} · ${guests} guest${guests !== 1 ? "s" : ""}`,
+            returnPath: `/book/${experience.id}`,
+            customerEmail: session.user.email ?? undefined,
+          },
+          session.access_token
+        );
+        if (payment.checkoutUrl) {
+          sessionStorage.setItem(
+            CHECKOUT_DRAFT_KEY,
+            JSON.stringify({
+              experienceId: experience.id,
+              slotId: selectedSlot.id,
+              adults,
+              children,
+              intentId: payment.intentId,
+            } satisfies CheckoutDraft)
+          );
+          window.location.href = payment.checkoutUrl;
+          return;
+        }
+        paymentIntentId = payment.intentId;
+      }
+
+      await finishPaidBooking({
+        method: paymentMethod,
+        paymentIntentId,
+        slot: selectedSlot,
+        guestAdults: adults,
+        guestChildren: children,
+      });
     } catch (err) {
       const message = friendlyPaymentError((err as Error).message);
       setBookingError(message);
@@ -244,12 +383,17 @@ export default function BookExperiencePage() {
           <section className={`rounded-2xl border border-brand-border p-6 ${!selectedSlot ? "opacity-50" : ""}`}>
             <p className="text-xs font-bold uppercase tracking-wide text-brand-muted">Step 2</p>
             <h2 className="mt-1 text-lg font-bold text-brand-blueDark">Payment method</h2>
-            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <p className="mt-1 text-xs text-brand-muted">
+              Kenya / M-Pesa? Choose M-Pesa. Visiting from abroad? Pay with USDC or USDT.
+            </p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
               {(
                 [
-                  { id: "mpesa", label: "M-Pesa", desc: "Pay in KES. No crypto needed." },
-                  { id: "demo", label: "Demo", desc: "Instant test booking" },
-                  { id: "external", label: "Crypto wallet", desc: "MetaMask / WalletConnect" },
+                  { id: "mpesa" as const, label: "M-Pesa", desc: "Pay in Kenyan Shillings (KES). Safaricom prompt on your phone." },
+                  { id: "checkout" as const, label: "USDC / USDT", desc: "Pay with a crypto wallet. Best if you do not have M-Pesa." },
+                  ...(SHOW_DEMO_PAY
+                    ? [{ id: "demo" as const, label: "Demo", desc: "Local testing only — no real money." }]
+                    : []),
                 ] as const
               ).map((opt) => (
                 <button
@@ -279,17 +423,13 @@ export default function BookExperiencePage() {
                   onChange={(e) => setMpesaPhone(e.target.value)}
                   disabled={!selectedSlot}
                 />
+                <PaymentRailGuide rail="mpesa" quote={quote} processing={bookingLoading} />
               </div>
             )}
 
-            {paymentMethod === "external" && (
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-brand-bg p-4">
-                <div>
-                  <p className="text-sm font-semibold text-brand-blueDark">Connect wallet</p>
-                  <p className="text-xs text-brand-muted">Optional. Demo mode still locks escrow for you.</p>
-                </div>
-                <WalletConnectButton />
-              </div>
+            {paymentMethod === "checkout" && <PaymentRailGuide rail="checkout" quote={quote} />}
+            {paymentMethod === "demo" && (
+              <p className="mt-4 text-sm text-brand-muted">Demo books instantly with test escrow. Do not use this on production.</p>
             )}
           </section>
 
@@ -306,7 +446,7 @@ export default function BookExperiencePage() {
               disabled={bookingLoading || !selectedSlot}
               onClick={handleConfirm}
             >
-              {bookingLoading ? "Processing..." : `Confirm and pay`}
+              {bookingLoading ? (paymentMethod === "mpesa" ? "Waiting for M-Pesa…" : "Processing...") : `Confirm and pay`}
             </Button>
           </section>
         </div>
@@ -376,6 +516,14 @@ export default function BookExperiencePage() {
                   <span>Total</span>
                   <Price amountUsdc={totalUsdc} size="md" align="start" className="inline-flex" />
                 </div>
+                {paymentMethod === "mpesa" && quote && (
+                  <p className="mt-2 text-xs text-brand-muted">
+                    M-Pesa charge ≈ KES {quote.touristKes.toLocaleString()} including conversion fees.
+                  </p>
+                )}
+                {paymentMethod === "checkout" && (
+                  <p className="mt-2 text-xs text-brand-muted">You pay {totalUsdc.toFixed(2)} USDC (or USDT equivalent) on Minisend.</p>
+                )}
               </div>
 
               <p className="text-xs text-brand-accent">Free cancellation within 24 hours</p>

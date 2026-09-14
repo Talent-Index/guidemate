@@ -1,24 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { homeForRole, type AccountRole } from "@/lib/auth/home";
-import { ensureTouristProfile } from "@/lib/auth/ensureProfile";
-import {
-  completeAuthCallback,
-  inferInviteFlowFromProfile,
-} from "@/lib/auth/callbackSession";
-import { consumeAuthReturnTo } from "@/lib/auth/returnTo";
+import { completeAuthCallback } from "@/lib/auth/callbackSession";
+import { destinationAfterAuth } from "@/lib/auth/completeSignIn";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
-export default function AuthCallbackPage() {
+function AuthCallbackInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { refreshProfile } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const urlError = searchParams.get("error");
+    const code = searchParams.get("code");
+    if (code) {
+      window.location.replace(`/auth/confirm${window.location.search}`);
+      return;
+    }
+
     (async () => {
+      if (urlError) {
+        setError(urlError);
+        return;
+      }
+
       const supabase = createClient();
       const { session, flow, error: callbackError, hadCallbackParams } = await completeAuthCallback(supabase);
 
@@ -27,31 +35,16 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      const user = session.user;
-      const email = user.email ?? "";
-      const meta = user.user_metadata as Record<string, unknown> | undefined;
-
-      if (flow === "recovery") {
-        await refreshProfile();
-        router.replace("/auth/reset-password");
-        return;
-      }
-
-      const needsGuideInviteSetup =
-        flow === "invite" || (hadCallbackParams && (await inferInviteFlowFromProfile(supabase, user.id)));
-
-      if (needsGuideInviteSetup) {
-        await refreshProfile();
-        router.replace("/auth/set-password");
-        return;
-      }
-
-      const profile = await ensureTouristProfile(supabase, user.id, email, meta);
+      const href = await destinationAfterAuth({
+        supabase,
+        session,
+        flow,
+        hadCallbackParams,
+      });
       await refreshProfile();
-      const returnTo = consumeAuthReturnTo();
-      router.replace(returnTo ?? homeForRole((profile?.role ?? "tourist") as AccountRole));
+      router.replace(href);
     })();
-  }, [router, refreshProfile]);
+  }, [router, refreshProfile, searchParams]);
 
   if (error) {
     return (
@@ -65,5 +58,13 @@ export default function AuthCallbackPage() {
     <div className="mx-auto max-w-md p-8 text-center">
       <p className="text-sm text-brand-muted">Completing sign-in…</p>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={<p className="p-8 text-center text-sm text-brand-muted">Completing sign-in…</p>}>
+      <AuthCallbackInner />
+    </Suspense>
   );
 }

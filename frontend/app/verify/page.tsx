@@ -128,9 +128,11 @@ function VerifyPageContent() {
             </div>
             <p className="text-lg font-bold text-brand-success">Tour verified</p>
             <p className="text-sm text-brand-muted">
-              Your payout of {booking.splits?.guideAmount.toFixed(2)} USDC is on its way.
+              {booking.payout?.destination === "wallet"
+                ? `Your ${booking.splits?.guideAmount.toFixed(2) ?? ""} USDC is in your Guidemate wallet. Withdraw to M-Pesa anytime.`
+                : `Your payout of ${booking.splits?.guideAmount.toFixed(2)} USDC is on its way.`}
             </p>
-            {booking.payout && (
+            {booking.payout && booking.payout.destination !== "wallet" && (
               <p className="text-sm font-medium text-brand-blueDark">
                 KES {booking.payout.kesAmount.toLocaleString()} → {booking.payout.phone}
               </p>

@@ -88,8 +88,8 @@ walletRouter.post("/withdraw", async (req, res) => {
       .select("phone, role")
       .eq("id", userId)
       .maybeSingle();
-    if (profile?.role !== "guide") {
-      return res.status(403).json({ error: "only guides can withdraw to M-Pesa" });
+    if (profile?.role !== "guide" && profile?.role !== "tourist") {
+      return res.status(403).json({ error: "sign in as a guide or tourist to withdraw to M-Pesa" });
     }
     const phone = parsed.data.phone ?? (profile?.phone as string);
     if (!phone) return res.status(400).json({ error: "M-Pesa phone number required" });

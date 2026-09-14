@@ -22,7 +22,7 @@ function readQueryParams(): URLSearchParams {
   return new URLSearchParams(window.location.search);
 }
 
-function flowFromType(type: string | null): AuthCallbackFlow {
+export function flowFromTypeParam(type: string | null): AuthCallbackFlow {
   if (type === "invite") return "invite";
   if (type === "recovery") return "recovery";
   if (type === "signup") return "signup";
@@ -45,7 +45,7 @@ export async function completeAuthCallback(supabase: SupabaseClient): Promise<Au
   const refreshToken = hash.get("refresh_token");
   const hashType = hash.get("type");
   const queryType = query.get("type");
-  const explicitFlow = flowFromType(hashType) ?? flowFromType(queryType);
+  const explicitFlow = flowFromTypeParam(hashType) ?? flowFromTypeParam(queryType);
 
   const hasCallbackParams = Boolean(code || (accessToken && refreshToken));
 

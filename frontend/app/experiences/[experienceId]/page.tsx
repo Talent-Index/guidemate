@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { ExperiencePhotoGallery } from "@/components/experience/ExperiencePhotoGallery";
 import { ExperienceBookingPanel } from "@/components/experience/ExperienceBookingPanel";
 import { GuestCountModal } from "@/components/experience/GuestCountModal";
@@ -21,11 +21,13 @@ import { experiencePhotoUrls } from "@/components/ui/ExperiencePhotoStrip";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import { getExperienceSharePath } from "@/lib/share";
+import { isUuid } from "@/lib/slug";
 import { Price } from "@/lib/fx";
 import type { ExperienceSlot } from "@/lib/slots";
 
 interface ExperienceDetail {
   id: string;
+  slug: string | null;
   title: string;
   description: string;
   tags: string[];
@@ -42,6 +44,7 @@ interface ExperienceDetail {
   guide_id: string;
   guide: {
     id: string;
+    slug: string | null;
     full_name: string;
     bio: string | null;
     avatar_url: string | null;
@@ -79,9 +82,9 @@ function osmEmbedSrc(lat: number, lng: number) {
   return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - d}%2C${lat - d}%2C${lng + d}%2C${lat + d}&layer=mapnik&marker=${lat}%2C${lng}`;
 }
 
-export default function ExperienceDetailPage() {
-  const params = useParams<{ experienceId: string }>();
+export function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { session } = useAuth();
   const [experience, setExperience] = useState<ExperienceDetail | null>(null);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
@@ -109,15 +112,13 @@ export default function ExperienceDetailPage() {
   useEffect(() => {
     (async () => {
       const supabase = createClient();
-      const { data, error: loadError } = await supabase
-        .from("experiences")
-        .select(
-          "id, guide_id, title, description, tags, category, price_usdc, duration_minutes, location, meeting_lat, meeting_lng, meeting_label, image_url, image_urls, itinerary, guide:guide_id ( id, full_name, bio, avatar_url, languages, rating_avg, rating_count, is_vetted )"
-        )
-        .eq("id", params.experienceId)
-        .eq("status", "published")
-        .eq("is_active", true)
-        .maybeSingle();
+      const select =
+        "id, slug, guide_id, title, description, tags, category, price_usdc, duration_minutes, location, meeting_lat, meeting_lng, meeting_label, image_url, image_urls, itinerary, guide:guide_id ( id, slug, full_name, bio, avatar_url, languages, rating_avg, rating_count, is_vetted )";
+      const published = () =>
+        supabase.from("experiences").select(select).eq("status", "published").eq("is_active", true);
+      const { data, error: loadError } = isUuid(idOrSlug)
+        ? await published().eq("id", idOrSlug).maybeSingle()
+        : await published().eq("slug", idOrSlug).maybeSingle();
 
       if (loadError || !data) {
         setError("Experience not found.");
@@ -127,6 +128,9 @@ export default function ExperienceDetailPage() {
 
       const row = data as unknown as ExperienceDetail;
       setExperience(row);
+      if (row.slug && pathname.startsWith("/experiences/")) {
+        router.replace(`/e/${row.slug}`);
+      }
 
       if (row.guide?.id) {
         const [{ data: ratingRows }, { data: otherExps }] = await Promise.all([
@@ -138,7 +142,7 @@ export default function ExperienceDetailPage() {
             .limit(6),
           supabase
             .from("experiences")
-            .select("id, title, price_usdc, image_url, category, guide:guide_id ( full_name, rating_avg, rating_count )")
+            .select("id, slug, title, price_usdc, image_url, category, guide:guide_id ( full_name, rating_avg, rating_count )")
             .eq("guide_id", row.guide_id)
             .eq("status", "published")
             .eq("is_active", true)
@@ -152,7 +156,7 @@ export default function ExperienceDetailPage() {
 
       setLoading(false);
     })();
-  }, [params.experienceId]);
+  }, [idOrSlug, pathname, router]);
 
   if (loading) return <p className="text-sm text-brand-muted">Loading...</p>;
 
@@ -206,7 +210,7 @@ export default function ExperienceDetailPage() {
           </div>
         </div>
         <ShareLinkButton
-          path={getExperienceSharePath(experience.id)}
+          path={getExperienceSharePath(experience.id, experience.slug)}
           label="Share"
           shareTitle={experience.title}
           shareText={`Book ${experience.title} on Guidemate`}
@@ -380,6 +384,7 @@ export default function ExperienceDetailPage() {
             guideName={guide.full_name}
             experienceTitle={experience.title}
             guideId={guide.id}
+            guideSlug={guide.slug}
             signedIn={Boolean(session)}
           />
         </>
@@ -396,4 +401,9 @@ export default function ExperienceDetailPage() {
       )}
     </div>
   );
+}
+
+export default function ExperienceDetailPage() {
+  const params = useParams<{ experienceId: string }>();
+  return <ExperienceDetailClient idOrSlug={params.experienceId} />;
 }

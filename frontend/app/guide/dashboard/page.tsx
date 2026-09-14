@@ -718,9 +718,11 @@ export default function GuideDashboardPage() {
               </div>
               <div className="flex flex-col items-end gap-1">
                 <Chip tone={b.status} />
-                {b.status === "paid" && b.payout ? (
+                {b.status === "paid" && b.payout?.destination === "wallet" ? (
+                  <p className="text-xs font-medium text-brand-success">Kept in wallet</p>
+                ) : b.status === "paid" && b.payout ? (
                   <p className="text-xs font-medium text-brand-success">
-                    {b.payout.kesAmount} KES ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ Ref {b.payout.reference}
+                    {b.payout.kesAmount} KES · Ref {b.payout.reference}
                   </p>
                 ) : b.status === "refunded" && b.refund ? (
                   <p className="text-xs text-red-600">

@@ -29,6 +29,9 @@ import {
 } from "@/lib/itinerary";
 import { uploadExperiencePhoto } from "@/lib/uploads";
 import { getPaymentQuote, type PaymentQuote } from "@/lib/api";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { PayoutDestinationPicker } from "@/components/guide/PayoutDestinationPicker";
+import type { ExperiencePayoutChoice, PayoutDestination } from "@/lib/payoutDestination";
 
 const STEP_LABELS = [
   "Basics",
@@ -57,6 +60,7 @@ export function ExperienceWizard({
 }) {
   const router = useRouter();
   const { toast } = useToast();
+  const { profile } = useAuth();
 
   const [step, setStep] = useState(() =>
     Math.min(6, Math.max(1, initialStep || draft.wizard_step || 1))
@@ -83,6 +87,11 @@ export function ExperienceWizard({
   const [navigating, setNavigating] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [payoutQuote, setPayoutQuote] = useState<PaymentQuote | null>(null);
+  const [payoutChoice, setPayoutChoice] = useState<ExperiencePayoutChoice>(
+    draft.payout_destination === "mpesa" || draft.payout_destination === "wallet"
+      ? draft.payout_destination
+      : "inherit"
+  );
 
   const formRef = useRef({
     title,
@@ -95,6 +104,7 @@ export function ExperienceWizard({
     meetingLat,
     meetingLng,
     meetingLabel,
+    payoutChoice,
     step,
   });
 
@@ -109,6 +119,7 @@ export function ExperienceWizard({
     meetingLat,
     meetingLng,
     meetingLabel,
+    payoutChoice,
     step,
   };
 
@@ -155,6 +166,7 @@ export function ExperienceWizard({
         meeting_label: label,
         location: label,
         wizard_step: wizardStep,
+        payout_destination: formRef.current.payoutChoice === "inherit" ? null : formRef.current.payoutChoice,
       };
 
       if (price > 0) patch.price_usdc = price;
@@ -308,6 +320,8 @@ export function ExperienceWizard({
   const missing = missingPublishPieces(publishInput);
   const isPublished = draft.status === "published";
   const progressPct = (step / 6) * 100;
+  const effectivePayout: PayoutDestination =
+    payoutChoice === "inherit" ? profile?.payoutDestination ?? "mpesa" : payoutChoice;
 
   return (
     <div className="flex flex-col gap-4">
@@ -505,14 +519,27 @@ export function ExperienceWizard({
                     including conversion.
                   </p>
                   <p className="mt-1">
-                    You keep 85%. After M-Pesa off-ramp fees you should receive about{" "}
-                    <span className="font-semibold text-brand-blueDark">
-                      KES {payoutQuote.guideNetKes.toLocaleString()}
-                    </span>{" "}
-                    per guest on your phone.
+                    You keep 85%.{" "}
+                    {effectivePayout === "wallet" ? (
+                      "That amount stays in your Guidemate wallet until you withdraw."
+                    ) : (
+                      <>
+                        After M-Pesa off-ramp fees you should receive about{" "}
+                        <span className="font-semibold text-brand-blueDark">
+                          KES {payoutQuote.guideNetKes.toLocaleString()}
+                        </span>{" "}
+                        per guest on your phone.
+                      </>
+                    )}
                   </p>
                 </div>
               )}
+              <PayoutDestinationPicker
+                value={payoutChoice}
+                onChange={setPayoutChoice}
+                allowInherit
+                profileDefault={profile?.payoutDestination ?? "mpesa"}
+              />
             </>
           )}
 

@@ -41,6 +41,7 @@ export interface PayoutInfo {
   kesAmount: number;
   usdcAmount: number;
   completedAt: string;
+  destination?: "mpesa" | "wallet";
 }
 
 export interface FxSnapshot {

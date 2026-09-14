@@ -9,6 +9,7 @@ export interface Profile {
   role: "guide" | "tourist" | "admin" | "staff";
   fullName: string | null;
   phone: string | null;
+  payoutDestination: "mpesa" | "wallet";
   walletAddress: string | null;
   bio: string | null;
   languages: string[];
@@ -38,6 +39,7 @@ function toProfile(row: any): Profile {
     role: row.role,
     fullName: row.full_name,
     phone: row.phone,
+    payoutDestination: row.payout_destination === "wallet" ? "wallet" : "mpesa",
     walletAddress: row.wallet_address,
     bio: row.bio,
     languages: row.languages ?? [],

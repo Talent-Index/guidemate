@@ -24,6 +24,7 @@ export interface ExperienceDraftRow {
   meeting_label: string | null;
   slug: string | null;
   created_at: string;
+  payout_destination: "mpesa" | "wallet" | null;
 }
 
 export async function patchExperienceDraft(

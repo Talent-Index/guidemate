@@ -2,7 +2,36 @@ import type { BookingRecord, PayoutInfo } from "./bookings.js";
 import { updateBooking } from "./bookings.js";
 import { usdcToKes } from "./fx.js";
 import { isSimulatedRamp } from "./ramp/index.js";
+import { supabaseAdmin } from "./supabase.js";
 import { withdrawToMpesa } from "./wallet.js";
+
+export type PayoutDestination = "mpesa" | "wallet";
+
+function asDestination(value: unknown): PayoutDestination | null {
+  return value === "mpesa" || value === "wallet" ? value : null;
+}
+
+export async function resolvePayoutDestination(
+  guideId: string,
+  experienceId: string | null
+): Promise<PayoutDestination> {
+  if (experienceId) {
+    const { data: experience } = await supabaseAdmin
+      .from("experiences")
+      .select("payout_destination")
+      .eq("id", experienceId)
+      .maybeSingle();
+    const fromExperience = asDestination(experience?.payout_destination);
+    if (fromExperience) return fromExperience;
+  }
+
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("payout_destination")
+    .eq("id", guideId)
+    .maybeSingle();
+  return asDestination(profile?.payout_destination) ?? "mpesa";
+}
 
 function randomRef(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -20,15 +49,30 @@ export async function simulateMpesaPayout(guideUsdcAmount: number, guidePhone: s
     kesAmount,
     usdcAmount: guideUsdcAmount,
     completedAt: new Date().toISOString(),
+    destination: "mpesa",
   };
 }
 
-/** After escrow release, auto-send the guide's 85% share to their M-Pesa number. */
+/** After escrow release: send to M-Pesa, or leave the 85% in the guide's wallet. */
 export async function autoPayoutOnRelease(
   booking: BookingRecord,
   guideAmountUsdc: number
 ): Promise<PayoutInfo | null> {
   if (guideAmountUsdc <= 0) return null;
+
+  const destination = await resolvePayoutDestination(booking.guideId, booking.experienceId);
+  if (destination === "wallet") {
+    const payout: PayoutInfo = {
+      reference: "WALLET",
+      phone: booking.guidePhone ?? "",
+      kesAmount: 0,
+      usdcAmount: guideAmountUsdc,
+      completedAt: new Date().toISOString(),
+      destination: "wallet",
+    };
+    await updateBooking(booking.bookingId, { payout });
+    return payout;
+  }
 
   const phone = booking.guidePhone?.trim();
   if (!phone) {
@@ -53,6 +97,7 @@ export async function autoPayoutOnRelease(
       kesAmount: result.kesAmount,
       usdcAmount: guideAmountUsdc,
       completedAt: new Date().toISOString(),
+      destination: "mpesa",
     };
 
     if (!result.pending) {

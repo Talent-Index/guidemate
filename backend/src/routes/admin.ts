@@ -8,6 +8,7 @@ import {
   getSignupsTimeseries,
 } from "../analytics.js";
 import { getAdminUserIdFromAuthHeader, getAnalyticsUserIdFromAuthHeader, supabaseAdmin } from "../supabase.js";
+import { nextAvailableSlug } from "../slug.js";
 import { z } from "zod";
 
 export const adminRouter = Router();
@@ -24,6 +25,19 @@ async function findUserIdByEmail(email: string): Promise<string | undefined> {
     if (data.users.length < perPage) return undefined;
     page += 1;
   }
+}
+
+async function allocateGuideSlug(fullName: string, userId: string) {
+  const { data: existing } = await supabaseAdmin.from("profiles").select("slug").eq("id", userId).maybeSingle();
+  if (existing?.slug) return existing.slug as string;
+  return nextAvailableSlug(
+    fullName,
+    async (candidate) => {
+      const { data } = await supabaseAdmin.from("profiles").select("id").eq("slug", candidate).maybeSingle();
+      return Boolean(data && data.id !== userId);
+    },
+    "guide"
+  );
 }
 
 async function sendApprovedGuideLoginEmail(email: string, redirectTo: string, existingAccount: boolean) {
@@ -163,6 +177,7 @@ adminRouter.post("/applications/:id/approve", async (req, res) => {
     });
     if (metadataError) throw new Error(metadataError.message);
 
+    const slug = await allocateGuideSlug(application.full_name, userId);
     const { error: profileError } = await supabaseAdmin.from("profiles").upsert({
       id: userId,
       role: "guide",
@@ -170,6 +185,7 @@ adminRouter.post("/applications/:id/approve", async (req, res) => {
       phone: application.phone,
       bio: [application.location, application.experience_pitch].filter(Boolean).join(" — "),
       is_vetted: true,
+      slug,
     });
     if (profileError) throw new Error(profileError.message);
 

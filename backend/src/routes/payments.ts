@@ -246,7 +246,7 @@ paymentsRouter.post("/checkout/initiate", async (req, res) => {
         reference_id: referenceId,
         amount_kes: kesDirect,
         amount_usdc: amountUsdc,
-        phone: "",
+        phone: "checkout",
         status: "processing",
       })
       .select()

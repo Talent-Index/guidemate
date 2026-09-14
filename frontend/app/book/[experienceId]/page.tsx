@@ -24,6 +24,7 @@ import {
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import { Price } from "@/lib/fx";
+import { getExperienceSharePath } from "@/lib/share";
 import { PaymentRailGuide } from "@/components/payments/PaymentRailGuide";
 import {
   type ExperienceSlot,
@@ -33,6 +34,7 @@ import {
 
 interface ExperienceDetail {
   id: string;
+  slug: string | null;
   title: string;
   description: string;
   tags: string[];
@@ -101,7 +103,7 @@ export default function BookExperiencePage() {
       const { data, error } = await supabase
         .from("experiences")
         .select(
-          "id, title, description, tags, price_usdc, duration_minutes, location, image_url, guide:guide_id ( id, full_name, bio, languages, rating_avg, rating_count )"
+          "id, slug, title, description, tags, price_usdc, duration_minutes, location, image_url, guide:guide_id ( id, full_name, bio, languages, rating_avg, rating_count )"
         )
         .eq("id", params.experienceId)
         .maybeSingle();
@@ -348,7 +350,7 @@ export default function BookExperiencePage() {
   return (
     <div className="mx-auto max-w-5xl">
       <Link
-        href={`/experiences/${experience.id}`}
+        href={getExperienceSharePath(experience.id, experience.slug)}
         className="mb-6 inline-block text-sm font-semibold text-brand-accent hover:underline"
       >
         Back to experience

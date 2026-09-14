@@ -11,11 +11,11 @@ export function buildAppUrl(path: string): string {
 }
 
 export function getExperienceSharePath(experienceId: string, slug?: string | null) {
-  return slug ? `/e/${slug}` : `/experiences/${experienceId}`;
+  return slug ? `/e/${encodeURIComponent(slug)}` : `/experiences/${experienceId}`;
 }
 
 export function getGuideSharePath(guideId: string, slug?: string | null) {
-  return slug ? `/g/${slug}` : `/guides/${guideId}`;
+  return slug ? `/g/${encodeURIComponent(slug)}` : `/guides/${guideId}`;
 }
 
 export function getStreamSharePath(streamId: string) {

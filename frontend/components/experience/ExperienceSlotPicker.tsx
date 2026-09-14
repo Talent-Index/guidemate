@@ -53,16 +53,19 @@ export function ExperienceSlotPicker({
 
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase
-      .channel(`experience-slots-${experienceId}`)
-      .on(
+    const channel = supabase.channel(`experience-slots-${experienceId}-${crypto.randomUUID()}`);
+    try {
+      channel.on(
         "postgres_changes",
         { event: "*", schema: "public", table: "experience_slots", filter: `experience_id=eq.${experienceId}` },
         () => {
           void loadAvailableSlots(experienceId, compact).then(setSlots);
         }
-      )
-      .subscribe();
+      );
+      channel.subscribe();
+    } catch {
+      // Slot list still loads over REST; realtime is optional.
+    }
 
     return () => {
       void supabase.removeChannel(channel);

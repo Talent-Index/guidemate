@@ -163,12 +163,14 @@ export function Price({
   size = "md",
   align = "end",
   showLiveHint = false,
+  showUsdc = true,
 }: {
   amountUsdc: number;
   className?: string;
   size?: "sm" | "md" | "lg";
   align?: "start" | "end";
   showLiveHint?: boolean;
+  showUsdc?: boolean;
 }) {
   const { formatFiat, isLive } = useCurrency();
   const kes = formatFiat(amountUsdc, "KES");
@@ -185,15 +187,15 @@ export function Price({
       {kes ? (
         <>
           <span className={`whitespace-nowrap ${primaryClass}`}>{kes}</span>
-          <span className={secondaryClass}>
-            {amountUsdc} USDC
-            {showLiveHint && isLive && <span className="ml-1 text-[10px] uppercase tracking-wide">· live</span>}
-          </span>
+          {showUsdc && (
+            <span className={secondaryClass}>
+              {amountUsdc} USDC
+              {showLiveHint && isLive && <span className="ml-1 text-[10px] uppercase tracking-wide">· live</span>}
+            </span>
+          )}
         </>
       ) : (
-        <>
-          <span className={`whitespace-nowrap ${primaryClass}`}>{amountUsdc} USDC</span>
-        </>
+        <span className={`whitespace-nowrap ${primaryClass}`}>{amountUsdc} USDC</span>
       )}
     </span>
   );

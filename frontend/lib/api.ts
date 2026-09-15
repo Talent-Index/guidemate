@@ -1,4 +1,20 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+const LOCAL_API = "http://localhost:4000";
+const PRODUCTION_API = "https://guidemate-backend.onrender.com";
+
+export function getApiBase() {
+  const fromEnv = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
+  const looksLocal = !fromEnv || /localhost|127\.0\.0\.1/.test(fromEnv);
+
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    const onLocalHost = host === "localhost" || host === "127.0.0.1";
+    if (!onLocalHost && looksLocal) return PRODUCTION_API;
+    return fromEnv || (onLocalHost ? LOCAL_API : PRODUCTION_API);
+  }
+
+  if (process.env.NODE_ENV === "production" && looksLocal) return PRODUCTION_API;
+  return fromEnv || LOCAL_API;
+}
 
 export interface ExperienceGuide {
   id: string;
@@ -102,7 +118,7 @@ export interface BookingRecord {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${getApiBase()}${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
     cache: "no-store",
@@ -752,7 +768,7 @@ export function getAdminReportUrl(from?: string, to?: string) {
   if (from) params.set("from", from);
   if (to) params.set("to", to);
   const qs = params.toString();
-  return `${API_BASE}/api/admin/reports/export${qs ? `?${qs}` : ""}`;
+  return `${getApiBase()}/api/admin/reports/export${qs ? `?${qs}` : ""}`;
 }
 
 export async function downloadAdminReport(accessToken: string, from?: string, to?: string) {

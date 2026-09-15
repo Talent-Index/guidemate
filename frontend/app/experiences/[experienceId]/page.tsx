@@ -7,6 +7,8 @@ import { ExperiencePhotoGallery } from "@/components/experience/ExperiencePhotoG
 import { ExperienceBookingPanel } from "@/components/experience/ExperienceBookingPanel";
 import { GuestCountModal } from "@/components/experience/GuestCountModal";
 import { ExperienceMetaList } from "@/components/experience/ExperienceMetaList";
+import { ExperienceThingsToKnow } from "@/components/experience/ExperienceThingsToKnow";
+import { GuideAboutSection } from "@/components/experience/GuideAboutSection";
 import { ExperienceWhatYoullDo } from "@/components/experience/ExperienceWhatYoullDo";
 import { normalizeItinerary } from "@/lib/itinerary";
 import { ExperienceRow } from "@/components/experience/ExperienceRow";
@@ -199,20 +201,16 @@ function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
   const photos = experiencePhotoUrls(experience);
   const hasPin = experience.meeting_lat != null && experience.meeting_lng != null;
   const meetingPlaceName = experience.meeting_label ?? experience.location;
-  const hours =
-    experience.duration_minutes > 0
-      ? Math.round((experience.duration_minutes / 60) * 10) / 10
-      : null;
   const itinerarySteps = normalizeItinerary(experience.itinerary, photos);
   const guideRole = guide?.is_vetted ? "Vetted local guide" : "Local guide";
   const cityLabel = experience.location?.split(",")[0]?.trim() || "Nairobi";
 
   return (
     <div className="mx-auto max-w-[1120px] pb-28 lg:pb-16">
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:items-start">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)] lg:items-start">
         <ExperiencePhotoGallery urls={photos} alt={experience.title} layout="quad" />
 
-        <div className="lg:sticky lg:top-24">
+        <div className="lg:row-span-2">
           <div className="flex items-start justify-between gap-3">
             <h1 className="text-[26px] font-bold leading-tight text-[var(--gm-ink)] sm:text-[32px]">
               {experience.title}
@@ -236,20 +234,18 @@ function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
           </div>
 
           {guide && (
-            <div className="mt-6">
+            <div className="mt-8">
               <ExperienceMetaList
                 guideName={guide.full_name}
                 guideRole={guideRole}
                 guideAvatarUrl={guide.avatar_url}
                 location={meetingPlaceName ?? experience.location}
-                durationHours={hours}
-                languages={guide.languages}
                 onHostClick={() => setAboutOpen(true)}
               />
             </div>
           )}
 
-          <div className="mt-6 hidden lg:block">
+          <div className="mt-6 hidden lg:sticky lg:top-24 lg:block">
             <ExperienceBookingPanel
               priceUsdc={experience.price_usdc}
               experienceId={experience.id}
@@ -261,7 +257,7 @@ function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
           </div>
         </div>
 
-        <div className="flex flex-col gap-10 lg:col-start-1">
+        <div className="flex flex-col gap-12">
           {itinerarySteps.length > 0 && <ExperienceWhatYoullDo steps={itinerarySteps} />}
 
           {itinerarySteps.length === 0 && (
@@ -327,6 +323,20 @@ function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
           {moreFromGuide.length > 0 && (
             <ExperienceRow title={`More experiences in ${cityLabel}`} experiences={moreFromGuide} />
           )}
+
+          {guide && (
+            <GuideAboutSection
+              guide={guide}
+              guideRole={guideRole}
+              onMessage={() => setMessageOpen(true)}
+            />
+          )}
+
+          <ExperienceThingsToKnow
+            durationMinutes={experience.duration_minutes > 0 ? experience.duration_minutes : null}
+            location={meetingPlaceName ?? experience.location}
+            languages={guide?.languages ?? []}
+          />
         </div>
       </div>
 

@@ -14,22 +14,17 @@ export function PaymentRailGuide({
   processing?: boolean;
 }) {
   if (rail === "mpesa") {
+    if (processing) return <p className="mt-3 text-sm font-semibold text-brand-accent">Enter PIN on your phone.</p>;
     return (
       <p className="mt-3 text-sm text-brand-muted">
-        {processing
-          ? "Check your phone and enter your M-Pesa PIN. Keep this page open."
-          : quote
-            ? `You'll be charged about KES ${quote.touristKes.toLocaleString()}. A prompt is sent to this number.`
-            : "A prompt is sent to this number. Keep this page open."}
+        {quote ? `KES ${quote.touristKes.toLocaleString()} · ` : ""}M-Pesa prompt on this number.
       </p>
     );
   }
 
   return (
     <p className="mt-3 text-sm text-brand-muted">
-      {quote
-        ? `Pay ${quote.amountUsdc.toFixed(2)} USDC (or USDT) on Minisend, then you'll come back here.`
-        : "You'll pay on Minisend, then return here."}
+      {quote ? `${quote.amountUsdc.toFixed(2)} USDC · ` : ""}Pay on Minisend, then return here.
     </p>
   );
 }

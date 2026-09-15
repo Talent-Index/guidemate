@@ -88,7 +88,7 @@ export default function BookExperiencePage() {
   const [booking, setBooking] = useState<BookingRecord | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("mpesa");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("checkout");
   const [mpesaPhone, setMpesaPhone] = useState("");
   const [quote, setQuote] = useState<PaymentQuote | null>(null);
   const [finishingCheckout, setFinishingCheckout] = useState(false);
@@ -384,17 +384,14 @@ export default function BookExperiencePage() {
 
           <section className={`rounded-2xl border border-brand-border p-6 ${!selectedSlot ? "opacity-50" : ""}`}>
             <p className="text-xs font-bold uppercase tracking-wide text-brand-muted">Step 2</p>
-            <h2 className="mt-1 text-lg font-bold text-brand-blueDark">Payment method</h2>
-            <p className="mt-1 text-xs text-brand-muted">
-              Kenya / M-Pesa? Choose M-Pesa. Visiting from abroad? Pay with USDC or USDT.
-            </p>
+            <h2 className="mt-1 text-lg font-bold text-brand-blueDark">Payment</h2>
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
               {(
                 [
-                  { id: "mpesa" as const, label: "M-Pesa", desc: "Pay in Kenyan Shillings (KES). Safaricom prompt on your phone." },
-                  { id: "checkout" as const, label: "USDC / USDT", desc: "Pay with a crypto wallet. Best if you do not have M-Pesa." },
+                  { id: "checkout" as const, label: "USDC / USDT", desc: "Pay on Minisend" },
+                  { id: "mpesa" as const, label: "M-Pesa", desc: "Pay from your phone" },
                   ...(SHOW_DEMO_PAY
-                    ? [{ id: "demo" as const, label: "Demo", desc: "Local testing only — no real money." }]
+                    ? [{ id: "demo" as const, label: "Demo", desc: "Test only — no real money" }]
                     : []),
                 ] as const
               ).map((opt) => (
@@ -431,16 +428,13 @@ export default function BookExperiencePage() {
 
             {paymentMethod === "checkout" && <PaymentRailGuide rail="checkout" quote={quote} />}
             {paymentMethod === "demo" && (
-              <p className="mt-4 text-sm text-brand-muted">Demo books instantly with test escrow. Do not use this on production.</p>
+              <p className="mt-4 text-sm text-brand-muted">Books instantly with test money. Local only.</p>
             )}
           </section>
 
           <section className={`rounded-2xl border border-brand-border p-6 ${!selectedSlot ? "opacity-50" : ""}`}>
             <p className="text-xs font-bold uppercase tracking-wide text-brand-muted">Step 3</p>
-            <h2 className="mt-1 text-lg font-bold text-brand-blueDark">Review and confirm</h2>
-            <p className="mt-2 text-sm text-brand-muted">
-              Your payment is held in escrow until the trip is complete. Free cancellation within 24 hours of the start time.
-            </p>
+            <h2 className="mt-1 text-lg font-bold text-brand-blueDark">Pay</h2>
             {bookingError && <p className="mt-3 text-sm text-red-600">{bookingError}</p>}
             <Button
               variant="accent"
@@ -450,6 +444,7 @@ export default function BookExperiencePage() {
             >
               {bookingLoading ? (paymentMethod === "mpesa" ? "Waiting for M-Pesa…" : "Processing...") : `Confirm and pay`}
             </Button>
+            <p className="mt-3 text-xs text-brand-muted">Held until the trip ends. Free cancel within 24 hours.</p>
           </section>
         </div>
 
@@ -520,11 +515,11 @@ export default function BookExperiencePage() {
                 </div>
                 {paymentMethod === "mpesa" && quote && (
                   <p className="mt-2 text-xs text-brand-muted">
-                    M-Pesa charge ≈ KES {quote.touristKes.toLocaleString()} including conversion fees.
+                    M-Pesa ≈ KES {quote.touristKes.toLocaleString()}
                   </p>
                 )}
                 {paymentMethod === "checkout" && (
-                  <p className="mt-2 text-xs text-brand-muted">You pay {totalUsdc.toFixed(2)} USDC (or USDT equivalent) on Minisend.</p>
+                  <p className="mt-2 text-xs text-brand-muted">{totalUsdc.toFixed(2)} USDC / USDT</p>
                 )}
               </div>
 

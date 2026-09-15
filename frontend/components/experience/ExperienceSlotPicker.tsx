@@ -6,6 +6,7 @@ import {
   type ExperienceSlot,
   formatSlotDate,
   formatSlotTimeRange,
+  spotsLeft,
 } from "@/lib/slots";
 
 async function loadAvailableSlots(experienceId: string, compact?: boolean): Promise<ExperienceSlot[]> {
@@ -15,7 +16,7 @@ async function loadAvailableSlots(experienceId: string, compact?: boolean): Prom
     .select("id, experience_id, guide_id, starts_at, ends_at, max_guests, booked_guests, is_cancelled")
     .eq("experience_id", experienceId)
     .order("starts_at", { ascending: true })
-    .limit(compact ? 4 : 12);
+    .limit(compact ? 6 : 12);
   return (data as ExperienceSlot[]) ?? [];
 }
 
@@ -115,8 +116,8 @@ export function ExperienceSlotPicker({
                 <p className="font-semibold text-[var(--gm-ink)]">{formatSlotDate(slot.starts_at)}</p>
                 <p className="text-brand-muted">{formatSlotTimeRange(slot.starts_at, slot.ends_at)}</p>
               </div>
-              <span className="shrink-0 text-xs font-semibold text-[var(--gm-ink)]">
-                Up to {slot.max_guests} guest{slot.max_guests === 1 ? "" : "s"}
+              <span className="shrink-0 text-xs font-semibold text-brand-muted">
+                {spotsLeft(slot) === 1 ? "1 spot available" : `${spotsLeft(slot)} spots available`}
               </span>
             </button>
           </li>

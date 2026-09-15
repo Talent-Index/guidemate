@@ -169,12 +169,11 @@ function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
           supabase
             .from("experiences")
             .select("id, slug, title, price_usdc, image_url, category, guide:guide_id ( full_name, rating_avg, rating_count )")
-            .eq("guide_id", row.guide_id)
             .eq("status", "published")
             .eq("is_active", true)
             .neq("id", row.id)
             .order("created_at", { ascending: false })
-            .limit(8),
+            .limit(12),
         ]);
         setReviews((ratingRows as unknown as ReviewRow[]) ?? []);
         setMoreFromGuide((otherExps as unknown as ExperienceCardData[]) ?? []);
@@ -210,55 +209,61 @@ function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
 
   return (
     <div className="mx-auto max-w-[1120px] pb-28 lg:pb-16">
-      <div className="mb-6">
-        <ExperiencePhotoGallery urls={photos} alt={experience.title} />
-      </div>
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:items-start">
+        <ExperiencePhotoGallery urls={photos} alt={experience.title} layout="quad" />
 
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-brand-border pb-6">
-        <div className="max-w-2xl">
-          <h1 className="text-[26px] font-bold leading-tight text-[var(--gm-ink)] sm:text-[32px]">
-            {experience.title}
-          </h1>
+        <div>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-[26px] font-bold leading-tight text-[var(--gm-ink)] sm:text-[32px]">
+              {experience.title}
+            </h1>
+            <ShareLinkButton
+              path={getExperienceSharePath(experience.id, experience.slug)}
+              label="Share"
+              shareTitle={experience.title}
+              shareText={`Book ${experience.title} on Guidemate`}
+              variant="outline"
+              className="shrink-0 rounded-lg px-3 py-2 text-xs"
+            />
+          </div>
           <p className="mt-2 text-base text-brand-muted">{tagline(experience.description)}</p>
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-brand-muted">
             {guide && guide.rating_count > 0 && (
               <StarRating value={guide.rating_avg} count={guide.rating_count} size="md" />
             )}
-            {experience.location && (
-              <span className="text-brand-muted">
-                {guide && guide.rating_count > 0 ? "· " : ""}
-                {experience.location}
-              </span>
-            )}
-            {experience.category && (
-              <span className="text-brand-muted">· {experience.category}</span>
-            )}
+            {experience.location && <span>{experience.location}</span>}
+            {experience.category && <span>· {experience.category}</span>}
           </div>
-        </div>
-        <ShareLinkButton
-          path={getExperienceSharePath(experience.id, experience.slug)}
-          label="Share"
-          shareTitle={experience.title}
-          shareText={`Book ${experience.title} on Guidemate`}
-          variant="outline"
-          className="rounded-lg px-4 py-2 text-xs"
-        />
-      </div>
 
-      <div className="mt-8 grid gap-12 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
-        <div className="flex flex-col gap-10">
           {guide && (
-            <ExperienceMetaList
-              guideName={guide.full_name}
-              guideRole={guideRole}
-              guideAvatarUrl={guide.avatar_url}
-              location={experience.location}
-              durationHours={hours}
-              languages={guide.languages}
-              onHostClick={() => setAboutOpen(true)}
-            />
+            <div className="mt-6">
+              <ExperienceMetaList
+                guideName={guide.full_name}
+                guideRole={guideRole}
+                guideAvatarUrl={guide.avatar_url}
+                location={meetingPlaceName ?? experience.location}
+                durationHours={hours}
+                languages={guide.languages}
+                onHostClick={() => setAboutOpen(true)}
+              />
+            </div>
           )}
 
+          <div className="mt-6 hidden lg:block">
+            <ExperienceBookingPanel
+              priceUsdc={experience.price_usdc}
+              experienceId={experience.id}
+              selectedSlot={selectedSlot}
+              onSelectSlot={setSelectedSlot}
+              onReserve={() => setGuestModalOpen(true)}
+              slotRefreshKey={slotRefreshKey}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-12 grid gap-12 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+        <div className="flex flex-col gap-10">
           {itinerarySteps.length > 0 && <ExperienceWhatYoullDo steps={itinerarySteps} />}
 
           {itinerarySteps.length === 0 && (
@@ -313,14 +318,6 @@ function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
                     src={osmEmbedSrc(experience.meeting_lat!, experience.meeting_lng!)}
                   />
                 </div>
-                <a
-                  href={`https://www.google.com/maps?q=${experience.meeting_lat},${experience.meeting_lng}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 inline-block text-sm font-semibold text-brand-accent hover:underline"
-                >
-                  Open in Google Maps
-                </a>
               </>
             ) : (
               experience.location && (
@@ -329,73 +326,39 @@ function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
             )}
           </section>
 
-          <ExperienceThingsToKnow
-            durationMinutes={experience.duration_minutes > 0 ? experience.duration_minutes : null}
-            location={experience.location}
-            languages={guide?.languages ?? []}
-          />
-
-          <div id="experience-times-mobile" className="lg:hidden">
-            <h2 className="text-xl font-bold text-[var(--gm-ink)]">Available times</h2>
-            <div className="mt-4">
-              <ExperienceBookingPanel
-                priceUsdc={experience.price_usdc}
-                experienceId={experience.id}
-                selectedSlot={selectedSlot}
-                onSelectSlot={setSelectedSlot}
-                onReserve={() => setGuestModalOpen(true)}
-                slotRefreshKey={slotRefreshKey}
-                compact
-              />
-            </div>
-          </div>
-
-          {guide && (
-            <div className="rounded-2xl border border-brand-border p-6 text-center">
-              <Button variant="secondary" className="w-full max-w-md" onClick={() => setMessageOpen(true)}>
-                Message {guide.full_name}
-              </Button>
-              <p className="mt-3 text-xs text-brand-muted">
-                To help protect your payment, always use Guidemate to book and message hosts.
-              </p>
-            </div>
+          {moreFromGuide.length > 0 && (
+            <ExperienceRow title="More experiences in Nairobi" experiences={moreFromGuide} />
           )}
         </div>
 
-        <aside className="hidden lg:block">
-          <ExperienceBookingPanel
-            priceUsdc={experience.price_usdc}
-            experienceId={experience.id}
-            selectedSlot={selectedSlot}
-            onSelectSlot={setSelectedSlot}
-            onReserve={() => setGuestModalOpen(true)}
-            slotRefreshKey={slotRefreshKey}
-          />
-        </aside>
+        <aside className="hidden lg:block" />
       </div>
 
-      {moreFromGuide.length > 0 && guide && (
-        <div className="mt-14 border-t border-brand-border pt-10">
-          <ExperienceRow
-            title={`Past experiences with ${guide.full_name}`}
-            experiences={moreFromGuide}
-          />
-        </div>
-      )}
+      <div id="experience-times-mobile" className="mt-10 lg:hidden">
+        <ExperienceBookingPanel
+          priceUsdc={experience.price_usdc}
+          experienceId={experience.id}
+          selectedSlot={selectedSlot}
+          onSelectSlot={setSelectedSlot}
+          onReserve={() => setGuestModalOpen(true)}
+          slotRefreshKey={slotRefreshKey}
+          compact
+        />
+      </div>
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-brand-border bg-[var(--gm-surface)] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] lg:hidden">
         <div className="mx-auto flex max-w-lg items-center justify-between gap-4">
           <div>
             <Price amountUsdc={experience.price_usdc} size="md" align="start" className="font-bold" />
-            <p className="text-xs text-brand-muted">/ guest · free cancellation</p>
+            <p className="text-xs text-brand-muted">/ guest</p>
           </div>
           {selectedSlot ? (
-            <Button variant="accent" className="rounded-xl px-6" onClick={() => setGuestModalOpen(true)}>
+            <Button variant="accent" className="rounded-full px-6" onClick={() => setGuestModalOpen(true)}>
               Reserve
             </Button>
           ) : (
             <a href="#experience-times-mobile">
-              <Button variant="accent" className="rounded-xl px-6">Show dates</Button>
+              <Button variant="accent" className="rounded-full px-6">Show dates</Button>
             </a>
           )}
         </div>
@@ -403,7 +366,12 @@ function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
 
       {guide && (
         <>
-          <GuideAboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} guide={guide} />
+          <GuideAboutModal
+            open={aboutOpen}
+            onClose={() => setAboutOpen(false)}
+            onMessage={() => setMessageOpen(true)}
+            guide={guide}
+          />
           <MessageGuideModal
             open={messageOpen}
             onClose={() => setMessageOpen(false)}

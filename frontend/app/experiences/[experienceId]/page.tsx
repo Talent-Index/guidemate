@@ -6,7 +6,6 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { ExperiencePhotoGallery } from "@/components/experience/ExperiencePhotoGallery";
 import { ExperienceBookingPanel } from "@/components/experience/ExperienceBookingPanel";
 import { GuestCountModal } from "@/components/experience/GuestCountModal";
-import { ExperienceThingsToKnow } from "@/components/experience/ExperienceThingsToKnow";
 import { ExperienceMetaList } from "@/components/experience/ExperienceMetaList";
 import { ExperienceWhatYoullDo } from "@/components/experience/ExperienceWhatYoullDo";
 import { normalizeItinerary } from "@/lib/itinerary";
@@ -206,13 +205,14 @@ function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
       : null;
   const itinerarySteps = normalizeItinerary(experience.itinerary, photos);
   const guideRole = guide?.is_vetted ? "Vetted local guide" : "Local guide";
+  const cityLabel = experience.location?.split(",")[0]?.trim() || "Nairobi";
 
   return (
     <div className="mx-auto max-w-[1120px] pb-28 lg:pb-16">
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:items-start">
         <ExperiencePhotoGallery urls={photos} alt={experience.title} layout="quad" />
 
-        <div>
+        <div className="lg:sticky lg:top-24">
           <div className="flex items-start justify-between gap-3">
             <h1 className="text-[26px] font-bold leading-tight text-[var(--gm-ink)] sm:text-[32px]">
               {experience.title}
@@ -260,10 +260,8 @@ function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
             />
           </div>
         </div>
-      </div>
 
-      <div className="mt-12 grid gap-12 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
-        <div className="flex flex-col gap-10">
+        <div className="flex flex-col gap-10 lg:col-start-1">
           {itinerarySteps.length > 0 && <ExperienceWhatYoullDo steps={itinerarySteps} />}
 
           {itinerarySteps.length === 0 && (
@@ -327,11 +325,9 @@ function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
           </section>
 
           {moreFromGuide.length > 0 && (
-            <ExperienceRow title="More experiences in Nairobi" experiences={moreFromGuide} />
+            <ExperienceRow title={`More experiences in ${cityLabel}`} experiences={moreFromGuide} />
           )}
         </div>
-
-        <aside className="hidden lg:block" />
       </div>
 
       <div id="experience-times-mobile" className="mt-10 lg:hidden">

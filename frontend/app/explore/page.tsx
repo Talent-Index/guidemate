@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { GreetingRow } from "@/components/ui/GreetingRow";
 import { WelcomeTodayCard, type WelcomeAction } from "@/components/WelcomeTodayCard";
 import { ExperienceMatchCard } from "@/components/ExperienceMatchCard";
 import { ExperienceRow } from "@/components/experience/ExperienceRow";
@@ -114,23 +113,13 @@ export default function ExplorePage() {
   return (
     <div className="flex flex-col gap-10">
       <div>
+        <h1 className="text-2xl font-bold text-[var(--gm-ink)] sm:text-3xl">Experiences in Nairobi</h1>
         {profile?.role === "tourist" ? (
-          <GreetingRow subtitle="Browse what's live, or describe a trip and let the match agent pick a guide." />
+          <p className="mt-2 text-sm text-brand-muted">Book a local guide. Pay when you go.</p>
         ) : (
-          <div>
-            <h1 className="text-2xl font-bold text-[var(--gm-ink)] sm:text-3xl">Experiences in Nairobi</h1>
-            <p className="mt-2 text-sm text-brand-muted">
-              Curated local tours. Book vetted guides with instant escrow protection.
-            </p>
-          </div>
+          <p className="mt-2 text-sm text-brand-muted">Curated local tours with vetted guides.</p>
         )}
       </div>
-
-      {!authLoading && profile?.role === "tourist" && (
-        <WelcomeTodayCard profile={profile} actions={touristWelcomeActions} />
-      )}
-
-      {!authLoading && <ExperienceMatchCard signedIn={Boolean(session)} initialQuery={initialQuery} />}
 
       <div id="browse-experiences" className="flex flex-col gap-12">
         {loadingExperiences && <ExperienceGridSkeleton />}
@@ -180,6 +169,12 @@ export default function ExplorePage() {
           )}
         </section>
       </div>
+
+      {!authLoading && <ExperienceMatchCard signedIn={Boolean(session)} initialQuery={initialQuery} />}
+
+      {!authLoading && profile?.role === "tourist" && (
+        <WelcomeTodayCard profile={profile} actions={touristWelcomeActions} />
+      )}
     </div>
   );
 }

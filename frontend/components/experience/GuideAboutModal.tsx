@@ -9,10 +9,12 @@ import { getGuideSharePath } from "@/lib/share";
 export function GuideAboutModal({
   open,
   onClose,
+  onMessage,
   guide,
 }: {
   open: boolean;
   onClose: () => void;
+  onMessage?: () => void;
   guide: {
     id: string;
     full_name: string;
@@ -55,11 +57,26 @@ export function GuideAboutModal({
               guide.languages.length ? `. I speak ${guide.languages.join(", ")}` : ""
             }.`}
         </p>
-        <Link href={getGuideSharePath(guide.id, guide.slug)} className="mt-6 block">
-          <Button variant="secondary" className="w-full">View full profile</Button>
+        {onMessage && (
+          <Button
+            variant="secondary"
+            className="mt-6 w-full"
+            onClick={() => {
+              onClose();
+              onMessage();
+            }}
+          >
+            Message {guide.full_name.split(/\s+/)[0]}
+          </Button>
+        )}
+        <Link
+          href={getGuideSharePath(guide.id, guide.slug)}
+          className="mt-3 block text-center text-sm font-semibold text-brand-accent hover:underline"
+        >
+          View full profile
         </Link>
         <p className="mt-4 text-center text-xs text-brand-muted">
-          To help protect your payment, always use Guidemate to book and message hosts.
+          To protect your payment, book and message on Guidemate.
         </p>
       </div>
     </div>

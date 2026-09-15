@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Price } from "@/lib/fx";
 import { ExperienceSlotPicker } from "@/components/experience/ExperienceSlotPicker";
@@ -22,39 +23,49 @@ export function ExperienceBookingPanel({
   onReserve: () => void;
   slotRefreshKey?: number;
 }) {
+  const [showDates, setShowDates] = useState(Boolean(selectedSlot));
+
+  useEffect(() => {
+    if (selectedSlot) setShowDates(true);
+  }, [selectedSlot]);
+
   return (
     <div
-      className={`rounded-2xl border border-brand-border bg-[var(--gm-surface)] p-6 shadow-card ${
-        compact ? "" : "lg:sticky lg:top-24"
-      }`}
+      className="rounded-2xl border border-brand-border bg-[var(--gm-surface)] p-5 shadow-card"
     >
-      <div className="flex flex-wrap items-baseline gap-1">
-        <span className="text-sm text-brand-muted">From</span>
-        <Price amountUsdc={priceUsdc} size="lg" align="start" className="font-bold" />
-        <span className="text-sm text-brand-muted">/ guest</span>
-      </div>
-      <p className="mt-1 text-xs font-semibold text-brand-accent">Free cancellation within 24 hours</p>
-
-      {selectedSlot ? (
-        <Button variant="accent" className="mt-5 w-full rounded-xl py-3.5 text-base font-bold" onClick={onReserve}>
-          Reserve
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="flex flex-wrap items-baseline gap-1">
+            <span className="text-sm text-brand-muted">From</span>
+            <Price amountUsdc={priceUsdc} size="lg" align="start" className="font-bold" />
+            <span className="text-sm text-brand-muted">/ guest</span>
+          </div>
+          <p className="mt-1 text-xs font-semibold text-brand-accent">Free cancellation</p>
+        </div>
+        <Button
+          variant="accent"
+          className="rounded-full px-6 py-3 text-sm font-bold"
+          onClick={() => {
+            if (selectedSlot) onReserve();
+            else setShowDates(true);
+          }}
+        >
+          {selectedSlot ? "Reserve" : "Show dates"}
         </Button>
-      ) : (
-        <p className="mt-5 text-center text-sm font-medium text-brand-muted">Select a time below</p>
-      )}
-
-      <div className="mt-4" id="experience-times">
-        <ExperienceSlotPicker
-          experienceId={experienceId}
-          selectedSlotId={selectedSlot?.id}
-          onSelect={onSelectSlot}
-          compact
-          variant="sidebar"
-          refreshKey={slotRefreshKey}
-        />
       </div>
 
-      <p className="mt-4 text-center text-xs text-brand-muted">You won&apos;t be charged yet</p>
+      {showDates && (
+        <div className="mt-5" id="experience-times">
+          <ExperienceSlotPicker
+            experienceId={experienceId}
+            selectedSlotId={selectedSlot?.id}
+            onSelect={onSelectSlot}
+            compact
+            variant="sidebar"
+            refreshKey={slotRefreshKey}
+          />
+        </div>
+      )}
     </div>
   );
 }

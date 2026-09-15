@@ -3,28 +3,24 @@
 import { useState } from "react";
 import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
 
-export function ExperiencePhotoGallery({ urls, alt }: { urls: string[]; alt: string }) {
+export function ExperiencePhotoGallery({
+  urls,
+  alt,
+  layout = "hero",
+}: {
+  urls: string[];
+  alt: string;
+  layout?: "hero" | "quad";
+}) {
   const photos = urls.length > 0 ? urls : [null];
-  const primary = photos[0];
-  const rest = photos.slice(1, 5);
   const [showAll, setShowAll] = useState(false);
-
-  if (photos.length <= 1) {
-    return (
-      <ExperiencePhoto src={primary} alt={alt} className="aspect-[16/9] w-full rounded-2xl" sizes="100vw" />
-    );
-  }
 
   if (showAll) {
     return (
       <div>
         <div className="mb-3 flex items-center justify-between">
           <p className="text-sm font-semibold text-[var(--gm-ink)]">All photos</p>
-          <button
-            type="button"
-            onClick={() => setShowAll(false)}
-            className="text-sm font-semibold text-brand-accent hover:underline"
-          >
+          <button type="button" onClick={() => setShowAll(false)} className="text-sm font-semibold text-brand-accent hover:underline">
             Back
           </button>
         </div>
@@ -43,9 +39,45 @@ export function ExperiencePhotoGallery({ urls, alt }: { urls: string[]; alt: str
     );
   }
 
+  if (layout === "quad") {
+    const quad = [...photos.slice(0, 4)];
+    while (quad.length < 4) quad.push(null);
+    return (
+      <div className="relative">
+        <div className="grid grid-cols-2 gap-2 overflow-hidden rounded-2xl">
+          {quad.map((url, i) => (
+            <ExperiencePhoto
+              key={`${url ?? "ph"}-${i}`}
+              src={url}
+              alt={`${alt} ${i + 1}`}
+              className="aspect-[4/3] w-full"
+              sizes="40vw"
+            />
+          ))}
+        </div>
+        {photos.length > 1 && (
+          <button
+            type="button"
+            onClick={() => setShowAll(true)}
+            className="absolute bottom-3 right-3 rounded-lg border border-brand-border bg-white px-3 py-1.5 text-xs font-semibold shadow-sm"
+          >
+            Show all photos
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  const primary = photos[0];
+  const rest = photos.slice(1, 5);
+
+  if (photos.length <= 1) {
+    return <ExperiencePhoto src={primary} alt={alt} className="aspect-[16/9] w-full rounded-2xl" sizes="100vw" />;
+  }
+
   return (
     <div className="relative">
-      <div className="grid gap-2 overflow-hidden rounded-2xl md:grid-cols-4 md:grid-rows-2 md:aspect-[2.2/1]">
+      <div className="grid gap-2 overflow-hidden rounded-2xl md:aspect-[2.2/1] md:grid-cols-4 md:grid-rows-2">
         <div className="relative col-span-2 row-span-2 min-h-[220px] md:min-h-0">
           <ExperiencePhoto src={primary} alt={alt} className="h-full w-full" sizes="50vw" />
         </div>
@@ -59,15 +91,13 @@ export function ExperiencePhotoGallery({ urls, alt }: { urls: string[]; alt: str
             <div key={`pad-${i}`} className="relative hidden min-h-0 bg-brand-bg md:block" />
           ))}
       </div>
-      {photos.length > 1 && (
-        <button
-          type="button"
-          onClick={() => setShowAll(true)}
-          className="absolute bottom-4 right-4 rounded-lg border border-brand-border bg-white px-4 py-2 text-xs font-semibold text-[var(--gm-ink)] shadow-sm transition hover:bg-brand-bg md:bottom-5 md:right-5"
-        >
-          Show all photos
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => setShowAll(true)}
+        className="absolute bottom-4 right-4 rounded-lg border border-brand-border bg-white px-4 py-2 text-xs font-semibold shadow-sm"
+      >
+        Show all photos
+      </button>
     </div>
   );
 }

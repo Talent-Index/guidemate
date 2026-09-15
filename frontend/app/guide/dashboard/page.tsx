@@ -228,7 +228,7 @@ export default function GuideDashboardPage() {
     await loadExperiences(session.user.id);
   }
 
-  if (authLoading || (session && !profile)) return <p className="text-sm text-brand-muted">LoadingÃÂ¢ÃÂÃÂ¦</p>;
+  if (authLoading || (session && !profile)) return <p className="text-sm text-brand-muted">Loading...</p>;
 
   if (!session || profile?.role !== "guide") {
     return (
@@ -309,7 +309,7 @@ export default function GuideDashboardPage() {
         <Card className="p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Wallet</p>
           {walletBalance == null ? (
-            <p className="mt-1 text-sm text-brand-muted">ÃÂ¢ÃÂÃÂ</p>
+            <p className="mt-1 text-sm text-brand-muted">—</p>
           ) : (
             <Price amountUsdc={walletBalance} className="mt-1" align="start" size="lg" />
           )}
@@ -322,9 +322,7 @@ export default function GuideDashboardPage() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-lg font-bold text-brand-blueDark">Booked tours</h2>
-              <p className="text-sm text-brand-muted">
-                A tourist has paid. Open Active tour to enter their PIN or scan their QR.
-              </p>
+              <p className="text-sm text-brand-muted">Paid and waiting. Verify on Active tour when they finish.</p>
             </div>
             <Link href="/guide">
               <Button variant="primary">Enter PIN / scan QR</Button>
@@ -334,29 +332,27 @@ export default function GuideDashboardPage() {
             {upcoming.map((b) => (
               <div
                 key={b.bookingId}
-                className="flex flex-col gap-3 rounded-lg border border-brand-border p-3 max-md:rounded-3xl md:flex-row md:items-center md:justify-between"
+                className="flex items-start justify-between gap-3 rounded-2xl border border-brand-border p-4"
               >
-                <div>
+                <div className="min-w-0">
                   <p className="font-semibold text-brand-blueDark">{b.touristName?.trim() || "Guest"}</p>
-                  {b.touristPhone && (
-                    <a href={`tel:${b.touristPhone}`} className="text-sm font-semibold text-brand-accent">
-                      {b.touristPhone}
-                    </a>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    {b.touristPhone && (
+                      <a href={`tel:${b.touristPhone}`} className="text-sm font-semibold text-brand-accent">
+                        {b.touristPhone}
+                      </a>
+                    )}
+                    {b.touristRatingCount > 0 && (
+                      <StarRating value={b.touristRatingAvg} count={b.touristRatingCount} size="sm" />
+                    )}
+                  </div>
+                  <p className="mt-2 truncate text-sm text-brand-muted">{b.experienceTitle ?? "Experience"}</p>
+                  <Price amountUsdc={b.amountUsdc} size="sm" align="start" showUsdc={false} className="mt-1" />
+                  {b.touristId && (
+                    <ViewTouristProfileButton touristId={b.touristId} variant="link" className="mt-2 inline-block" />
                   )}
-                  {b.touristRatingCount > 0 && (
-                    <StarRating value={b.touristRatingAvg} count={b.touristRatingCount} className="mt-1" />
-                  )}
-                  <p className="text-xs text-brand-muted">
-                    {b.touristCompletedTripCount} {b.touristCompletedTripCount === 1 ? "trip" : "trips"}
-                    {b.touristLanguages?.length ? ` ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ ${b.touristLanguages.join(", ")}` : ""}
-                  </p>
-                  {b.touristBio && <p className="mt-1 text-sm text-brand-muted line-clamp-2">{b.touristBio}</p>}
-                  <p className="text-xs text-brand-muted">
-                    {b.experienceTitle ?? "Experience"} ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
-                  </p>
-                  {b.touristId && <ViewTouristProfileButton touristId={b.touristId} className="mt-2 inline-block" />}
                 </div>
-                <Chip tone={b.status} />
+                <Chip tone={b.status} label="Booked" />
               </div>
             ))}
           </div>
@@ -569,25 +565,22 @@ export default function GuideDashboardPage() {
         {upcoming.length > 0 && (
           <Card>
             <h3 className="text-sm font-bold uppercase tracking-wide text-brand-muted">Confirmed bookings</h3>
-            <p className="mt-1 text-sm text-brand-muted">Paid and waiting for the tour ÃÂÃÂÃÂÃÂÃÂÃÂ¶ open Active tour to verify.</p>
+            <p className="mt-1 text-sm text-brand-muted">Paid and waiting. Verify on Active tour.</p>
             <div className="mt-4 flex flex-col gap-3">
               {upcoming.map((b) => (
                 <div
                   key={b.bookingId}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-border p-3 max-md:rounded-3xl"
+                  className="flex items-start justify-between gap-3 rounded-2xl border border-brand-border p-4"
                 >
-                  <div>
-                    <p className="font-semibold text-brand-blueDark">{b.experienceTitle ?? "Tour"}</p>
-                    <p className="text-sm text-brand-muted">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-brand-blueDark">{b.experienceTitle ?? "Tour"}</p>
+                    <p className="mt-1 text-sm text-brand-muted">
                       {b.touristName?.trim() || "Guest"}
-                      {b.touristPhone ? ` ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ ${b.touristPhone}` : ""}
+                      {b.touristPhone ? ` · ${b.touristPhone}` : ""}
                     </p>
-                    <p className="text-xs text-brand-muted">
-                      Booked {new Date(b.createdAt).toLocaleDateString()} ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ{" "}
-                      <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
-                    </p>
+                    <Price amountUsdc={b.amountUsdc} size="sm" align="start" showUsdc={false} className="mt-1" />
                   </div>
-                  <Chip tone={b.status} />
+                  <Chip tone={b.status} label="Booked" />
                 </div>
               ))}
             </div>
@@ -610,8 +603,8 @@ export default function GuideDashboardPage() {
                       {s.scheduledAt ? new Date(s.scheduledAt).toLocaleString() : "Scheduled"}
                       {s.priceUsdc > 0 ? (
                         <>
-                          {" "}
-                          ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ <Price amountUsdc={s.priceUsdc} size="sm" align="start" className="inline-flex" />
+                          {" · "}
+                          <Price amountUsdc={s.priceUsdc} size="sm" align="start" showUsdc={false} className="inline-flex" />
                         </>
                       ) : null}
                     </p>
@@ -648,11 +641,11 @@ export default function GuideDashboardPage() {
                     {s.experienceTitle && <p className="text-sm text-brand-muted">{s.experienceTitle}</p>}
                     <p className="text-xs text-brand-muted">
                       {s.endedAt ? new Date(s.endedAt).toLocaleDateString() : new Date(s.createdAt).toLocaleDateString()}
-                      {" ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ "}
+                      {" · "}
                       {s.tipCount} tips ({s.tipTotalUsdc} USDC)
-                      {" ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ "}
+                      {" · "}
                       {s.reactionCount} flowers
-                      {s.commentCount > 0 ? ` ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ ${s.commentCount} comments` : ""}
+                      {s.commentCount > 0 ? ` · ${s.commentCount} comments` : ""}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -688,54 +681,40 @@ export default function GuideDashboardPage() {
             {loadingBookings && <ListRowSkeleton count={3} />}
             {bookingsError && <p className="text-sm text-red-600">{bookingsError}</p>}
             {!loadingBookings && !bookingsError && pastBookings.length === 0 && (
-              <p className="text-sm text-brand-muted">No completed tours yet ÃÂÃÂÃÂÃÂÃÂÃÂ¶ they&apos;ll show up here once verified.</p>
+              <p className="text-sm text-brand-muted">No completed tours yet. They show up here after you verify.</p>
             )}
             {pastBookings.map((b) => (
-            <div key={b.bookingId} className="rounded-lg border border-brand-border p-3 max-md:rounded-3xl">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="font-semibold text-brand-blueDark">{b.experienceTitle ?? b.request ?? "Tour"}</p>
-                <p className="text-xs text-brand-muted">
+            <div key={b.bookingId} className="rounded-2xl border border-brand-border p-4">
+              <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-brand-blueDark">{b.experienceTitle ?? b.request ?? "Tour"}</p>
+                <p className="mt-1 text-sm text-brand-muted">
                   {b.touristName?.trim() || "Guest"}
-                  {b.touristPhone ? ` ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ ${b.touristPhone}` : ""}
-                  {` ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ ${b.touristCompletedTripCount} ${b.touristCompletedTripCount === 1 ? "trip" : "trips"}`}
+                  {b.touristPhone ? ` · ${b.touristPhone}` : ""}
                 </p>
-                {b.touristLanguages?.length ? (
-                  <p className="text-xs text-brand-muted">{b.touristLanguages.join(", ")}</p>
-                ) : null}
-                {b.touristBio && <p className="mt-1 text-sm text-brand-muted line-clamp-2">{b.touristBio}</p>}
-                <p className="text-xs text-brand-muted">
-                  {new Date(b.createdAt).toLocaleDateString()} ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ{" "}
-                  <Price amountUsdc={b.amountUsdc} size="sm" align="start" className="inline-flex" />
-                  {b.splits ? ` ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ your cut ${b.splits.guideAmount} USDC` : ""}
-                </p>
+                <Price amountUsdc={b.amountUsdc} size="sm" align="start" showUsdc={false} className="mt-1" />
                 {b.rating && (
-                  <p className="mt-1 text-sm text-brand-amber" aria-label={`Rated ${b.rating.stars} stars`}>
-                    {[1, 2, 3, 4, 5].map((n) => (n <= b.rating!.stars ? "ÃÂÃÂÃÂÃÂ¿ÃÂÃÂ " : "ÃÂÃÂÃÂÃÂ¿ÃÂÃÂ¥")).join("")}
-                    <span className="ml-1 text-xs text-brand-muted">from tourist</span>
-                  </p>
+                  <StarRating value={b.rating.stars} count={1} size="sm" showCount={false} className="mt-2" />
                 )}
               </div>
-              <div className="flex flex-col items-end gap-1">
+              <div className="flex shrink-0 flex-col items-end gap-1">
                 <Chip tone={b.status} />
                 {b.status === "paid" && b.payout?.destination === "wallet" ? (
                   <p className="text-xs font-medium text-brand-success">Kept in wallet</p>
                 ) : b.status === "paid" && b.payout ? (
                   <p className="text-xs font-medium text-brand-success">
-                    {b.payout.kesAmount} KES · Ref {b.payout.reference}
+                    {b.payout.kesAmount} KES
                   </p>
                 ) : b.status === "refunded" && b.refund ? (
-                  <p className="text-xs text-red-600">
-                    No-show ÃÂ¢ÃÂÃÂ¬ÃÂ¢ÃÂÃÂ {b.refund.refundAmount.toFixed(2)} USDC refunded
-                  </p>
+                  <p className="text-xs text-red-600">No-show refund</p>
                 ) : (
-                  <p className="text-xs text-brand-muted">Payout not yet received</p>
+                  <p className="text-xs text-brand-muted">Payout pending</p>
                 )}
               </div>
               </div>
               {b.status === "paid" && b.touristId && (
                 <>
-                <ViewTouristProfileButton touristId={b.touristId} className="mt-3 inline-block" />
+                <ViewTouristProfileButton touristId={b.touristId} variant="link" className="mt-3 inline-block" />
                 <RatePanel
                   title={`Rate ${b.touristName?.trim() || "this tourist"}`}
                   subtitle="How was this guest? Your rating helps other guides."

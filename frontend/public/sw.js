@@ -3,9 +3,11 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
-});
-
-self.addEventListener("fetch", (event) => {
-  event.respondWith(fetch(event.request));
+  event.waitUntil(
+    (async () => {
+      await self.registration.unregister();
+      const windows = await self.clients.matchAll({ type: "window" });
+      await Promise.all(windows.map((client) => client.navigate(client.url)));
+    })()
+  );
 });

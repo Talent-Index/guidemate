@@ -175,25 +175,6 @@ export default function WalletPage() {
         onWithdraw={(amount) => void handleWithdraw(amount)}
       />
 
-      {isGuide && (
-        <Card className="border-brand-border bg-brand-bg/80">
-          <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Where payout funds live</p>
-          <p className="mt-2 text-sm text-brand-muted">
-            When tourists pay by M-Pesa, Minisend settles USDC on Base to Guidemate&apos;s merchant wallet (not your Fuji
-            test wallet). Withdrawals send from that pool through Minisend to your M-Pesa.
-          </p>
-          <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-brand-muted">
-            <li>
-              USDC on Base — builds up from live tourist bookings in your Minisend dashboard (Settlements).
-            </li>
-            <li>
-              ETH on Base — a small amount on the same merchant wallet pays network gas when we send USDC to Minisend
-              off-ramp. Add via Coinbase, Bridge, or your exchange (withdraw ETH to Base network).
-            </li>
-          </ul>
-        </Card>
-      )}
-
       {message && <p className="text-sm text-brand-success">{message}</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
 

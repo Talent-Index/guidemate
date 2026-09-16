@@ -291,3 +291,36 @@ export async function listBookings(filter: ListBookingsFilter = {}): Promise<Boo
   const ids = data.map((row) => row.id as string);
   return withTouristProfiles(await attachRatings(data.map((row) => toBookingRecord(row)), ids));
 }
+
+/** Admin / ops: mark stuck locked bookings as paid in DB (does not release on-chain escrow). */
+export async function closeLockedBookingsAsPaid(opts?: { demoOnly?: boolean }): Promise<{ closed: number; ids: string[] }> {
+  const demoOnly = opts?.demoOnly !== false;
+  let selectQuery = supabaseAdmin.from("bookings").select("id, amount_usdc, slot_id").eq("status", "locked");
+  if (demoOnly) selectQuery = selectQuery.eq("payment_method", "demo");
+  const { data: rows, error: selectError } = await selectQuery;
+  if (selectError) throw new Error(selectError.message);
+  if (!rows?.length) return { closed: 0, ids: [] };
+
+  const ids = rows.map((r) => r.id as string);
+
+  for (const row of rows) {
+    const amount = Number(row.amount_usdc);
+    const guideSplit = Math.round(amount * 0.85 * 100) / 100;
+    const protocolSplit = Math.round(amount * 0.15 * 100) / 100;
+    const { error } = await supabaseAdmin
+      .from("bookings")
+      .update({
+        status: "paid",
+        guide_split: guideSplit,
+        hotel_split: 0,
+        protocol_split: protocolSplit,
+      })
+      .eq("id", row.id);
+    if (error) throw new Error(error.message);
+    if (row.slot_id) {
+      await supabaseAdmin.from("experience_slots").update({ booked_guests: 0 }).eq("id", row.slot_id);
+    }
+  }
+
+  return { closed: ids.length, ids };
+}

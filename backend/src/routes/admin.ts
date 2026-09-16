@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { provisionGuideWallet } from "../wallet.js";
+import { closeLockedBookingsAsPaid } from "../bookings.js";
 import {
   buildReportCsv,
   getAdminTransactions,
@@ -334,6 +335,20 @@ adminRouter.post("/staff", async (req, res) => {
   } catch (err) {
     console.error("[admin] create staff failed", err);
     res.status(500).json({ error: (err as Error).message ?? "staff creation failed" });
+  }
+});
+
+adminRouter.post("/bookings/close-locked", async (req, res) => {
+  const adminId = await getAdminUserIdFromAuthHeader(req.headers.authorization);
+  if (!adminId) return res.status(403).json({ error: "admin only" });
+
+  const demoOnly = (req.body as { demoOnly?: boolean } | undefined)?.demoOnly !== false;
+  try {
+    const result = await closeLockedBookingsAsPaid({ demoOnly });
+    res.json(result);
+  } catch (err) {
+    console.error("[admin] close locked bookings failed", err);
+    res.status(500).json({ error: (err as Error).message });
   }
 });
 

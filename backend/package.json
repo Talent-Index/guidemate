@@ -7,7 +7,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "seed": "tsx src/scripts/seedFunds.ts"
+    "seed": "tsx src/scripts/seedFunds.ts",
+    "close-locked-bookings": "tsx src/scripts/closeLockedBookings.ts"
   },
   "dependencies": {
     "@google/genai": "^1.9.0",

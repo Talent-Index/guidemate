@@ -110,10 +110,12 @@ export function WalletPanel({
     <Card className="p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Wallet balance</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">
+            Wallet balance · your share (85%)
+          </p>
           <Price amountUsdc={wallet.balanceUsdc} className="mt-1" />
           <p className="mt-1 text-xs text-brand-muted">
-            ≈ KES {wallet.balanceKes.toLocaleString()}
+            ≈ KES {wallet.balanceKes.toLocaleString()} · after completed trips
           </p>
         </div>
         <p className="font-mono text-xs text-brand-muted">{wallet.address.slice(0, 6)}…{wallet.address.slice(-4)}</p>

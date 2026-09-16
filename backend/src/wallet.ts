@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { Contract, formatUnits, getAddress, isAddress, parseEther, parseUnits, Wallet } from "ethers";
 import mockUsdcAbi from "./abi/MockUSDC.json" with { type: "json" };
 import { provider, requireChain } from "./chain.js";
-import { listWalletTransactions, recordWalletTransaction } from "./ledger.js";
+import { listWalletTransactions, recordWalletTransaction, getLedgerBalanceUsdc } from "./ledger.js";
 import { MinisendRampProvider } from "./ramp/minisend.js";
 import { getRampProvider, isKotaniRamp, isMinisendRamp, isSimulatedRamp } from "./ramp/index.js";
 import { sendUsdcOnBase } from "./treasuryBase.js";
@@ -144,10 +144,13 @@ export async function getWalletBalance(profileId: string): Promise<number> {
 
 export async function getWalletSummary(profileId: string) {
   const address = await getWalletAddress(profileId);
-  const balanceUsdc = address ? await getWalletBalance(profileId) : 0;
+  const onChainBalanceUsdc = address ? await getWalletBalance(profileId) : 0;
+  const ledgerBalanceUsdc = await getLedgerBalanceUsdc(profileId);
+  // Ledger reflects real releases / withdrawals; Fuji mock USDC from demo bookings can inflate on-chain.
+  const balanceUsdc = Math.max(0, ledgerBalanceUsdc);
   const balanceKes = await usdcToKes(balanceUsdc);
   const transactions = await listWalletTransactions(profileId, 50);
-  return { address, balanceUsdc, balanceKes, transactions };
+  return { address, balanceUsdc, balanceKes, onChainBalanceUsdc, ledgerBalanceUsdc, transactions };
 }
 
 export async function withdrawToMpesa(
@@ -157,8 +160,16 @@ export async function withdrawToMpesa(
   opts?: { bookingId?: string }
 ): Promise<{ withdrawalId: string; reference: string; kesAmount: number; pending?: true }> {
   if (amountUsdc <= 0) throw new Error("amount must be positive");
-  const balance = await getWalletBalance(profileId);
-  if (amountUsdc > balance) throw new Error("insufficient wallet balance");
+  const ledgerBalance = await getLedgerBalanceUsdc(profileId);
+  if (amountUsdc > ledgerBalance) {
+    throw new Error("insufficient wallet balance");
+  }
+  const onChainBalance = await getWalletBalance(profileId);
+  if (amountUsdc > onChainBalance) {
+    throw new Error(
+      "Your on-chain balance is still syncing. Try a smaller amount or contact support."
+    );
+  }
 
   const ramp = getRampProvider();
   const { data: profile } = await supabaseAdmin

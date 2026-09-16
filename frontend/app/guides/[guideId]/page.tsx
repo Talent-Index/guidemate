@@ -118,7 +118,7 @@ export default function GuideProfilePage() {
           <Stat label="Reviews" value={String(guide.ratingCount)} />
           <Stat
             label="Average rating"
-            value={guide.ratingCount ? guide.ratingAvg.toFixed(1) : "—"}
+            value={guide.ratingCount ? guide.ratingAvg.toFixed(1) : "-"}
             className="col-span-2 sm:col-span-1"
           />
         </div>

@@ -309,7 +309,7 @@ export default function GuideDashboardPage() {
         <Card className="p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Wallet</p>
           {walletBalance == null ? (
-            <p className="mt-1 text-sm text-brand-muted">—</p>
+            <p className="mt-1 text-sm text-brand-muted">-</p>
           ) : (
             <Price amountUsdc={walletBalance} className="mt-1" align="start" size="lg" />
           )}

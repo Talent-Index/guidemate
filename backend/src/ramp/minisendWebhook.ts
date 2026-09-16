@@ -206,6 +206,15 @@ async function handleOfframpCompleted(payload: Record<string, unknown>): Promise
     return { handled: Boolean(withdrawal) };
   }
 
+  const { data: existingLedger } = await supabaseAdmin
+    .from("wallet_transactions")
+    .select("id")
+    .eq("profile_id", withdrawal.profile_id)
+    .eq("reference_type", "withdrawal")
+    .eq("reference_id", externalRef)
+    .eq("type", "mpesa_withdraw")
+    .limit(1);
+
   await supabaseAdmin
     .from("withdrawal_requests")
     .update({
@@ -215,16 +224,23 @@ async function handleOfframpCompleted(payload: Record<string, unknown>): Promise
     })
     .eq("id", externalRef);
 
-  await recordWalletTransaction({
-    profileId: withdrawal.profile_id,
-    type: "mpesa_withdraw",
-    amountUsdc: -Number(withdrawal.amount_usdc),
-    amountKes: Number(withdrawal.kes_amount),
-    referenceType: "withdrawal",
-    referenceId: externalRef,
-    mpesaRef,
-    status: "completed",
-  });
+  if (existingLedger?.length) {
+    await supabaseAdmin
+      .from("wallet_transactions")
+      .update({ status: "completed", mpesa_ref: mpesaRef })
+      .eq("id", existingLedger[0].id);
+  } else {
+    await recordWalletTransaction({
+      profileId: withdrawal.profile_id,
+      type: "mpesa_withdraw",
+      amountUsdc: -Number(withdrawal.amount_usdc),
+      amountKes: Number(withdrawal.kes_amount),
+      referenceType: "withdrawal",
+      referenceId: externalRef,
+      mpesaRef,
+      status: "completed",
+    });
+  }
 
   return { handled: true };
 }

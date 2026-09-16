@@ -8,6 +8,7 @@ import {
   getWallet,
   provisionWallet,
   withdrawWallet,
+  friendlyWalletError,
   type WalletSummary,
   SNOWTRACE_TX_BASE,
 } from "@/lib/api";
@@ -83,7 +84,7 @@ export function WalletPanel({
       setWithdrawAmount("");
       await refresh();
     } catch (err) {
-      const message = (err as Error).message;
+      const message = friendlyWalletError((err as Error).message);
       setError(message);
       toast(message, "error");
     } finally {

@@ -39,7 +39,7 @@ paymentsRouter.post("/mpesa/initiate", async (req, res) => {
     const { purpose, referenceId, amountUsdc, phone } = parsed.data;
     const ramp = getRampProvider();
     const quote = await ramp.getQuote(amountUsdc, "on");
-    const amountKes = quote.kes + quote.fee;
+    let amountKes = quote.kes + quote.fee;
 
     const { data: profile } = await supabaseAdmin
       .from("profiles")
@@ -76,6 +76,12 @@ paymentsRouter.post("/mpesa/initiate", async (req, res) => {
       .from("payment_intents")
       .update({ checkout_request_id: onRamp.checkoutRequestId })
       .eq("id", intent.id);
+
+    const amountLocalKes = (onRamp as { amountLocalKes?: number }).amountLocalKes;
+    if (amountLocalKes != null && Number.isFinite(amountLocalKes) && amountLocalKes > 0) {
+      await supabaseAdmin.from("payment_intents").update({ amount_kes: amountLocalKes }).eq("id", intent.id);
+      amountKes = amountLocalKes;
+    }
 
     if (isSimulatedRamp() || !onRamp.async) {
       const mpesaReceipt = `SIM-${randomUUID().slice(0, 8).toUpperCase()}`;
@@ -172,6 +178,10 @@ paymentsRouter.get("/mpesa/:intentId", async (req, res) => {
         const ramp = getRampProvider();
         if (ramp instanceof MinisendRampProvider) {
           const order = await ramp.getOnrampOrder(checkoutId);
+          if (order.amount_local != null && Number.isFinite(order.amount_local)) {
+            data.amount_kes = order.amount_local;
+            await supabaseAdmin.from("payment_intents").update({ amount_kes: order.amount_local }).eq("id", data.id);
+          }
           if (order.status === "completed") {
             const mpesaRef = order.receipt_number ?? checkoutId;
             await supabaseAdmin
@@ -373,6 +383,46 @@ export async function getCompletedPaymentIntent(intentId: string, payerId: strin
     .eq("status", "completed")
     .maybeSingle();
   return data;
+}
+
+export interface PaymentReceiptPayload {
+  method: string;
+  amountUsdc: number;
+  amountKes: number | null;
+  mpesaReceipt: string | null;
+  paidAt: string | null;
+  paymentIntentId: string;
+}
+
+export function paymentReceiptFromIntent(
+  intent: Record<string, unknown>,
+  paymentMethod: string
+): PaymentReceiptPayload {
+  const kes = intent.amount_kes != null ? Number(intent.amount_kes) : null;
+  return {
+    method: paymentMethod,
+    amountUsdc: Number(intent.amount_usdc),
+    amountKes: kes != null && Number.isFinite(kes) ? kes : null,
+    mpesaReceipt: (intent.mpesa_receipt as string | null) ?? null,
+    paidAt: (intent.completed_at as string | null) ?? null,
+    paymentIntentId: String(intent.id),
+  };
+}
+
+export async function getPaymentReceiptForBooking(
+  paymentRef: string | null | undefined,
+  payerId: string,
+  paymentMethod: string
+): Promise<PaymentReceiptPayload | null> {
+  if (!paymentRef) return null;
+  const { data } = await supabaseAdmin
+    .from("payment_intents")
+    .select("*")
+    .eq("id", paymentRef)
+    .eq("payer_id", payerId)
+    .maybeSingle();
+  if (!data || data.status !== "completed") return null;
+  return paymentReceiptFromIntent(data, paymentMethod);
 }
 
 export async function waitForPaymentIntent(intentId: string, payerId: string, timeoutMs = 120_000): Promise<boolean> {

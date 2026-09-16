@@ -146,6 +146,17 @@ export function friendlyPaymentError(message: string): string {
   return message;
 }
 
+export function friendlyWalletError(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes("intrinsic transaction cost") || lower.includes("insufficient_funds")) {
+    return "Withdrawal could not send USDC yet. Try again in a few seconds.";
+  }
+  if (lower.includes("gas wallet is low")) return message;
+  if (lower.includes("insufficient wallet balance")) return "That amount is more than your wallet balance.";
+  if (message.length > 160) return message.split("\n")[0] ?? "Withdrawal failed. Try again.";
+  return message;
+}
+
 function authHeaders(accessToken?: string): HeadersInit {
   return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 }
@@ -159,6 +170,15 @@ export function matchExperience(text: string) {
     method: "POST",
     body: JSON.stringify({ request: text }),
   });
+}
+
+export interface BookingPaymentReceipt {
+  method: string;
+  amountUsdc: number;
+  amountKes: number | null;
+  mpesaReceipt: string | null;
+  paidAt: string | null;
+  paymentIntentId: string;
 }
 
 export function createBooking(
@@ -178,11 +198,21 @@ export function createBooking(
   },
   accessToken?: string
 ) {
-  return request<{ booking: BookingRecord; qrToken: string }>("/api/book", {
-    method: "POST",
-    headers: authHeaders(accessToken),
-    body: JSON.stringify(input),
-  });
+  return request<{ booking: BookingRecord; qrToken: string; paymentReceipt: BookingPaymentReceipt | null }>(
+    "/api/book",
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify(input),
+    }
+  );
+}
+
+export function getBookingPaymentReceipt(bookingId: string, accessToken: string) {
+  return request<{ bookingId: string; paymentReceipt: BookingPaymentReceipt | null }>(
+    `/api/bookings/${bookingId}/receipt`,
+    { headers: authHeaders(accessToken) }
+  );
 }
 
 export function getBooking(bookingId: string) {
@@ -625,14 +655,19 @@ export async function pollMpesaPayment(
   intentId: string,
   accessToken: string,
   opts?: { timeoutMs?: number; intervalMs?: number }
-): Promise<{ status: string; mpesaReceipt: string | null }> {
+): Promise<{ status: string; mpesaReceipt: string | null; amountKes: number; amountUsdc: number }> {
   const timeoutMs = opts?.timeoutMs ?? 120_000;
   const intervalMs = opts?.intervalMs ?? 2500;
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
     const status = await getMpesaPaymentStatus(intentId, accessToken);
     if (status.status === "completed") {
-      return { status: status.status, mpesaReceipt: status.mpesaReceipt };
+      return {
+        status: status.status,
+        mpesaReceipt: status.mpesaReceipt,
+        amountKes: status.amountKes,
+        amountUsdc: status.amountUsdc,
+      };
     }
     if (status.status === "failed" || status.status === "cancelled") {
       throw new Error("Payment was not completed");

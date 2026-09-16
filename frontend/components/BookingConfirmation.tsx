@@ -7,8 +7,9 @@ import { Chip } from "@/components/ui/Chip";
 import { ExperiencePhoto } from "@/components/ui/ExperiencePhoto";
 import { StarRating } from "@/components/ui/StarRating";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
-import { Price } from "@/lib/fx";
-import { SNOWTRACE_TX_BASE, type BookingRecord } from "@/lib/api";
+import { BookingReceipt } from "@/components/BookingReceipt";
+import { type BookingPaymentReceipt, type BookingRecord } from "@/lib/api";
+import { type BookingReceiptData } from "@/lib/bookingReceipt";
 
 interface ExperienceSummary {
   id: string;
@@ -19,25 +20,58 @@ interface ExperienceSummary {
   guide: { id: string; full_name: string; rating_avg: number; rating_count: number } | null;
 }
 
-function shortenHash(hash: string) {
-  return `${hash.slice(0, 8)}…${hash.slice(-6)}`;
-}
-
 export function BookingConfirmation({
   booking,
   experience,
   paymentMethod,
+  paymentReceipt,
+  slotDate,
+  slotTime,
 }: {
   booking: BookingRecord;
   experience: ExperienceSummary;
   paymentMethod?: string;
+  paymentReceipt?: BookingPaymentReceipt | null;
+  slotDate?: string;
+  slotTime?: string;
 }) {
   const steps = [
-    "Meet your guide at the agreed location and time.",
-    "When your tour is done, open My trips on your phone.",
-    "Tap End trip. Your guide enters the 6-digit PIN or scans your QR code.",
-    "Rate your experience to help other tourists choose.",
+    "Meet your guide at the agreed time.",
+    "When you're done, tap End trip and show your PIN or QR.",
+    "Your guide releases payment from their Tour tab.",
+    "Rate the experience when you're back home.",
   ];
+
+  const receiptData: BookingReceiptData = {
+    bookingId: booking.bookingId,
+    createdAt: booking.createdAt,
+    experienceTitle: experience.title,
+    guideName: experience.guide?.full_name ?? booking.guideName,
+    location: experience.location,
+    durationMinutes: experience.duration_minutes,
+    guestCount: booking.guestCount ?? booking.adults ?? 1,
+    slotDate,
+    slotTime,
+    payment: paymentReceipt
+      ? {
+          method: paymentReceipt.method,
+          amountUsdc: paymentReceipt.amountUsdc,
+          amountKes: paymentReceipt.amountKes,
+          mpesaReceipt: paymentReceipt.mpesaReceipt,
+          paidAt: paymentReceipt.paidAt,
+          paymentIntentId: paymentReceipt.paymentIntentId,
+        }
+      : paymentMethod
+        ? {
+            method: paymentMethod,
+            amountUsdc: booking.amountUsdc,
+            amountKes: null,
+            mpesaReceipt: null,
+            paidAt: booking.createdAt,
+          }
+        : null,
+    lockTxHash: booking.lockTxHash,
+  };
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-4">
@@ -82,12 +116,15 @@ export function BookingConfirmation({
               <dt className="text-brand-muted">Duration</dt>
               <dd className="font-medium text-brand-blueDark">{experience.duration_minutes} min</dd>
             </div>
-            <div>
-              <dt className="text-brand-muted">Booked</dt>
-              <dd className="font-medium text-brand-blueDark">
-                {new Date(booking.createdAt).toLocaleDateString()}
-              </dd>
-            </div>
+            {slotDate && (
+              <div className="col-span-2">
+                <dt className="text-brand-muted">When</dt>
+                <dd className="font-medium text-brand-blueDark">
+                  {slotDate}
+                  {slotTime ? ` · ${slotTime}` : ""}
+                </dd>
+              </div>
+            )}
             {paymentMethod && (
               <div>
                 <dt className="text-brand-muted">Paid via</dt>
@@ -95,24 +132,10 @@ export function BookingConfirmation({
               </div>
             )}
           </dl>
-
-          <div className="mt-4 rounded-xl bg-brand-bg p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Receipt</p>
-            <Price amountUsdc={booking.amountUsdc} className="mt-1" />
-            <p className="mt-1 text-xs text-brand-muted">Ref {booking.bookingId.slice(0, 8).toUpperCase()}</p>
-            {booking.lockTxHash && (
-              <a
-                href={`${SNOWTRACE_TX_BASE}/${booking.lockTxHash}`}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2 inline-block text-xs text-brand-accent underline"
-              >
-                Escrow lock · {shortenHash(booking.lockTxHash)}
-              </a>
-            )}
-          </div>
         </div>
       </Card>
+
+      <BookingReceipt data={receiptData} />
 
       <Card className="p-6 text-left">
         <h3 className="text-sm font-bold uppercase tracking-wide text-brand-muted">What happens next</h3>

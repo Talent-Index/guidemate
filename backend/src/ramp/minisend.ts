@@ -126,7 +126,9 @@ export class MinisendRampProvider implements RampProvider {
     }
   }
 
-  async createOnRamp(req: OnRampRequest): Promise<{ checkoutRequestId: string; referenceId: string; async: boolean }> {
+  async createOnRamp(
+    req: OnRampRequest
+  ): Promise<{ checkoutRequestId: string; referenceId: string; async: boolean; amountLocalKes?: number }> {
     const data = await minisendRequest<MinisendOnrampOrder>(
       "POST",
       "/api/onramp/orders",
@@ -144,6 +146,7 @@ export class MinisendRampProvider implements RampProvider {
       checkoutRequestId: data.order_id,
       referenceId: req.intentId,
       async: true,
+      amountLocalKes: Number.isFinite(data.amount_local) ? data.amount_local : undefined,
     };
   }
 
@@ -184,7 +187,9 @@ export class MinisendRampProvider implements RampProvider {
     });
   }
 
-  async getOnrampOrder(orderId: string): Promise<{ status: string; receipt_number?: string }> {
+  async getOnrampOrder(
+    orderId: string
+  ): Promise<{ status: string; receipt_number?: string; amount_local?: number }> {
     return minisendRequest("GET", `/api/onramp/orders/${orderId}`);
   }
 

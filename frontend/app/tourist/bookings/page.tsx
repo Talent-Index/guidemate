@@ -11,6 +11,7 @@ import { StarRating } from "@/components/ui/StarRating";
 import { EndTripPanel } from "@/components/EndTripPanel";
 import { RatePanel } from "@/components/RatePanel";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
+import { BookingReceiptButton } from "@/components/BookingReceiptButton";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { RoleGate } from "@/components/auth/RoleGate";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -187,6 +188,7 @@ function TripCard({
           <div className="mt-3">
             <Price amountUsdc={booking.amountUsdc} size="md" align="start" />
           </div>
+          <BookingReceiptButton booking={booking} accessToken={sessionToken} />
           {booking.status === "paid" && <p className="mt-2 text-sm text-brand-success">Trip completed</p>}
           {booking.status === "refunded" && (
             <p className="mt-2 text-sm text-red-700">Cancelled or marked as a no-show</p>

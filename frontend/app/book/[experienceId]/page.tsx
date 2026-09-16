@@ -20,6 +20,7 @@ import {
   pollMpesaPayment,
   friendlyPaymentError,
   type BookingRecord,
+  type BookingPaymentReceipt,
   type PaymentQuote,
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
@@ -86,6 +87,9 @@ export default function BookExperiencePage() {
   const guests = adults + children;
 
   const [booking, setBooking] = useState<BookingRecord | null>(null);
+  const [paymentReceipt, setPaymentReceipt] = useState<BookingPaymentReceipt | null>(null);
+  const [receiptSlotDate, setReceiptSlotDate] = useState<string | undefined>();
+  const [receiptSlotTime, setReceiptSlotTime] = useState<string | undefined>();
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("checkout");
@@ -162,7 +166,7 @@ export default function BookExperiencePage() {
   }) {
     if (!experience || !session) return;
     const guestTotal = opts.guestAdults + opts.guestChildren;
-    const { booking: created } = await createBooking(
+    const { booking: created, paymentReceipt: receipt } = await createBooking(
       {
         request: `Booking: ${experience.title} on ${formatSlotDate(opts.slot.starts_at)}`,
         experienceId: experience.id,
@@ -176,6 +180,9 @@ export default function BookExperiencePage() {
       },
       session.access_token
     );
+    setReceiptSlotDate(formatSlotDate(opts.slot.starts_at));
+    setReceiptSlotTime(formatSlotTimeRange(opts.slot.starts_at, opts.slot.ends_at));
+    setPaymentReceipt(receipt);
     setBooking(created);
     setSlotRefreshKey((k) => k + 1);
     setSelectedSlot(null);
@@ -342,7 +349,16 @@ export default function BookExperiencePage() {
   }
 
   if (booking) {
-    return <BookingConfirmation booking={booking} experience={experience} paymentMethod={paymentMethod} />;
+    return (
+      <BookingConfirmation
+        booking={booking}
+        experience={experience}
+        paymentMethod={paymentMethod}
+        paymentReceipt={paymentReceipt}
+        slotDate={receiptSlotDate}
+        slotTime={receiptSlotTime}
+      />
+    );
   }
 
   const totalUsdc = experience.price_usdc * guests;
@@ -520,22 +536,28 @@ export default function BookExperiencePage() {
                 <p className="font-semibold text-brand-blueDark">Price details</p>
                 <div className="mt-2 flex justify-between text-brand-muted">
                   <span>
-                    <Price amountUsdc={experience.price_usdc} size="sm" align="start" className="inline-flex" />
-                    <span> x {guests} guest{guests !== 1 ? "s" : ""}</span>
+                    {totalUsdc.toFixed(2)} USDC x {guests} guest{guests !== 1 ? "s" : ""}
                   </span>
-                  <Price amountUsdc={totalUsdc} size="sm" align="start" className="inline-flex font-semibold text-brand-blueDark" />
+                  <span className="font-semibold text-brand-blueDark">{totalUsdc.toFixed(2)} USDC</span>
                 </div>
                 <div className="mt-3 flex justify-between border-t border-brand-border pt-3 font-bold text-brand-blueDark">
                   <span>Total</span>
-                  <Price amountUsdc={totalUsdc} size="md" align="start" className="inline-flex" />
+                  {paymentMethod === "mpesa" && quote ? (
+                    <span className="text-right">
+                      <span className="block text-lg">KES {quote.touristKes.toLocaleString()}</span>
+                      <span className="text-xs font-normal text-brand-muted">Minisend M-Pesa total</span>
+                    </span>
+                  ) : (
+                    <Price amountUsdc={totalUsdc} size="md" align="start" className="inline-flex" />
+                  )}
                 </div>
                 {paymentMethod === "mpesa" && quote && (
                   <p className="mt-2 text-xs text-brand-muted">
-                    M-Pesa ≈ KES {quote.touristKes.toLocaleString()}
+                    This is what Minisend will prompt on M-Pesa (rate and fees included).
                   </p>
                 )}
                 {paymentMethod === "checkout" && (
-                  <p className="mt-2 text-xs text-brand-muted">{totalUsdc.toFixed(2)} USDC / USDT</p>
+                  <p className="mt-2 text-xs text-brand-muted">{totalUsdc.toFixed(2)} USDC / USDT on Minisend</p>
                 )}
               </div>
 

@@ -16,9 +16,7 @@ export function PaymentRailGuide({
   if (rail === "mpesa") {
     if (processing) return <p className="mt-3 text-sm font-semibold text-brand-accent">Enter PIN on your phone.</p>;
     return (
-      <p className="mt-3 text-sm text-brand-muted">
-        {quote ? `KES ${quote.touristKes.toLocaleString()} · ` : ""}M-Pesa prompt on this number.
-      </p>
+      <p className="mt-3 text-sm text-brand-muted">M-Pesa prompt on this number.</p>
     );
   }
 

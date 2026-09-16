@@ -2,7 +2,8 @@ import { Router } from "express";
 import { formatUnits } from "ethers";
 import { getBooking, listBookings, updateBooking, type RefundInfo } from "../bookings.js";
 import { completionPin, signBookingToken } from "../qr.js";
-import { getUserIdFromAuthHeader } from "../supabase.js";
+import { getUserIdFromAuthHeader, supabaseAdmin } from "../supabase.js";
+import { getPaymentReceiptForBooking } from "./payments.js";
 import { bookingIdToBytes32, escrowForLockTx, requireChain } from "../chain.js";
 
 export const bookingsRouter = Router();
@@ -28,6 +29,29 @@ bookingsRouter.get("/", async (req, res) => {
   ]);
   const merged = new Map(asTourist.concat(asGuide).map((b) => [b.bookingId, b]));
   res.json({ bookings: Array.from(merged.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) });
+});
+
+bookingsRouter.get("/:id/receipt", async (req, res) => {
+  const userId = await getUserIdFromAuthHeader(req.headers.authorization);
+  if (!userId) return res.status(401).json({ error: "sign in required" });
+
+  const booking = await getBooking(req.params.id);
+  if (!booking) return res.status(404).json({ error: "booking not found" });
+  if (booking.touristId !== userId) return res.status(403).json({ error: "not your booking" });
+
+  const { data: row } = await supabaseAdmin
+    .from("bookings")
+    .select("payment_method, payment_ref")
+    .eq("id", booking.bookingId)
+    .maybeSingle();
+
+  const paymentReceipt = await getPaymentReceiptForBooking(
+    row?.payment_ref as string | undefined,
+    userId,
+    (row?.payment_method as string) ?? "demo"
+  );
+
+  res.json({ bookingId: booking.bookingId, paymentReceipt });
 });
 
 bookingsRouter.get("/:id", async (req, res) => {

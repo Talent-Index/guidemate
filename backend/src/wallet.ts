@@ -115,7 +115,9 @@ export function friendlyWalletError(err: unknown): string {
     return "Withdrawal could not send USDC yet. Try again in a few seconds.";
   }
   if (/insufficient wallet balance/i.test(message)) return message;
-  if (/already in progress/i.test(message)) return message;
+  if (/already in progress/i.test(message)) {
+    return "A withdrawal is still processing. Refresh the page, wait a few minutes, then try again.";
+  }
   if (/MINISEND|minisend|off-ramp|offramp/i.test(message)) {
     return message.split("\n")[0] ?? "M-Pesa withdrawal failed. Try again or use a smaller amount.";
   }
@@ -145,6 +147,7 @@ export async function getWalletBalance(profileId: string): Promise<number> {
 }
 
 export async function getWalletSummary(profileId: string) {
+  await failStaleProcessingWithdrawals(profileId);
   const address = await getWalletAddress(profileId);
   const onChainBalanceUsdc = address ? await getWalletBalance(profileId) : 0;
   const ledgerBalanceUsdc = await getLedgerBalanceUsdc(profileId);
@@ -153,6 +156,33 @@ export async function getWalletSummary(profileId: string) {
   const balanceKes = await usdcToKes(balanceUsdc);
   const transactions = await listWalletTransactions(profileId, 50);
   return { address, balanceUsdc, balanceKes, onChainBalanceUsdc, ledgerBalanceUsdc, transactions };
+}
+
+const STALE_WITHDRAWAL_MS = 10 * 60 * 1000;
+
+/** Unblock guides when an old off-ramp never completed or failed without updating status. */
+async function failStaleProcessingWithdrawals(profileId: string): Promise<void> {
+  const cutoff = new Date(Date.now() - STALE_WITHDRAWAL_MS).toISOString();
+  const { data: stale } = await supabaseAdmin
+    .from("withdrawal_requests")
+    .select("id")
+    .eq("profile_id", profileId)
+    .eq("status", "processing")
+    .lt("created_at", cutoff);
+  if (!stale?.length) return;
+
+  const ids = stale.map((r) => r.id as string);
+  await supabaseAdmin.from("withdrawal_requests").update({ status: "failed" }).in("id", ids);
+  for (const id of ids) {
+    await supabaseAdmin
+      .from("wallet_transactions")
+      .update({ status: "failed" })
+      .eq("profile_id", profileId)
+      .eq("reference_type", "withdrawal")
+      .eq("reference_id", id)
+      .eq("type", "mpesa_withdraw")
+      .eq("status", "processing");
+  }
 }
 
 export async function withdrawToMpesa(
@@ -176,6 +206,8 @@ export async function withdrawToMpesa(
     }
   }
 
+  await failStaleProcessingWithdrawals(profileId);
+
   const { data: inFlight } = await supabaseAdmin
     .from("withdrawal_requests")
     .select("id")
@@ -183,7 +215,7 @@ export async function withdrawToMpesa(
     .eq("status", "processing")
     .limit(1);
   if (inFlight?.length) {
-    throw new Error("A withdrawal is already in progress. Wait a minute and try again.");
+    throw new Error("A withdrawal is already in progress. Wait a few minutes and try again.");
   }
 
   const ramp = getRampProvider();

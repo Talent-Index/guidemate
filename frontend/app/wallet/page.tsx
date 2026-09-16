@@ -19,6 +19,20 @@ import {
 import { Price, useCurrency } from "@/lib/fx";
 import { useToast } from "@/components/ui/Toast";
 
+function txLabel(type: string) {
+  const labels: Record<string, string> = {
+    booking_release: "Trip payout",
+    mpesa_withdraw: "M-Pesa withdraw",
+    mpesa_onramp: "M-Pesa top-up",
+    escrow_lock: "Booking payment",
+    transfer_in: "Received",
+    transfer_out: "Sent",
+    stream_ppv: "Live access",
+    stream_tip: "Tip",
+  };
+  return labels[type] ?? type.replace(/_/g, " ");
+}
+
 export default function WalletPage() {
   const { loading: authLoading, session, profile, user } = useAuth();
   const { formatFiat } = useCurrency();
@@ -115,12 +129,20 @@ export default function WalletPage() {
   return (
     <div className="flex flex-col gap-6">
       <MobilePageBanner eyebrow="Wallet" title={`Hi, ${first}`} />
-      <GreetingRow subtitle="Your Guidemate balance. Withdraw to M-Pesa when you are ready." />
+      <GreetingRow
+        subtitle={
+          isGuide
+            ? "Your share (85%) from completed trips. Withdraw to M-Pesa when you are ready."
+            : "Your Guidemate balance. Withdraw to M-Pesa when you are ready."
+        }
+      />
 
       <div className="rounded-card bg-brand-blue p-6 text-white shadow-card max-md:rounded-3xl">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Available balance</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-white/70">
+              {isGuide ? "Available balance · your share (85%)" : "Available balance"}
+            </p>
             {loading ? (
               <p className="mt-2 text-sm text-white/80">Loading…</p>
             ) : hideAmounts ? (
@@ -131,6 +153,11 @@ export default function WalletPage() {
                   {formatFiat(wallet?.balanceUsdc ?? 0) ?? `${wallet?.balanceUsdc ?? 0} USDC`}
                 </p>
                 <p className="mt-1 text-sm text-white/70">{wallet?.balanceUsdc ?? 0} USDC</p>
+                {isGuide && !hideAmounts && (
+                  <p className="mt-2 text-xs text-white/60">
+                    Credited after you finish a trip (End trip). Not the full guest payment.
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -148,9 +175,12 @@ export default function WalletPage() {
         <h2 className="text-sm font-bold text-brand-blueDark">Withdraw to M-Pesa</h2>
         <p className="mt-1 text-sm text-brand-muted">
           {phone
-            ? `Sends to ${phone}. Conversion fees may apply.`
+            ? `Sends to ${phone}. Minisend fees apply. USDC is converted to KES on payout.`
             : "Add an M-Pesa number in settings, then you can withdraw this balance."}
         </p>
+        {isGuide && phone && (wallet?.balanceUsdc ?? 0) > 0 && !wallet?.transactions.some((t) => t.type === "mpesa_withdraw") && (
+          <p className="mt-2 text-xs text-brand-muted">Tip: try a small amount first (e.g. 1 USDC).</p>
+        )}
         {!phone ? (
           <Link href={settingsHref} className="mt-3 inline-block">
             <Button variant="primary">Add M-Pesa number</Button>
@@ -187,7 +217,7 @@ export default function WalletPage() {
             {wallet.transactions.map((tx) => (
               <li key={tx.id} className="flex items-center justify-between gap-3 py-3">
                 <div>
-                  <p className="text-sm font-semibold capitalize text-brand-blueDark">{tx.type.replace(/_/g, " ")}</p>
+                  <p className="text-sm font-semibold capitalize text-brand-blueDark">{txLabel(tx.type)}</p>
                   <p className="text-xs text-brand-muted">{new Date(tx.createdAt).toLocaleString()}</p>
                   {tx.txHash && (
                     <a

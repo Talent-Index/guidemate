@@ -554,6 +554,8 @@ export interface WalletSummary {
   address: string | null;
   balanceUsdc: number;
   balanceKes: number;
+  onChainBalanceUsdc?: number;
+  ledgerBalanceUsdc?: number;
   transactions: WalletTransaction[];
 }
 

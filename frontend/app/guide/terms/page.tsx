@@ -15,7 +15,7 @@ export default function GuideTermsPage() {
         Guidemate takes <span className="font-semibold text-[var(--gm-ink)]">15%</span> of the rate
         you list. You receive <span className="font-semibold text-[var(--gm-ink)]">85%</span> when
         the tourist completes the trip (End trip PIN or QR). The listed price is what the tourist
-        pays — they do not see this split.
+        pays, they do not see this split.
       </p>
 
       <h2 className="mt-8 text-lg font-bold">Cancellations and time</h2>

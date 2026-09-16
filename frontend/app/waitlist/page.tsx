@@ -42,7 +42,7 @@ export default function WaitlistPage() {
       <FormShell title="You're on the list">
         <p className="text-center text-sm text-[var(--gm-muted)]">
           Thanks {fullName}. You&apos;re on the waitlist in the admin dashboard. We do not send automated emails
-          yet — an admin will reach out when Guidemate is ready.
+          yet, an admin will reach out when Guidemate is ready.
         </p>
       </FormShell>
     );

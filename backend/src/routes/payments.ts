@@ -116,7 +116,7 @@ paymentsRouter.post("/mpesa/initiate", async (req, res) => {
       amountKes,
       amountUsdc,
       status: "processing",
-      message: "STK push sent — approve the M-Pesa prompt on your phone.",
+      message: "STK push sent. Approve the M-Pesa prompt on your phone.",
     });
   } catch (err) {
     console.error("[payments] mpesa initiate failed", err);

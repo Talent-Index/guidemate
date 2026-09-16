@@ -115,7 +115,7 @@ export function ChatPanel({
       )}
       <div ref={listRef} className={listClass}>
         {messages.length === 0 && (
-          <p className="text-center text-sm text-brand-muted">Say hello — coordinate your meetup here.</p>
+          <p className="text-center text-sm text-brand-muted">Say hello and coordinate your meetup here.</p>
         )}
         {messages.map((msg) => (
           <div

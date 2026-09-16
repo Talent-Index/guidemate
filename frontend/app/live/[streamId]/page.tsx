@@ -131,7 +131,7 @@ export default function LiveStreamPage() {
       setRole(result.role);
       setStream(result.stream);
       if (opts?.txHash || opts?.paymentIntentId) {
-        toast("Payment received — you can watch now", "success");
+        toast("Payment received, you can watch now", "success");
       }
     } catch (err) {
       const message = (err as Error).message;
@@ -294,7 +294,7 @@ export default function LiveStreamPage() {
         session?.access_token
       );
       await refreshTips();
-      toast(`Tip sent — ${amount} USDC`, "success");
+      toast(`Tip sent, ${amount} USDC`, "success");
     } catch (err) {
       showPayError((err as Error).message);
     }

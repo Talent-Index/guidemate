@@ -3,7 +3,7 @@ import { SettingsSection } from "@/components/settings/SettingsSection";
 
 const FAQ_TIPS = [
   "Browse experiences on Explore, or describe what you want and let AI find a match.",
-  "Book with M-Pesa or crypto — your wallet balance is in Settings under Wallet.",
+  "Book with M-Pesa or crypto. Your wallet balance is in Settings under Wallet.",
   "Message your guide from the Bookings page once a trip is confirmed.",
 ];
 

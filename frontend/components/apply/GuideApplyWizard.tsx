@@ -36,7 +36,7 @@ function friendlyApplyError(message: string): string {
 const REQUIRED_DOCUMENTS = [
   {
     title: "National ID or passport",
-    detail: "You'll enter your ID number — have the document nearby for reference.",
+    detail: "You'll enter your ID number, have the document nearby for reference.",
   },
   {
     title: "CV or résumé",
@@ -55,7 +55,7 @@ const OPTIONAL_DOCUMENTS = [
   },
   {
     title: "Portfolio links",
-    detail: "Instagram, TripAdvisor, website, or similar — optional but helpful.",
+    detail: "Instagram, TripAdvisor, website, or similar (optional but helpful).",
   },
 ] as const;
 
@@ -63,7 +63,7 @@ const STEPS = [
   {
     id: "prepare",
     title: "Before you begin",
-    hint: "Gather these items so you can finish in one sitting — about 5 minutes.",
+    hint: "Gather these items so you can finish in one sitting, about 5 minutes.",
   },
   {
     id: "intro",
@@ -98,7 +98,7 @@ const STEPS = [
   {
     id: "portfolio",
     title: "Share your work (optional)",
-    hint: "Instagram, TripAdvisor, website — comma-separated links.",
+    hint: "Instagram, TripAdvisor, website, comma-separated links.",
   },
   {
     id: "cv",
@@ -335,7 +335,7 @@ export function GuideApplyWizard() {
                 </div>
                 {notReadyYet && (
                   <p className="mt-4 text-sm leading-relaxed text-brand-muted">
-                    No problem — take your time to gather your documents. When you&apos;re ready, tap{" "}
+                    No problem. Take your time to gather your documents. When you&apos;re ready, tap{" "}
                     <span className="font-semibold text-brand-blueDark">Yes</span> to start your application.
                   </p>
                 )}
@@ -345,7 +345,7 @@ export function GuideApplyWizard() {
 
           {current.id === "intro" && (
             <p className="text-sm leading-relaxed text-brand-muted">
-              You will share contact details, your experience pitch, CV, and a referee. Tourists sign up separately —
+              You will share contact details, your experience pitch, CV, and a referee. Tourists sign up separately -
               guides are vetted before listing experiences.
             </p>
           )}

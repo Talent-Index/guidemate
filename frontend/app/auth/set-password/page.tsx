@@ -63,7 +63,7 @@ export default function SetPasswordPage() {
       });
       if (updateError) throw updateError;
       await refreshProfile();
-      toast("Password set — welcome to Guidemate", "success");
+      toast("Password set. Welcome to Guidemate", "success");
       router.replace(homeForRole((profile?.role ?? "guide") as AccountRole));
     } catch (err) {
       setError((err as Error).message);

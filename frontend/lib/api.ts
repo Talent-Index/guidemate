@@ -137,8 +137,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 /** Map provider-specific payment errors to clearer user-facing copy. */
 export function friendlyPaymentError(message: string): string {
   const lower = message.toLowerCase();
-  if (lower.includes("onramp") && lower.includes("not enabled")) {
-    return "M-Pesa is not available yet. Pay with USDC / USDT instead, or try again later.";
+  if (
+    lower.includes("onramp") &&
+    (lower.includes("not enabled") || lower.includes("access") || lower.includes("contact info@minisend"))
+  ) {
+    return "M-Pesa is not enabled on our payment account yet. Pay with USDC / USDT instead.";
   }
   return message;
 }
@@ -235,7 +238,7 @@ export function getCompletionQrValue(qrToken: string): string {
   if (publicBase && !/localhost|127\.0\.0\.1/.test(publicBase)) {
     return `${publicBase}/verify?token=${encodeURIComponent(qrToken)}`;
   }
-  // Local dev: localhost URLs fail when scanned with a phone camera — encode the raw token
+  // Local dev: localhost URLs fail when scanned with a phone camera, encode the raw token
   // so the guide's in-app scanner (Tour → Scan tourist QR) can read it.
   return qrToken;
 }
@@ -636,7 +639,7 @@ export async function pollMpesaPayment(
     }
     await new Promise((r) => setTimeout(r, intervalMs));
   }
-  throw new Error("Timed out waiting for payment — check your phone or wallet and try again");
+  throw new Error("Timed out waiting for payment. Check your phone or wallet and try again");
 }
 
 export interface ChatMessage {

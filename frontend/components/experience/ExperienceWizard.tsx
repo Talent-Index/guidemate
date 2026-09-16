@@ -183,7 +183,7 @@ export function ExperienceWizard({
         await patchExperienceDraft(draft.id, patch);
         return true;
       } catch (err) {
-        toast((err as Error).message || "Couldn't save — retrying", "error");
+        toast((err as Error).message || "Couldn't save. Retrying", "error");
         try {
           await patchExperienceDraft(draft.id, patch);
           return true;
@@ -304,7 +304,7 @@ export function ExperienceWizard({
       toast("Experience published", "success");
       router.push("/guide/dashboard");
     } catch {
-      toast("Couldn't publish — try again", "error");
+      toast("Couldn't publish. Try again", "error");
     } finally {
       setPublishing(false);
     }
@@ -392,7 +392,7 @@ export function ExperienceWizard({
         <Card className="flex flex-col gap-4">
           <div className="md:hidden">
             <p className="text-sm font-semibold text-brand-blueDark">
-              Step {step} of 6 — {STEP_LABELS[step - 1]}
+              Step {step} of 6: {STEP_LABELS[step - 1]}
             </p>
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-brand-border">
               <div
@@ -403,7 +403,7 @@ export function ExperienceWizard({
           </div>
 
           <div className="hidden text-sm text-brand-muted md:block">
-            Step {step} of 6 — {STEP_LABELS[step - 1]}
+            Step {step} of 6: {STEP_LABELS[step - 1]}
           </div>
 
           {step === 1 && (
@@ -455,7 +455,7 @@ export function ExperienceWizard({
               <div>
                 <p className="text-sm font-medium text-brand-blueDark">Photos</p>
                 <p className="text-xs text-brand-muted">
-                  Optional — add one or more photos for your listing.
+                  Optional: add one or more photos for your listing.
                 </p>
               </div>
               {imageUrls.length > 0 && (

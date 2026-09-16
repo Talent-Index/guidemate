@@ -72,7 +72,7 @@ export function WalletPanel({
     try {
       const result = await withdrawWallet(amount, accessToken, phone ?? undefined);
       if (result.pending) {
-        const msg = `Withdrawal initiated — KES ${result.kesAmount.toLocaleString()} will arrive on M-Pesa shortly`;
+        const msg = `Withdrawal initiated, KES ${result.kesAmount.toLocaleString()} will arrive on M-Pesa shortly`;
         setMessage(msg);
         toast(msg, "success");
       } else {

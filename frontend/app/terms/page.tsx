@@ -6,7 +6,7 @@ export default function TermsPage() {
       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-accent">Legal</p>
       <h1 className="mt-2 text-2xl font-bold">Terms and conditions</h1>
       <p className="mt-3 text-sm leading-relaxed text-brand-muted">
-        These terms apply when you use Guidemate — browsing experiences, creating an account, booking
+        These terms apply when you use Guidemate: browsing experiences, creating an account, booking
         a tour, going live, or applying as a guide. Using the product means you agree to them.
       </p>
 
@@ -19,7 +19,7 @@ export default function TermsPage() {
 
       <h2 className="mt-8 text-lg font-bold">Accounts</h2>
       <p className="mt-2 text-sm leading-relaxed text-brand-muted">
-        You must give accurate details (name, email, and phone where asked). One account, one role —
+        You must give accurate details (name, email, and phone where asked). One account, one role -
         tourist or guide. You are responsible for activity on your account. We may suspend an account
         that is used to defraud another user or to bypass escrow completion.
       </p>

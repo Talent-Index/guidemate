@@ -133,7 +133,7 @@ export function AdminIntakePanel({ onChanged }: { onChanged?: () => void }) {
       const result = await approveApplication(id, session.access_token);
       const emailHint =
         result.emailType === "magiclink"
-          ? "They already had an account — a sign-in link was emailed."
+          ? "They already had an account, a sign-in link was emailed."
           : "Invite email sent to set their password.";
       toast(emailHint, "success");
       await loadApplications();
@@ -256,7 +256,7 @@ export function AdminIntakePanel({ onChanged }: { onChanged?: () => void }) {
                 <tr key={row.id} className="border-b border-brand-border/50">
                   <td className="py-2 pr-4 font-medium text-brand-blueDark">{row.full_name}</td>
                   <td className="py-2 pr-4 text-brand-muted">{row.email}</td>
-                  <td className="py-2 pr-4 text-brand-blueDark">{row.interest ?? "—"}</td>
+                  <td className="py-2 pr-4 text-brand-blueDark">{row.interest ?? "-"}</td>
                   <td className="py-2 text-brand-muted">{new Date(row.created_at).toLocaleString()}</td>
                 </tr>
               ))}

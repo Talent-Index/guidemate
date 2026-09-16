@@ -8,7 +8,7 @@ type PendingProfile = {
 };
 
 /// Ensures a profile row exists for the signed-in user. New profiles are always
-/// tourist — guide profiles are created server-side after admin approval.
+/// tourist, guide profiles are created server-side after admin approval.
 export async function ensureTouristProfile(
   supabase: SupabaseClient,
   userId: string,

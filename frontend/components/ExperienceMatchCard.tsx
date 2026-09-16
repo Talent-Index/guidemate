@@ -52,7 +52,7 @@ export function ExperienceMatchCard({
       <Card className="text-center sm:text-left">
         <h2 className="text-lg font-bold text-brand-blueDark">Want something more tailored?</h2>
         <p className="mt-1 text-sm text-brand-muted">
-          Sign in and tell our AI agent what you&apos;re after — we&apos;ll match you with a vetted guide, not just a list.
+          Sign in and tell our AI agent what you&apos;re after. We&apos;ll match you with a vetted guide, not just a list.
         </p>
         <div className="mt-4 flex flex-wrap justify-center gap-3 sm:justify-start">
           <Link href="/auth/sign-in">
@@ -70,7 +70,7 @@ export function ExperienceMatchCard({
     <Card id="experience-match">
       <h2 className="text-lg font-bold text-brand-blueDark">Get a tailored match</h2>
       <p className="mt-1 text-sm text-brand-muted">
-        Describe the experience you&apos;re after — our AI agent matches you with a vetted local guide.
+        Describe the experience you&apos;re after. Our AI agent matches you with a vetted local guide.
       </p>
 
       <textarea

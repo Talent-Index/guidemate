@@ -81,7 +81,7 @@ export function AdminGuidePerformancePanel() {
                     {guide.ratingCount > 0 ? (
                       <StarRating value={guide.ratingAvg} count={guide.ratingCount} size="sm" />
                     ) : (
-                      <span className="text-brand-muted">—</span>
+                      <span className="text-brand-muted">-</span>
                     )}
                   </td>
                 </tr>

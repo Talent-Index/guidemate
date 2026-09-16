@@ -87,7 +87,7 @@ export default function SignUpPage() {
           throw profileError;
         }
         await refreshProfile();
-        toast("Account created — welcome to Guidemate", "success");
+        toast("Account created. Welcome to Guidemate", "success");
         router.replace(homeForRole(ROLE));
       } else {
         localStorage.setItem(

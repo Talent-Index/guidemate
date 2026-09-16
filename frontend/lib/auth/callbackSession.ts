@@ -59,7 +59,7 @@ export async function completeAuthCallback(supabase: SupabaseClient): Promise<Au
     };
   }
 
-  // PKCE (Google OAuth, etc.) — exchange first. signOut would delete the code verifier.
+  // PKCE (Google OAuth, etc.), exchange first. signOut would delete the code verifier.
   if (code) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
@@ -74,7 +74,7 @@ export async function completeAuthCallback(supabase: SupabaseClient): Promise<Au
     };
   }
 
-  // Hash-token flows (invite / recovery links) — clear stale local session first.
+  // Hash-token flows (invite / recovery links), clear stale local session first.
   await supabase.auth.signOut({ scope: "local" });
 
   if (accessToken && refreshToken) {
@@ -103,7 +103,7 @@ export function isInviteCallback(): boolean {
   return hash.get("type") === "invite" || query.get("type") === "invite";
 }
 
-/// PKCE invite links may omit type=invite — only prompt password setup once.
+/// PKCE invite links may omit type=invite, only prompt password setup once.
 export async function inferInviteFlowFromProfile(
   supabase: SupabaseClient,
   userId: string

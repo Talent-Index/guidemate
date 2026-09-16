@@ -118,7 +118,7 @@ export default function TouristProfilePage() {
           <Stat label="Reviews" value={String(tourist.ratingCount)} />
           <Stat
             label="Average rating"
-            value={tourist.ratingCount ? tourist.ratingAvg.toFixed(1) : "—"}
+            value={tourist.ratingCount ? tourist.ratingAvg.toFixed(1) : "-"}
             className="col-span-2 sm:col-span-1"
           />
         </div>

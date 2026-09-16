@@ -25,7 +25,7 @@ const GUIDE_STEPS = [
   },
   {
     title: "Live",
-    body: "Go live for a paid stream. Viewers join from the Live tab — tips and tickets settle on-chain.",
+    body: "Go live for a paid stream. Viewers join from the Live tab. Tips and tickets settle on-chain.",
   },
   {
     title: "Messages",
@@ -56,7 +56,7 @@ const TOURIST_STEPS = [
   },
   {
     title: "Messages",
-    body: "Message your guide after you book — meeting point, timing, and anything else you need.",
+    body: "Message your guide after you book: meeting point, timing, and anything else you need.",
   },
 ] as const;
 

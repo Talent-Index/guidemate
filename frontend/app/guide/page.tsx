@@ -90,11 +90,6 @@ export default function GuideActiveTourPage() {
       <MobilePageBanner eyebrow="Tour" title="Your active tour" />
 
       <div className="flex w-full flex-col gap-4">
-        <p className="text-center text-sm text-brand-muted">
-          When the tourist taps <span className="font-semibold text-brand-blueDark">End trip</span>, type their 6-digit
-          PIN here or scan their QR.
-        </p>
-
         {error && <p className="text-center text-sm text-red-600">{error}</p>}
 
         {locked.length === 0 && awaitingTouristRating.length === 0 && !error && (
@@ -293,8 +288,11 @@ function EndTripPinForm({
 
   return (
     <div className="w-full text-left">
-      <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Release payment</p>
-      <p className="mt-1 text-sm text-brand-muted">Scan the tourist&apos;s End trip QR, or type the 6-digit PIN they show you.</p>
+      <p className="text-sm font-bold text-brand-blueDark">Finish trip</p>
+      <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-brand-muted">
+        <li>Tourist taps End trip on their phone</li>
+        <li>Scan their QR or enter PIN below</li>
+      </ol>
 
       <Button
         type="button"
@@ -312,12 +310,12 @@ function EndTripPinForm({
           void scannerRef.current?.start();
         }}
       >
-        {scanning ? "Hide camera" : "Scan tourist QR"}
+        {scanning ? "Close scanner" : "Scan QR"}
       </Button>
 
       <div className={scanning ? "mt-3 overflow-hidden rounded-2xl border border-brand-border p-2" : "hidden"}>
         {submitting ? (
-          <p className="py-6 text-center text-sm text-brand-muted">Verifying and releasing escrow...</p>
+          <p className="py-6 text-center text-sm text-brand-muted">Releasing payment…</p>
         ) : (
           <QrScanner
             ref={scannerRef}
@@ -328,9 +326,9 @@ function EndTripPinForm({
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-5">
-        <label htmlFor={`end-trip-pin-${bookingId}`} className="text-xs font-semibold uppercase tracking-wide text-brand-muted">
-          Or enter PIN
+      <form onSubmit={handleSubmit} className="mt-4">
+        <label htmlFor={`end-trip-pin-${bookingId}`} className="text-xs font-semibold text-brand-muted">
+          6-digit PIN
         </label>
         <input
           id={`end-trip-pin-${bookingId}`}
@@ -345,7 +343,7 @@ function EndTripPinForm({
         />
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
         <Button variant="primary" type="submit" className="mt-3 w-full" disabled={pin.length !== 6 || submitting}>
-          {submitting ? "Releasing escrow..." : "Confirm PIN & release payment"}
+          {submitting ? "Releasing…" : "Release payment"}
         </Button>
       </form>
     </div>

@@ -12,6 +12,7 @@ import {
   getWallet,
   provisionWallet,
   withdrawWallet,
+  friendlyWalletError,
   type WalletSummary,
   SNOWTRACE_TX_BASE,
 } from "@/lib/api";
@@ -86,7 +87,7 @@ export default function WalletPage() {
       setWithdrawAmount("");
       await refresh();
     } catch (err) {
-      const next = (err as Error).message;
+      const next = friendlyWalletError((err as Error).message);
       setError(next);
       toast(next, "error");
     } finally {

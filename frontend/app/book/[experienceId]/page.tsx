@@ -520,22 +520,28 @@ export default function BookExperiencePage() {
                 <p className="font-semibold text-brand-blueDark">Price details</p>
                 <div className="mt-2 flex justify-between text-brand-muted">
                   <span>
-                    <Price amountUsdc={experience.price_usdc} size="sm" align="start" className="inline-flex" />
-                    <span> x {guests} guest{guests !== 1 ? "s" : ""}</span>
+                    {totalUsdc.toFixed(2)} USDC x {guests} guest{guests !== 1 ? "s" : ""}
                   </span>
-                  <Price amountUsdc={totalUsdc} size="sm" align="start" className="inline-flex font-semibold text-brand-blueDark" />
+                  <span className="font-semibold text-brand-blueDark">{totalUsdc.toFixed(2)} USDC</span>
                 </div>
                 <div className="mt-3 flex justify-between border-t border-brand-border pt-3 font-bold text-brand-blueDark">
                   <span>Total</span>
-                  <Price amountUsdc={totalUsdc} size="md" align="start" className="inline-flex" />
+                  {paymentMethod === "mpesa" && quote ? (
+                    <span className="text-right">
+                      <span className="block text-lg">KES {quote.touristKes.toLocaleString()}</span>
+                      <span className="text-xs font-normal text-brand-muted">Minisend M-Pesa total</span>
+                    </span>
+                  ) : (
+                    <Price amountUsdc={totalUsdc} size="md" align="start" className="inline-flex" />
+                  )}
                 </div>
                 {paymentMethod === "mpesa" && quote && (
                   <p className="mt-2 text-xs text-brand-muted">
-                    M-Pesa ≈ KES {quote.touristKes.toLocaleString()}
+                    This is what Minisend will prompt on M-Pesa (rate and fees included).
                   </p>
                 )}
                 {paymentMethod === "checkout" && (
-                  <p className="mt-2 text-xs text-brand-muted">{totalUsdc.toFixed(2)} USDC / USDT</p>
+                  <p className="mt-2 text-xs text-brand-muted">{totalUsdc.toFixed(2)} USDC / USDT on Minisend</p>
                 )}
               </div>
 

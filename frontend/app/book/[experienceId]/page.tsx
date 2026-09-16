@@ -391,7 +391,7 @@ export default function BookExperiencePage() {
                   { id: "checkout" as const, label: "USDC / USDT", desc: "Pay on Minisend" },
                   { id: "mpesa" as const, label: "M-Pesa", desc: "Pay from your phone" },
                   ...(SHOW_DEMO_PAY
-                    ? [{ id: "demo" as const, label: "Demo", desc: "Test only — no real money" }]
+                    ? [{ id: "demo" as const, label: "Demo", desc: "Test only (no real money)" }]
                     : []),
                 ] as const
               ).map((opt) => (
@@ -435,7 +435,23 @@ export default function BookExperiencePage() {
           <section className={`rounded-2xl border border-brand-border p-6 ${!selectedSlot ? "opacity-50" : ""}`}>
             <p className="text-xs font-bold uppercase tracking-wide text-brand-muted">Step 3</p>
             <h2 className="mt-1 text-lg font-bold text-brand-blueDark">Pay</h2>
-            {bookingError && <p className="mt-3 text-sm text-red-600">{bookingError}</p>}
+            {bookingError && (
+              <div className="mt-3">
+                <p className="text-sm text-red-600">{bookingError}</p>
+                {paymentMethod === "mpesa" && bookingError.includes("USDC / USDT") && (
+                  <button
+                    type="button"
+                    className="mt-2 text-sm font-semibold text-brand-accent hover:underline"
+                    onClick={() => {
+                      setPaymentMethod("checkout");
+                      setBookingError(null);
+                    }}
+                  >
+                    Switch to USDC / USDT
+                  </button>
+                )}
+              </div>
+            )}
             <Button
               variant="accent"
               className="mt-5 w-full rounded-xl py-3.5 text-sm font-bold sm:w-auto sm:px-10"

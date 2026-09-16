@@ -139,7 +139,7 @@ function SignInForm() {
 
           <GoogleSignInButton onClick={handleGoogleSignIn} disabled={loading} loading={loading} />
           <p className="mt-3 text-center text-xs text-brand-muted">
-            Signed in with Google before? Use Continue with Google — no password needed.
+            Signed in with Google before? Use Continue with Google, no password needed.
           </p>
         </form>
       </FormShell>

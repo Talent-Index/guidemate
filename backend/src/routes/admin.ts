@@ -183,7 +183,7 @@ adminRouter.post("/applications/:id/approve", async (req, res) => {
       role: "guide",
       full_name: application.full_name,
       phone: application.phone,
-      bio: [application.location, application.experience_pitch].filter(Boolean).join(" — "),
+      bio: [application.location, application.experience_pitch].filter(Boolean).join(", "),
       is_vetted: true,
       slug,
     });

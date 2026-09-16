@@ -5,7 +5,7 @@ import { provider, requireChain } from "./chain.js";
 import { listWalletTransactions, recordWalletTransaction, getLedgerBalanceUsdc } from "./ledger.js";
 import { MinisendRampProvider } from "./ramp/minisend.js";
 import { getRampProvider, isKotaniRamp, isMinisendRamp, isSimulatedRamp } from "./ramp/index.js";
-import { sendUsdcOnBase } from "./treasuryBase.js";
+import { sendUsdcOnBase, getTreasuryUsdcBalance } from "./treasuryBase.js";
 import { usdcToKes } from "./fx.js";
 import { supabaseAdmin } from "./supabase.js";
 
@@ -109,11 +109,15 @@ export async function ensureCustodialGas(profileId: string): Promise<void> {
 
 export function friendlyWalletError(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
+  if (/payout treasury|treasury is low|base eth/i.test(message)) return message;
   if (/insufficient funds|intrinsic transaction cost|INSUFFICIENT_FUNDS|gas wallet is low/i.test(message)) {
     if (/gas wallet is low/i.test(message)) return message;
     return "Withdrawal could not send USDC yet. Try again in a few seconds.";
   }
   if (/insufficient wallet balance/i.test(message)) return message;
+  if (/already in progress/i.test(message)) {
+    return "A withdrawal is still processing. Refresh the page, wait a few minutes, then try again.";
+  }
   if (/MINISEND|minisend|off-ramp|offramp/i.test(message)) {
     return message.split("\n")[0] ?? "M-Pesa withdrawal failed. Try again or use a smaller amount.";
   }
@@ -143,6 +147,7 @@ export async function getWalletBalance(profileId: string): Promise<number> {
 }
 
 export async function getWalletSummary(profileId: string) {
+  await failStaleProcessingWithdrawals(profileId);
   const address = await getWalletAddress(profileId);
   const onChainBalanceUsdc = address ? await getWalletBalance(profileId) : 0;
   const ledgerBalanceUsdc = await getLedgerBalanceUsdc(profileId);
@@ -151,6 +156,33 @@ export async function getWalletSummary(profileId: string) {
   const balanceKes = await usdcToKes(balanceUsdc);
   const transactions = await listWalletTransactions(profileId, 50);
   return { address, balanceUsdc, balanceKes, onChainBalanceUsdc, ledgerBalanceUsdc, transactions };
+}
+
+const STALE_WITHDRAWAL_MS = 10 * 60 * 1000;
+
+/** Unblock guides when an old off-ramp never completed or failed without updating status. */
+async function failStaleProcessingWithdrawals(profileId: string): Promise<void> {
+  const cutoff = new Date(Date.now() - STALE_WITHDRAWAL_MS).toISOString();
+  const { data: stale } = await supabaseAdmin
+    .from("withdrawal_requests")
+    .select("id")
+    .eq("profile_id", profileId)
+    .eq("status", "processing")
+    .lt("created_at", cutoff);
+  if (!stale?.length) return;
+
+  const ids = stale.map((r) => r.id as string);
+  await supabaseAdmin.from("withdrawal_requests").update({ status: "failed" }).in("id", ids);
+  for (const id of ids) {
+    await supabaseAdmin
+      .from("wallet_transactions")
+      .update({ status: "failed" })
+      .eq("profile_id", profileId)
+      .eq("reference_type", "withdrawal")
+      .eq("reference_id", id)
+      .eq("type", "mpesa_withdraw")
+      .eq("status", "processing");
+  }
 }
 
 export async function withdrawToMpesa(
@@ -164,11 +196,26 @@ export async function withdrawToMpesa(
   if (amountUsdc > ledgerBalance) {
     throw new Error("insufficient wallet balance");
   }
-  const onChainBalance = await getWalletBalance(profileId);
-  if (amountUsdc > onChainBalance) {
-    throw new Error(
-      "Your on-chain balance is still syncing. Try a smaller amount or contact support."
-    );
+
+  if (!isMinisendRamp()) {
+    const onChainBalance = await getWalletBalance(profileId);
+    if (amountUsdc > onChainBalance) {
+      throw new Error(
+        "Your on-chain balance is still syncing. Try a smaller amount or contact support."
+      );
+    }
+  }
+
+  await failStaleProcessingWithdrawals(profileId);
+
+  const { data: inFlight } = await supabaseAdmin
+    .from("withdrawal_requests")
+    .select("id")
+    .eq("profile_id", profileId)
+    .eq("status", "processing")
+    .limit(1);
+  if (inFlight?.length) {
+    throw new Error("A withdrawal is already in progress. Wait a few minutes and try again.");
   }
 
   const ramp = getRampProvider();
@@ -197,25 +244,38 @@ export async function withdrawToMpesa(
     .single();
   if (insertError) throw new Error(insertError.message);
 
-  const offRamp = await ramp.createOffRamp({
-    withdrawalId: withdrawal.id,
-    phone,
-    amountUsdc,
-    kesAmount,
-    accountName,
-    senderAddress: address ?? undefined,
-    bookingId: opts?.bookingId,
-  });
-
   try {
+    const offRamp = await ramp.createOffRamp({
+      withdrawalId: withdrawal.id,
+      phone,
+      amountUsdc,
+      kesAmount,
+      accountName,
+      senderAddress: address ?? undefined,
+      bookingId: opts?.bookingId,
+    });
+
     if (offRamp.escrowAddress && !isSimulatedRamp()) {
       let txHash: string;
 
       if (isMinisendRamp()) {
-        const { signer } = requireChain();
-        const sweepTx = await signUsdcTransfer(profileId, await signer.getAddress(), amountUsdc);
         const depositAmount = offRamp.depositAmountUsdc ?? amountUsdc;
-        txHash = await sendUsdcOnBase(offRamp.escrowAddress, depositAmount);
+        const treasuryUsdc = await getTreasuryUsdcBalance();
+        if (treasuryUsdc + 1e-6 < depositAmount) {
+          throw new Error(
+            "Payout treasury is low on USDC. Minisend settlements may still be processing — try again later."
+          );
+        }
+        // Tourist M-Pesa settles USDC on Base; pay Minisend off-ramp from treasury (no Fuji AVAX gas).
+        txHash = await sendUsdcOnBase(offRamp.escrowAddress, depositAmount).catch((err) => {
+          const msg = (err as Error).message ?? "";
+          if (/insufficient funds|INSUFFICIENT_FUNDS/i.test(msg)) {
+            throw new Error(
+              "Payout wallet needs a little ETH on Base for gas, or more USDC. Check Minisend settlement, then try again."
+            );
+          }
+          throw err;
+        });
         if (offRamp.orderId && ramp instanceof MinisendRampProvider) {
           await ramp.submitOfframpDeposit(offRamp.orderId, txHash);
         }
@@ -223,22 +283,32 @@ export async function withdrawToMpesa(
           .from("withdrawal_requests")
           .update({ tx_hash: txHash, ramp_ref: offRamp.orderId ?? offRamp.reference })
           .eq("id", withdrawal.id);
-        console.log(`[wallet] minisend off-ramp: swept Fuji ${sweepTx}, sent Base ${txHash}`);
+        console.log(`[wallet] minisend off-ramp: sent Base USDC ${depositAmount} tx ${txHash}`);
       } else if (isKotaniRamp()) {
         txHash = await signUsdcTransfer(profileId, offRamp.escrowAddress, amountUsdc);
         await supabaseAdmin.from("withdrawal_requests").update({ tx_hash: txHash }).eq("id", withdrawal.id);
       }
     }
-  } catch (err) {
-    await supabaseAdmin.from("withdrawal_requests").update({ status: "failed" }).eq("id", withdrawal.id);
-    throw new Error(friendlyWalletError(err));
-  }
 
-  if (isSimulatedRamp() || !offRamp.async) {
-    await supabaseAdmin
-      .from("withdrawal_requests")
-      .update({ status: "completed", ramp_ref: offRamp.reference, completed_at: new Date().toISOString() })
-      .eq("id", withdrawal.id);
+    if (isSimulatedRamp() || !offRamp.async) {
+      await supabaseAdmin
+        .from("withdrawal_requests")
+        .update({ status: "completed", ramp_ref: offRamp.reference, completed_at: new Date().toISOString() })
+        .eq("id", withdrawal.id);
+
+      await recordWalletTransaction({
+        profileId,
+        type: "mpesa_withdraw",
+        amountUsdc: -amountUsdc,
+        amountKes: kesAmount,
+        referenceType: "withdrawal",
+        referenceId: withdrawal.id,
+        mpesaRef: offRamp.reference,
+        status: "completed",
+      });
+
+      return { withdrawalId: withdrawal.id, reference: offRamp.reference, kesAmount };
+    }
 
     await recordWalletTransaction({
       profileId,
@@ -247,19 +317,21 @@ export async function withdrawToMpesa(
       amountKes: kesAmount,
       referenceType: "withdrawal",
       referenceId: withdrawal.id,
-      mpesaRef: offRamp.reference,
-      status: "completed",
+      mpesaRef: offRamp.orderId ?? offRamp.reference,
+      status: "processing",
     });
 
-    return { withdrawalId: withdrawal.id, reference: offRamp.reference, kesAmount };
+    return {
+      withdrawalId: withdrawal.id,
+      reference: offRamp.reference,
+      kesAmount,
+      pending: true as const,
+    };
+  } catch (err) {
+    await supabaseAdmin.from("withdrawal_requests").update({ status: "failed" }).eq("id", withdrawal.id);
+    console.error("[wallet] withdrawToMpesa failed", err);
+    throw new Error(friendlyWalletError(err));
   }
-
-  return {
-    withdrawalId: withdrawal.id,
-    reference: offRamp.reference,
-    kesAmount,
-    pending: true as const,
-  };
 }
 
 export async function signUsdcTransfer(profileId: string, to: string, amountUsdc: number): Promise<string> {

@@ -118,7 +118,7 @@ export async function getLedgerBalanceUsdc(profileId: string): Promise<number> {
     .from("wallet_transactions")
     .select("amount_usdc")
     .eq("profile_id", profileId)
-    .eq("status", "completed");
+    .in("status", ["completed", "processing"]);
   if (error) throw new Error(error.message);
   const sum = (data ?? []).reduce((acc, row) => acc + Number(row.amount_usdc ?? 0), 0);
   return Math.round(sum * 100) / 100;

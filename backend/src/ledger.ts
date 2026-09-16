@@ -111,3 +111,15 @@ export async function listAllTransactions(opts: {
   if (error) throw new Error(error.message);
   return (data ?? []).map(mapRow);
 }
+
+/** Sum of completed ledger entries (excludes pending/failed). Matches withdrawable earnings. */
+export async function getLedgerBalanceUsdc(profileId: string): Promise<number> {
+  const { data, error } = await supabaseAdmin
+    .from("wallet_transactions")
+    .select("amount_usdc")
+    .eq("profile_id", profileId)
+    .eq("status", "completed");
+  if (error) throw new Error(error.message);
+  const sum = (data ?? []).reduce((acc, row) => acc + Number(row.amount_usdc ?? 0), 0);
+  return Math.round(sum * 100) / 100;
+}

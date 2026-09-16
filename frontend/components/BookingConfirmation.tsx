@@ -35,7 +35,7 @@ export function BookingConfirmation({
   const steps = [
     "Meet your guide at the agreed location and time.",
     "When your tour is done, open My trips on your phone.",
-    "Tap End trip — your guide enters the 6-digit PIN or scans your QR code.",
+    "Tap End trip. Your guide enters the 6-digit PIN or scans your QR code.",
     "Rate your experience to help other tourists choose.",
   ];
 

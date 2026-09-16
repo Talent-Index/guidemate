@@ -79,7 +79,7 @@ export default function WalletPage() {
     try {
       const result = await withdrawWallet(amount, session.access_token, phone);
       const next = result.pending
-        ? `Withdrawal started — about KES ${result.kesAmount.toLocaleString()} should arrive on M-Pesa shortly · Ref ${result.reference}`
+        ? `Withdrawal started, about KES ${result.kesAmount.toLocaleString()} should arrive on M-Pesa shortly · Ref ${result.reference}`
         : `KES ${result.kesAmount.toLocaleString()} sent to M-Pesa · Ref ${result.reference}`;
       setMessage(next);
       toast(next, "success");

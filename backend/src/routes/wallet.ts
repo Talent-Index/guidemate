@@ -6,6 +6,7 @@ import {
   provisionCustodialWallet,
   sendUsdcFromWallet,
   withdrawToMpesa,
+  friendlyWalletError,
 } from "../wallet.js";
 
 export const walletRouter = Router();
@@ -98,6 +99,6 @@ walletRouter.post("/withdraw", async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error("[wallet] withdraw failed", err);
-    res.status(500).json({ error: (err as Error).message ?? "withdrawal failed" });
+    res.status(500).json({ error: friendlyWalletError(err) });
   }
 });

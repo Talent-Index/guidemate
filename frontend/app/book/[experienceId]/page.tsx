@@ -20,6 +20,7 @@ import {
   pollMpesaPayment,
   friendlyPaymentError,
   type BookingRecord,
+  type BookingPaymentReceipt,
   type PaymentQuote,
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
@@ -86,6 +87,9 @@ export default function BookExperiencePage() {
   const guests = adults + children;
 
   const [booking, setBooking] = useState<BookingRecord | null>(null);
+  const [paymentReceipt, setPaymentReceipt] = useState<BookingPaymentReceipt | null>(null);
+  const [receiptSlotDate, setReceiptSlotDate] = useState<string | undefined>();
+  const [receiptSlotTime, setReceiptSlotTime] = useState<string | undefined>();
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("checkout");
@@ -162,7 +166,7 @@ export default function BookExperiencePage() {
   }) {
     if (!experience || !session) return;
     const guestTotal = opts.guestAdults + opts.guestChildren;
-    const { booking: created } = await createBooking(
+    const { booking: created, paymentReceipt: receipt } = await createBooking(
       {
         request: `Booking: ${experience.title} on ${formatSlotDate(opts.slot.starts_at)}`,
         experienceId: experience.id,
@@ -176,6 +180,9 @@ export default function BookExperiencePage() {
       },
       session.access_token
     );
+    setReceiptSlotDate(formatSlotDate(opts.slot.starts_at));
+    setReceiptSlotTime(formatSlotTimeRange(opts.slot.starts_at, opts.slot.ends_at));
+    setPaymentReceipt(receipt);
     setBooking(created);
     setSlotRefreshKey((k) => k + 1);
     setSelectedSlot(null);
@@ -342,7 +349,16 @@ export default function BookExperiencePage() {
   }
 
   if (booking) {
-    return <BookingConfirmation booking={booking} experience={experience} paymentMethod={paymentMethod} />;
+    return (
+      <BookingConfirmation
+        booking={booking}
+        experience={experience}
+        paymentMethod={paymentMethod}
+        paymentReceipt={paymentReceipt}
+        slotDate={receiptSlotDate}
+        slotTime={receiptSlotTime}
+      />
+    );
   }
 
   const totalUsdc = experience.price_usdc * guests;

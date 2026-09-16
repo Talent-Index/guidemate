@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { GreetingRow } from "@/components/ui/GreetingRow";
 import { RoleGate } from "@/components/auth/RoleGate";
@@ -18,6 +16,7 @@ import {
 } from "@/lib/api";
 import { Price, useCurrency } from "@/lib/fx";
 import { useToast } from "@/components/ui/Toast";
+import { WithdrawMpesaPanel } from "@/components/wallet/WithdrawMpesaPanel";
 
 function txLabel(type: string) {
   const labels: Record<string, string> = {
@@ -41,7 +40,6 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(true);
   const [hideAmounts, setHideAmounts] = useState(false);
   const [triedProvision, setTriedProvision] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawing, setWithdrawing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,9 +76,8 @@ export default function WalletPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, loading, wallet, triedProvision]);
 
-  async function handleWithdraw() {
+  async function handleWithdraw(amount: number) {
     if (!session) return;
-    const amount = Number(withdrawAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
       setError("Enter an amount to withdraw.");
       return;
@@ -98,7 +95,6 @@ export default function WalletPage() {
         : `KES ${result.kesAmount.toLocaleString()} sent to M-Pesa · Ref ${result.reference}`;
       setMessage(next);
       toast(next, "success");
-      setWithdrawAmount("");
       await refresh();
     } catch (err) {
       const next = friendlyWalletError((err as Error).message);
@@ -124,7 +120,6 @@ export default function WalletPage() {
   }
 
   const first = firstNameFromProfile(profile, user?.email);
-  const canWithdraw = Boolean(wallet?.balanceUsdc && phone);
 
   return (
     <div className="flex flex-col gap-6">
@@ -171,37 +166,33 @@ export default function WalletPage() {
         </div>
       </div>
 
-      <Card>
-        <h2 className="text-sm font-bold text-brand-blueDark">Withdraw to M-Pesa</h2>
-        <p className="mt-1 text-sm text-brand-muted">
-          {phone
-            ? `Sends to ${phone}. Minisend fees apply. USDC is converted to KES on payout.`
-            : "Add an M-Pesa number in settings, then you can withdraw this balance."}
-        </p>
-        {isGuide && phone && (wallet?.balanceUsdc ?? 0) > 0 && !wallet?.transactions.some((t) => t.type === "mpesa_withdraw") && (
-          <p className="mt-2 text-xs text-brand-muted">Tip: try a small amount first (e.g. 1 USDC).</p>
-        )}
-        {!phone ? (
-          <Link href={settingsHref} className="mt-3 inline-block">
-            <Button variant="primary">Add M-Pesa number</Button>
-          </Link>
-        ) : (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              className="form-input-light w-28 text-sm"
-              placeholder="USDC"
-              value={withdrawAmount}
-              onChange={(e) => setWithdrawAmount(e.target.value)}
-            />
-            <Button variant="accent" disabled={withdrawing || !canWithdraw} onClick={() => void handleWithdraw()}>
-              {withdrawing ? "Sending…" : "Withdraw"}
-            </Button>
-          </div>
-        )}
-      </Card>
+      <WithdrawMpesaPanel
+        balanceUsdc={wallet?.balanceUsdc ?? 0}
+        phone={phone}
+        settingsHref={settingsHref}
+        isGuide={isGuide}
+        withdrawing={withdrawing}
+        onWithdraw={(amount) => void handleWithdraw(amount)}
+      />
+
+      {isGuide && (
+        <Card className="border-brand-border bg-brand-bg/80">
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Where payout funds live</p>
+          <p className="mt-2 text-sm text-brand-muted">
+            When tourists pay by M-Pesa, Minisend settles USDC on Base to Guidemate&apos;s merchant wallet (not your Fuji
+            test wallet). Withdrawals send from that pool through Minisend to your M-Pesa.
+          </p>
+          <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-brand-muted">
+            <li>
+              USDC on Base — builds up from live tourist bookings in your Minisend dashboard (Settlements).
+            </li>
+            <li>
+              ETH on Base — a small amount on the same merchant wallet pays network gas when we send USDC to Minisend
+              off-ramp. Add via Coinbase, Bridge, or your exchange (withdraw ETH to Base network).
+            </li>
+          </ul>
+        </Card>
+      )}
 
       {message && <p className="text-sm text-brand-success">{message}</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}

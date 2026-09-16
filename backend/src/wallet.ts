@@ -54,7 +54,12 @@ export async function provisionCustodialWallet(profileId: string): Promise<strin
     .eq("id", profileId)
     .maybeSingle();
   if (profileError) throw new Error(profileError.message);
-  if (profile?.wallet_address) return profile.wallet_address as string;
+  if (profile?.wallet_address) {
+    await ensureCustodialGas(profileId).catch((err) => {
+      console.warn("[wallet] gas top-up skipped", err);
+    });
+    return profile.wallet_address as string;
+  }
 
   const wallet = Wallet.createRandom();
   const encrypted = encryptPrivateKey(wallet.privateKey);
@@ -191,26 +196,31 @@ export async function withdrawToMpesa(
     bookingId: opts?.bookingId,
   });
 
-  if (offRamp.escrowAddress && !isSimulatedRamp()) {
-    let txHash: string;
+  try {
+    if (offRamp.escrowAddress && !isSimulatedRamp()) {
+      let txHash: string;
 
-    if (isMinisendRamp()) {
-      const { signer } = requireChain();
-      const sweepTx = await signUsdcTransfer(profileId, await signer.getAddress(), amountUsdc);
-      const depositAmount = offRamp.depositAmountUsdc ?? amountUsdc;
-      txHash = await sendUsdcOnBase(offRamp.escrowAddress, depositAmount);
-      if (offRamp.orderId && ramp instanceof MinisendRampProvider) {
-        await ramp.submitOfframpDeposit(offRamp.orderId, txHash);
+      if (isMinisendRamp()) {
+        const { signer } = requireChain();
+        const sweepTx = await signUsdcTransfer(profileId, await signer.getAddress(), amountUsdc);
+        const depositAmount = offRamp.depositAmountUsdc ?? amountUsdc;
+        txHash = await sendUsdcOnBase(offRamp.escrowAddress, depositAmount);
+        if (offRamp.orderId && ramp instanceof MinisendRampProvider) {
+          await ramp.submitOfframpDeposit(offRamp.orderId, txHash);
+        }
+        await supabaseAdmin
+          .from("withdrawal_requests")
+          .update({ tx_hash: txHash, ramp_ref: offRamp.orderId ?? offRamp.reference })
+          .eq("id", withdrawal.id);
+        console.log(`[wallet] minisend off-ramp: swept Fuji ${sweepTx}, sent Base ${txHash}`);
+      } else if (isKotaniRamp()) {
+        txHash = await signUsdcTransfer(profileId, offRamp.escrowAddress, amountUsdc);
+        await supabaseAdmin.from("withdrawal_requests").update({ tx_hash: txHash }).eq("id", withdrawal.id);
       }
-      await supabaseAdmin
-        .from("withdrawal_requests")
-        .update({ tx_hash: txHash, ramp_ref: offRamp.orderId ?? offRamp.reference })
-        .eq("id", withdrawal.id);
-      console.log(`[wallet] minisend off-ramp: swept Fuji ${sweepTx}, sent Base ${txHash}`);
-    } else if (isKotaniRamp()) {
-      txHash = await signUsdcTransfer(profileId, offRamp.escrowAddress, amountUsdc);
-      await supabaseAdmin.from("withdrawal_requests").update({ tx_hash: txHash }).eq("id", withdrawal.id);
     }
+  } catch (err) {
+    await supabaseAdmin.from("withdrawal_requests").update({ status: "failed" }).eq("id", withdrawal.id);
+    throw new Error(friendlyWalletError(err));
   }
 
   if (isSimulatedRamp() || !offRamp.async) {
@@ -244,14 +254,19 @@ export async function withdrawToMpesa(
 export async function signUsdcTransfer(profileId: string, to: string, amountUsdc: number): Promise<string> {
   const encrypted = await getEncryptedKey(profileId);
   if (!encrypted) throw new Error("no custodial wallet for profile");
+  await ensureCustodialGas(profileId);
   const { usdc } = requireChain();
   const decimals = await usdc.decimals();
   const amountUnits = parseUnits(amountUsdc.toString(), decimals);
   const wallet = new Wallet(decryptPrivateKey(encrypted), provider);
   const token = new Contract(await usdc.getAddress(), mockUsdcAbi, wallet);
-  const tx = await token.transfer(to, amountUnits);
-  const receipt = await tx.wait();
-  return receipt?.hash ?? tx.hash;
+  try {
+    const tx = await token.transfer(to, amountUnits);
+    const receipt = await tx.wait();
+    return receipt?.hash ?? tx.hash;
+  } catch (err) {
+    throw new Error(friendlyWalletError(err));
+  }
 }
 
 export async function sendUsdcFromWallet(
@@ -272,11 +287,7 @@ export async function sendUsdcFromWallet(
   try {
     txHash = await signUsdcTransfer(profileId, to, amountUsdc);
   } catch (err) {
-    const message = (err as Error).message ?? "transfer failed";
-    if (/insufficient funds|gas/i.test(message)) {
-      throw new Error("this in-app wallet needs a little AVAX on Fuji for gas");
-    }
-    throw new Error(message);
+    throw err instanceof Error ? err : new Error(friendlyWalletError(err));
   }
 
   await recordWalletTransaction({

@@ -34,19 +34,17 @@ export function EndTripPanel({ bookingId, accessToken }: { bookingId: string; ac
         <Button variant="primary" className="w-full" onClick={() => setOpen(true)}>
           End trip
         </Button>
-        <p className="mt-2 text-xs text-brand-muted">
-          When you arrive, tap End trip and show the code to your guide so they can release payment.
-        </p>
       </div>
     );
   }
 
   return (
     <div className="mt-3 rounded-lg border border-brand-border bg-brand-bg p-4">
-      <p className="text-sm font-semibold text-brand-blueDark">End trip</p>
-      <p className="mt-1 text-xs text-brand-muted">
-        Show the PIN or QR to your guide. They release payment after signing in as the assigned guide.
-      </p>
+      <p className="text-sm font-semibold text-brand-blueDark">Show your guide</p>
+      <ul className="mt-2 space-y-1 text-xs text-brand-muted">
+        <li>· PIN below, or</li>
+        <li>· QR for them to scan</li>
+      </ul>
 
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
 
@@ -57,14 +55,8 @@ export function EndTripPanel({ bookingId, accessToken }: { bookingId: string; ac
       )}
 
       {qrToken && (
-        <div className="mt-4 flex flex-col items-center gap-2">
-          <div className="bg-[#ffffff] p-3">
-            <QRCodeSVG value={getCompletionQrValue(qrToken)} size={160} />
-          </div>
-          <p className="text-xs text-brand-muted">
-            Your guide can scan this with their phone camera (production) or inside Guidemate. They must sign in as
-            the assigned guide before payment is released.
-          </p>
+        <div className="mt-4 flex justify-center bg-white p-3">
+          <QRCodeSVG value={getCompletionQrValue(qrToken)} size={160} />
         </div>
       )}
 
@@ -73,7 +65,7 @@ export function EndTripPanel({ bookingId, accessToken }: { bookingId: string; ac
         className="mt-3 w-full text-xs font-semibold text-brand-muted hover:text-brand-blueDark"
         onClick={() => setOpen(false)}
       >
-        Hide code
+        Hide
       </button>
     </div>
   );

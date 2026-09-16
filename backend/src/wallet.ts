@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
-import { Contract, formatUnits, getAddress, isAddress, parseUnits, Wallet } from "ethers";
+import { Contract, formatUnits, getAddress, isAddress, parseEther, parseUnits, Wallet } from "ethers";
 import mockUsdcAbi from "./abi/MockUSDC.json" with { type: "json" };
 import { provider, requireChain } from "./chain.js";
 import { listWalletTransactions, recordWalletTransaction } from "./ledger.js";
@@ -71,7 +71,48 @@ export async function provisionCustodialWallet(profileId: string): Promise<strin
     .eq("id", profileId);
   if (updateError) throw new Error(updateError.message);
 
+  await ensureCustodialGas(profileId).catch((err) => {
+    console.warn("[wallet] initial gas top-up skipped", err);
+  });
+
   return wallet.address;
+}
+
+const DEFAULT_MIN_AVAX = "0.02";
+
+/** Custodial wallets need native AVAX on Fuji to send USDC; top up from the platform signer when low. */
+export async function ensureCustodialGas(profileId: string): Promise<void> {
+  const { signer, provider } = requireChain();
+  const address = await getWalletAddress(profileId);
+  if (!address) return;
+
+  const minWei = parseEther(process.env.CUSTODIAL_MIN_AVAX ?? DEFAULT_MIN_AVAX);
+  const balance = await provider.getBalance(address);
+  if (balance >= minWei) return;
+
+  const topUp = minWei - balance;
+  const signerAddress = await signer.getAddress();
+  const signerBalance = await provider.getBalance(signerAddress);
+  const reserve = parseEther("0.001");
+  if (signerBalance < topUp + reserve) {
+    throw new Error("Guidemate gas wallet is low. Contact support or try again later.");
+  }
+
+  const tx = await signer.sendTransaction({ to: address, value: topUp });
+  await tx.wait();
+}
+
+export function friendlyWalletError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  if (/insufficient funds|intrinsic transaction cost|INSUFFICIENT_FUNDS|gas wallet is low/i.test(message)) {
+    if (/gas wallet is low/i.test(message)) return message;
+    return "Withdrawal could not send USDC yet. Try again in a few seconds.";
+  }
+  if (/insufficient wallet balance/i.test(message)) return message;
+  if (/MINISEND|minisend|off-ramp|offramp/i.test(message)) {
+    return message.split("\n")[0] ?? "M-Pesa withdrawal failed. Try again or use a smaller amount.";
+  }
+  return message.split("\n")[0] ?? "Wallet action failed";
 }
 
 /** @deprecated use provisionCustodialWallet */

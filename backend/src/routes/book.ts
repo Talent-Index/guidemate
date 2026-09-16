@@ -8,7 +8,7 @@ import { saveBooking } from "../bookings.js";
 import { reserveSlot, releaseSlot } from "../slots.js";
 import { ensureConversation } from "../chat.js";
 import { recordWalletTransaction } from "../ledger.js";
-import { getCompletedPaymentIntent } from "./payments.js";
+import { getCompletedPaymentIntent, getPaymentReceiptForBooking, paymentReceiptFromIntent } from "./payments.js";
 import { signBookingToken } from "../qr.js";
 import { getUserIdFromAuthHeader } from "../supabase.js";
 
@@ -130,9 +130,18 @@ bookRouter.post("/", async (req, res) => {
       await ensureConversation(bookingId, touristId, experience.guide.id);
     }
 
+    let paymentReceipt = null;
+    if (paymentIntentId && touristId) {
+      const intent = await getCompletedPaymentIntent(paymentIntentId, touristId);
+      if (intent) {
+        paymentReceipt = paymentReceiptFromIntent(intent, paymentMethod);
+      }
+    }
+
     res.status(201).json({
       booking: record,
       qrToken: signBookingToken(bookingId),
+      paymentReceipt,
     });
   } catch (err) {
     if (slotReserved && slotId) {

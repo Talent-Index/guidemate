@@ -59,12 +59,20 @@ async function handleOnrampCompleted(payload: Record<string, unknown>): Promise<
     (typeof payload.order_id === "string" && payload.order_id) ||
     referenceId;
 
+  const amountLocal =
+    typeof payload.amount_local === "number"
+      ? payload.amount_local
+      : typeof payload.amount_kes === "number"
+        ? payload.amount_kes
+        : null;
+
   await supabaseAdmin
     .from("payment_intents")
     .update({
       status: "completed",
       mpesa_receipt: mpesaRef,
       completed_at: new Date().toISOString(),
+      ...(amountLocal != null ? { amount_kes: amountLocal } : {}),
     })
     .eq("id", referenceId);
 
@@ -72,7 +80,7 @@ async function handleOnrampCompleted(payload: Record<string, unknown>): Promise<
     profileId: intent.payer_id,
     type: "mpesa_onramp",
     amountUsdc: Number(intent.amount_usdc),
-    amountKes: Number(intent.amount_kes),
+    amountKes: amountLocal ?? Number(intent.amount_kes),
     referenceType: intent.purpose,
     referenceId: intent.reference_id,
     mpesaRef,

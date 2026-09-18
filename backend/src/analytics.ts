@@ -1,5 +1,27 @@
 import { supabaseAdmin } from "./supabase.js";
-import { listAllTransactions } from "./ledger.js";
+import { listAllTransactions, type WalletTransaction } from "./ledger.js";
+
+export interface AuditReportData {
+  overview: AnalyticsOverview;
+  transactions: WalletTransaction[];
+  applications: {
+    full_name: string | null;
+    email: string | null;
+    phone: string | null;
+    location: string | null;
+    status: string | null;
+    created_at: string | null;
+  }[];
+  waitlist: {
+    full_name: string | null;
+    email: string | null;
+    interest: string | null;
+    created_at: string | null;
+  }[];
+  from?: string;
+  to?: string;
+  generatedAt: string;
+}
 
 export interface AnalyticsOverview {
   guides: number;
@@ -122,7 +144,7 @@ function csvEscape(value: string | number | null | undefined): string {
   return text;
 }
 
-export async function buildReportCsv(from?: string, to?: string): Promise<string> {
+export async function loadAuditReportData(from?: string, to?: string): Promise<AuditReportData> {
   const overview = await getAnalyticsOverview(from, to);
   const transactions = await listAllTransactions({ limit: 5000, from, to });
   const [{ data: applications }, { data: waitlist }] = await Promise.all([
@@ -136,10 +158,25 @@ export async function buildReportCsv(from?: string, to?: string): Promise<string
       .order("created_at", { ascending: false }),
   ]);
 
+  return {
+    overview,
+    transactions,
+    applications: applications ?? [],
+    waitlist: waitlist ?? [],
+    from,
+    to,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+export async function buildReportCsv(from?: string, to?: string): Promise<string> {
+  const { overview, transactions, applications, waitlist, from: fromDate, to: toDate, generatedAt } =
+    await loadAuditReportData(from, to);
+
   const lines: string[] = [
     "Guidemate Platform Audit Report",
-    `Generated,${new Date().toISOString()}`,
-    `Period,${from ?? "all"} to ${to ?? "now"}`,
+    `Generated,${generatedAt}`,
+    `Period,${fromDate ?? "all"} to ${toDate ?? "now"}`,
     "",
     "=== USER BASE ===",
     "Metric,Value",
@@ -178,7 +215,7 @@ export async function buildReportCsv(from?: string, to?: string): Promise<string
     "Name,Email,Phone,Location,Status,Submitted At",
   ];
 
-  for (const app of applications ?? []) {
+  for (const app of applications) {
     lines.push(
       [
         csvEscape(app.full_name),
@@ -192,7 +229,7 @@ export async function buildReportCsv(from?: string, to?: string): Promise<string
   }
 
   lines.push("", "=== WAITLIST (DETAIL) ===", "Name,Email,Interest,Joined At");
-  for (const row of waitlist ?? []) {
+  for (const row of waitlist) {
     lines.push(
       [
         csvEscape(row.full_name),

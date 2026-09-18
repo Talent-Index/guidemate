@@ -127,7 +127,7 @@ export default function LiveStreamPage() {
     setJoining(true);
     setError(null);
     try {
-      const result = await joinStream(streamRouteKey, session?.access_token, opts);
+      const result = await joinStream(apiStreamId, session?.access_token, opts);
       setToken(result.token);
       setRole(result.role);
       setStream(result.stream);
@@ -151,8 +151,8 @@ export default function LiveStreamPage() {
       setPaying(true);
       try {
         const raw = sessionStorage.getItem(LIVE_CHECKOUT_KEY);
-        const draft = raw ? (JSON.parse(raw) as { streamRouteKey: string; intentId: string }) : null;
-        if (draft && draft.streamRouteKey === stream.id && draft.intentId !== intentId) {
+        const draft = raw ? (JSON.parse(raw) as { streamId: string; intentId: string }) : null;
+        if (draft && draft.streamId === stream.id && draft.intentId !== intentId) {
           throw new Error("Checkout session mismatch. Try paying again.");
         }
         await pollMpesaPayment(intentId, session.access_token);
@@ -206,7 +206,7 @@ export default function LiveStreamPage() {
         session.access_token
       );
       if (payment.checkoutUrl) {
-        sessionStorage.setItem(LIVE_CHECKOUT_KEY, JSON.stringify({ streamRouteKey: stream.id, intentId: payment.intentId }));
+        sessionStorage.setItem(LIVE_CHECKOUT_KEY, JSON.stringify({ streamId: stream.id, intentId: payment.intentId }));
         window.location.href = payment.checkoutUrl;
         return;
       }

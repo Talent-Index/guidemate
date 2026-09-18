@@ -38,6 +38,12 @@ export default function ExplorePage() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined" || !window.location.hash) return;
+    const target = document.querySelector(window.location.hash);
+    target?.scrollIntoView({ behavior: "smooth" });
+  }, [authLoading, session]);
+
+  useEffect(() => {
     (async () => {
       const supabase = createClient();
       const { data } = await supabase
@@ -115,11 +121,19 @@ export default function ExplorePage() {
       <div>
         <h1 className="text-2xl font-bold text-[var(--gm-ink)] sm:text-3xl">Experiences in Nairobi</h1>
         {profile?.role === "tourist" ? (
-          <p className="mt-2 text-sm text-brand-muted">Book a local guide. Pay when you go.</p>
+          <p className="mt-2 text-sm text-brand-muted">Describe what you want, or browse and book directly.</p>
         ) : (
           <p className="mt-2 text-sm text-brand-muted">Curated local tours with vetted guides.</p>
         )}
       </div>
+
+      {!authLoading && (!session || profile?.role === "tourist") && (
+        <ExperienceMatchCard
+          signedIn={Boolean(session)}
+          initialQuery={initialQuery}
+          prominent={profile?.role === "tourist"}
+        />
+      )}
 
       <div id="browse-experiences" className="flex flex-col gap-12">
         {loadingExperiences && <ExperienceGridSkeleton />}
@@ -169,8 +183,6 @@ export default function ExplorePage() {
           )}
         </section>
       </div>
-
-      {!authLoading && <ExperienceMatchCard signedIn={Boolean(session)} initialQuery={initialQuery} />}
 
       {!authLoading && profile?.role === "tourist" && (
         <WelcomeTodayCard profile={profile} actions={touristWelcomeActions} />

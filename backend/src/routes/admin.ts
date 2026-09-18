@@ -8,6 +8,7 @@ import {
   getGuidePerformance,
   getSignupsTimeseries,
 } from "../analytics.js";
+import { buildReportPdf } from "../reportPdf.js";
 import { getAdminUserIdFromAuthHeader, getAnalyticsUserIdFromAuthHeader, supabaseAdmin } from "../supabase.js";
 import { nextAvailableSlug } from "../slug.js";
 import { z } from "zod";
@@ -125,10 +126,20 @@ adminRouter.get("/reports/export", async (req, res) => {
   try {
     const from = req.query.from as string | undefined;
     const to = req.query.to as string | undefined;
-    const csv = await buildReportCsv(from, to);
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", `attachment; filename="guidemate-report.csv"`);
-    res.send(csv);
+    const format = String(req.query.format ?? "pdf").toLowerCase();
+
+    if (format === "csv") {
+      const csv = await buildReportCsv(from, to);
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="guidemate-audit-report.csv"`);
+      res.send(csv);
+      return;
+    }
+
+    const pdf = await buildReportPdf(from, to);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="guidemate-audit-report.pdf"`);
+    res.send(pdf);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

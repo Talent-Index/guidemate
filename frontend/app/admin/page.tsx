@@ -63,12 +63,26 @@ export default function AdminDashboardPage() {
               </p>
             </div>
           </div>
-          <Button
-            variant="accent"
-            onClick={() => session && downloadAdminReport(session.access_token).catch((e) => setError(e.message))}
-          >
-            Export audit report
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="accent"
+              onClick={() =>
+                session &&
+                downloadAdminReport(session.access_token, { format: "pdf" }).catch((e) => setError(e.message))
+              }
+            >
+              Export PDF report
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() =>
+                session &&
+                downloadAdminReport(session.access_token, { format: "csv" }).catch((e) => setError(e.message))
+              }
+            >
+              Export CSV
+            </Button>
+          </div>
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
@@ -130,7 +144,7 @@ export default function AdminDashboardPage() {
 
             <Card>
               <h2 className="text-lg font-bold text-brand-blueDark">Metrics summary</h2>
-              <p className="mt-1 text-sm text-brand-muted">Detailed breakdown matching the audit report export.</p>
+              <p className="mt-1 text-sm text-brand-muted">Detailed breakdown included in the PDF and CSV audit exports.</p>
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>

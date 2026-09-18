@@ -256,8 +256,8 @@ export default function LiveStreamPage() {
   useEffect(() => {
     if (!stream || stream.status !== "live") return;
     const refresh = () => {
-      getStreamStats(streamRouteKey).then(setStats).catch(() => {});
-      listStreamComments(streamRouteKey).then((r) => setComments(r.comments)).catch(() => {});
+      getStreamStats(apiStreamId).then(setStats).catch(() => {});
+      listStreamComments(apiStreamId).then((r) => setComments(r.comments)).catch(() => {});
     };
     refresh();
     const interval = setInterval(refresh, 5000);

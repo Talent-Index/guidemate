@@ -107,7 +107,7 @@ export default function LiveBrowsePage() {
         { title: title.trim(), priceUsdc: Number(price) || 0 },
         session.access_token
       );
-      router.push(`/live/${stream.id}`);
+      router.push(getStreamSharePath(stream.id, stream.slug));
     } catch (err) {
       setStartError((err as Error).message);
     } finally {
@@ -191,7 +191,7 @@ export default function LiveBrowsePage() {
     setStartError(null);
     try {
       const { stream } = await startScheduledStream(streamId, session.access_token);
-      router.push(`/live/${stream.id}`);
+      router.push(getStreamSharePath(stream.id, stream.slug));
     } catch (err) {
       setStartError((err as Error).message);
       setGuideActionId(null);
@@ -298,7 +298,7 @@ export default function LiveBrowsePage() {
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <ShareLinkButton
-                          path={getStreamSharePath(stream.id)}
+                          path={getStreamSharePath(stream.id, stream.slug)}
                           label="Share link"
                           shareTitle={stream.title}
                           shareText={`Join my live stream: ${stream.title}`}
@@ -322,7 +322,7 @@ export default function LiveBrowsePage() {
                         >
                           Start early
                         </Button>
-                        <Link href={`/live/${stream.id}`}>
+                        <Link href={getStreamSharePath(stream.id, stream.slug)}>
                           <Button variant="secondary" type="button">View</Button>
                         </Link>
                       </div>
@@ -472,7 +472,7 @@ function StreamCard({ stream, badge }: { stream: LiveStreamRecord; badge?: strin
           <p className="text-sm font-semibold text-brand-blueDark">Free</p>
         )}
       </div>
-      <Link href={`/live/${stream.id}`}>
+      <Link href={getStreamSharePath(stream.id, stream.slug)}>
         <Button variant="primary" className="mt-4 w-full">
           {isLive ? "Watch live" : isScheduled ? "View details" : "Play recording"}
         </Button>

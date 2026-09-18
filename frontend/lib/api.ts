@@ -47,6 +47,8 @@ export interface MatchResult {
   experience: Experience;
   reason: string;
   source: "gemini" | "local";
+  exactMatch: boolean;
+  alternatives: Experience[];
 }
 
 export type BookingStatus = "locked" | "released" | "paid" | "refunded";
@@ -354,6 +356,7 @@ export interface GuideInsightsOverview {
 export interface GuideStreamInsight {
   id: string;
   title: string;
+  slug: string | null;
   status: StreamStatus;
   priceUsdc: number;
   experienceTitle: string | null;
@@ -373,6 +376,7 @@ export interface GuideInsights {
   upcomingStreams: Array<{
     id: string;
     title: string;
+    slug: string | null;
     status: "scheduled";
     priceUsdc: number;
     experienceTitle: string | null;
@@ -432,6 +436,7 @@ export interface LiveStreamRecord {
   startedAt: string | null;
   endedAt: string | null;
   recordingUrl: string | null;
+  slug: string | null;
   createdAt: string;
 }
 
@@ -462,8 +467,15 @@ export function listMyScheduledStreams(accessToken: string) {
   });
 }
 
-export function getStream(streamId: string) {
-  return request<{ stream: LiveStreamRecord }>(`/api/streams/${streamId}`);
+export function registerOpenGuide(accessToken: string) {
+  return request<{ ok: true; walletAddress: string; slug: string }>("/api/guides/open-signup", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+  });
+}
+
+export function getStream(streamIdOrSlug: string) {
+  return request<{ stream: LiveStreamRecord }>(`/api/streams/${encodeURIComponent(streamIdOrSlug)}`);
 }
 
 export function listStreamTips(streamId: string) {

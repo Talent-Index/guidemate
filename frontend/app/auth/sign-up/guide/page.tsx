@@ -11,10 +11,10 @@ import { authConfirmUrl } from "@/lib/auth/oauthRedirect";
 import { homeForRole } from "@/lib/auth/home";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/components/ui/Toast";
+import { registerOpenGuide } from "@/lib/api";
+import { storePendingOpenGuideProfile } from "@/lib/auth/openGuideSignup";
 
-const ROLE = "tourist" as const;
-
-export default function SignUpPage() {
+export default function GuideSignUpPage() {
   const router = useRouter();
   const { refreshProfile } = useAuth();
   const { toast } = useToast();
@@ -26,13 +26,17 @@ export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
 
+  async function finishGuideSignup(accessToken: string) {
+    await registerOpenGuide(accessToken);
+    await refreshProfile();
+    toast("Guide account ready — welcome to Guidemate", "success");
+    router.replace(homeForRole("guide"));
+  }
+
   async function handleGoogleSignUp() {
     setError(null);
     setLoading(true);
-    localStorage.setItem(
-      `guidemate_pending_profile_${email || "google"}`,
-      JSON.stringify({ fullName: fullName || "User", phone: phone || null })
-    );
+    storePendingOpenGuideProfile({ email: email || "google", fullName: fullName || "Guide", phone: phone || null });
     const supabase = createClient();
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -55,7 +59,7 @@ export default function SignUpPage() {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { role: ROLE, full_name: fullName, phone: phone || null } },
+        options: { data: { full_name: fullName, phone: phone || null } },
       });
       if (signUpError) {
         const message = signUpError.message.toLowerCase();
@@ -67,33 +71,9 @@ export default function SignUpPage() {
       if (!data.user) throw new Error("sign up did not return a user");
 
       if (data.session) {
-        const { error: profileError } = await supabase.from("profiles").insert({
-          id: data.user.id,
-          role: ROLE,
-          full_name: fullName,
-          phone: phone || null,
-        });
-        if (profileError) {
-          const { data: existing } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", data.user.id)
-            .maybeSingle();
-          if (existing) {
-            await refreshProfile();
-            router.replace(homeForRole(existing.role as "guide" | "tourist" | "admin"));
-            return;
-          }
-          throw profileError;
-        }
-        await refreshProfile();
-        toast("Account created. Welcome to Guidemate", "success");
-        router.replace(homeForRole(ROLE));
+        await finishGuideSignup(data.session.access_token);
       } else {
-        localStorage.setItem(
-          `guidemate_pending_profile_${email}`,
-          JSON.stringify({ fullName, phone: phone || null })
-        );
+        storePendingOpenGuideProfile({ email, fullName, phone: phone || null });
         setNeedsConfirmation(true);
       }
     } catch (err) {
@@ -107,8 +87,8 @@ export default function SignUpPage() {
     return (
       <FormShell title="Check your email">
         <p className="text-center text-sm text-[var(--gm-muted)]">
-          We sent a confirmation link to <strong className="text-[var(--gm-ink)]">{email}</strong>. Click it, then come back and
-          sign in.
+          We sent a confirmation link to <strong className="text-[var(--gm-ink)]">{email}</strong>. After you confirm,
+          sign in and we&apos;ll finish setting up your guide profile.
         </p>
       </FormShell>
     );
@@ -117,8 +97,8 @@ export default function SignUpPage() {
   return (
     <SignedInRedirect>
       <FormShell
-        title="Create your account"
-        subtitle="Register as a tourist to book local experiences."
+        title="Create a guide account"
+        subtitle="Beta access: list experiences, go live, and test payouts without waiting for TRA vetting. Full licensing apply remains available separately."
         footer={
           <>
             Already have an account?{" "}
@@ -126,13 +106,14 @@ export default function SignUpPage() {
               Sign in
             </a>
             <br />
-            Want to host or go live?{" "}
-            <a href="/auth/sign-up/guide" className="font-semibold text-brand-accent underline">
-              Create a guide account (beta)
-            </a>
-            {" · "}
+            Applying for TRA Class E vetting?{" "}
             <a href="/apply" className="font-semibold text-brand-accent underline">
-              TRA application
+              Full application
+            </a>
+            <br />
+            Booking as a tourist?{" "}
+            <a href="/auth/sign-up" className="font-semibold text-brand-accent underline">
+              Tourist sign up
             </a>
           </>
         }
@@ -182,7 +163,7 @@ export default function SignUpPage() {
             disabled={loading}
             className="w-full bg-brand-amber py-3.5 text-xs font-bold uppercase tracking-[0.2em] text-brand-blueDark transition hover:bg-brand-amberDark disabled:opacity-50"
           >
-            {loading ? "Creating account..." : "Create account"}
+            {loading ? "Creating account..." : "Create guide account"}
           </button>
 
           <div className="my-4 flex items-center gap-3">

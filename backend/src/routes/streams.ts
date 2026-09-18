@@ -15,6 +15,7 @@ import {
   countStreamReactions,
   createStream,
   getStreamById,
+  getStreamByIdOrSlug,
   grantStreamAccess,
   hasStreamAccess,
   listGuideScheduledStreams,
@@ -173,13 +174,15 @@ streamsRouter.get("/recorded", async (_req, res) => {
 });
 
 streamsRouter.get("/:id", async (req, res) => {
-  const stream = await getStreamById(req.params.id);
+  const stream = await getStreamByIdOrSlug(req.params.id);
   if (!stream) return res.status(404).json({ error: "stream not found" });
   res.json({ stream });
 });
 
 streamsRouter.get("/:id/tips", async (req, res) => {
-  const tips = await listStreamTips(req.params.id);
+  const stream = await getStreamByIdOrSlug(req.params.id);
+  if (!stream) return res.status(404).json({ error: "stream not found" });
+  const tips = await listStreamTips(stream.id);
   res.json({ tips });
 });
 
@@ -189,7 +192,7 @@ const joinTokenSchema = z.object({
 });
 
 streamsRouter.post("/:id/join-token", async (req, res) => {
-  const stream = await getStreamById(req.params.id);
+  const stream = await getStreamByIdOrSlug(req.params.id);
   if (!stream) return res.status(404).json({ error: "stream not found" });
   if (stream.status !== "live") {
     return res.status(409).json({ error: `stream is ${stream.status}, not live` });
@@ -279,7 +282,7 @@ streamsRouter.post("/:id/start", async (req, res) => {
   const userId = await getUserIdFromAuthHeader(req.headers.authorization);
   if (!userId) return res.status(401).json({ error: "sign in required" });
 
-  const stream = await getStreamById(req.params.id);
+  const stream = await getStreamByIdOrSlug(req.params.id);
   if (!stream) return res.status(404).json({ error: "stream not found" });
   if (stream.guideId !== userId) {
     return res.status(403).json({ error: "only the broadcasting guide can start this stream" });
@@ -304,7 +307,7 @@ streamsRouter.post("/:id/notify", async (req, res) => {
   const userId = await getUserIdFromAuthHeader(req.headers.authorization);
   if (!userId) return res.status(401).json({ error: "sign in required" });
 
-  const stream = await getStreamById(req.params.id);
+  const stream = await getStreamByIdOrSlug(req.params.id);
   if (!stream) return res.status(404).json({ error: "stream not found" });
   if (stream.guideId !== userId) {
     return res.status(403).json({ error: "only the broadcasting guide can notify the community" });
@@ -335,7 +338,7 @@ streamsRouter.post("/:id/end", async (req, res) => {
   const userId = await getUserIdFromAuthHeader(req.headers.authorization);
   if (!userId) return res.status(401).json({ error: "sign in required" });
 
-  const stream = await getStreamById(req.params.id);
+  const stream = await getStreamByIdOrSlug(req.params.id);
   if (!stream) return res.status(404).json({ error: "stream not found" });
   if (stream.guideId !== userId) {
     return res.status(403).json({ error: "only the broadcasting guide can end this stream" });
@@ -378,7 +381,7 @@ const tipSchema = z.object({
 /// frontend's use of wagmi's useWriteContract against MockUSDC). This is
 /// trust-based logging, not on-chain re-verification.
 streamsRouter.post("/:id/tip", async (req, res) => {
-  const stream = await getStreamById(req.params.id);
+  const stream = await getStreamByIdOrSlug(req.params.id);
   if (!stream) return res.status(404).json({ error: "stream not found" });
 
   const parsed = tipSchema.safeParse(req.body);
@@ -403,7 +406,9 @@ streamsRouter.post("/:id/tip", async (req, res) => {
 });
 
 streamsRouter.get("/:id/comments", async (req, res) => {
-  const comments = await listStreamComments(req.params.id);
+  const stream = await getStreamByIdOrSlug(req.params.id);
+  if (!stream) return res.status(404).json({ error: "stream not found" });
+  const comments = await listStreamComments(stream.id);
   res.json({ comments: comments.reverse() });
 });
 
@@ -414,7 +419,7 @@ streamsRouter.post("/:id/comments", async (req, res) => {
   const parsed = commentSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
-  const stream = await getStreamById(req.params.id);
+  const stream = await getStreamByIdOrSlug(req.params.id);
   if (!stream) return res.status(404).json({ error: "stream not found" });
 
   let displayName = "Viewer";
@@ -443,7 +448,7 @@ streamsRouter.post("/:id/comments", async (req, res) => {
 streamsRouter.post("/:id/reactions", async (req, res) => {
   const userId = await getUserIdFromAuthHeader(req.headers.authorization);
   const type = req.body?.type === "like" ? "like" : "flower";
-  const stream = await getStreamById(req.params.id);
+  const stream = await getStreamByIdOrSlug(req.params.id);
   if (!stream) return res.status(404).json({ error: "stream not found" });
 
   try {
@@ -456,7 +461,7 @@ streamsRouter.post("/:id/reactions", async (req, res) => {
 });
 
 streamsRouter.get("/:id/stats", async (req, res) => {
-  const stream = await getStreamById(req.params.id);
+  const stream = await getStreamByIdOrSlug(req.params.id);
   if (!stream) return res.status(404).json({ error: "stream not found" });
 
   let viewerCount = 0;

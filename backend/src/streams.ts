@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "./supabase.js";
+import { isUuid, nextAvailableSlug } from "./slug.js";
 
 export type StreamStatus = "scheduled" | "live" | "ended";
 
@@ -28,11 +29,12 @@ export interface LiveStreamRecord {
   endedAt: string | null;
   recordingUrl: string | null;
   egressId: string | null;
+  slug: string | null;
   createdAt: string;
 }
 
 const SELECT = `
-  id, guide_id, experience_id, room_name, title, status, price_usdc,
+  id, guide_id, experience_id, room_name, title, slug, status, price_usdc,
   scheduled_at, community_notified_at, started_at, ended_at, recording_url, egress_id, created_at,
   guide:guide_id ( full_name, wallet_address ),
   experience:experience_id ( title )
@@ -57,8 +59,20 @@ function toStreamRecord(row: any): LiveStreamRecord {
     endedAt: row.ended_at,
     recordingUrl: row.recording_url ?? null,
     egressId: row.egress_id ?? null,
+    slug: row.slug ?? null,
     createdAt: row.created_at,
   };
+}
+
+async function allocateStreamSlug(title: string): Promise<string> {
+  return nextAvailableSlug(
+    title,
+    async (candidate) => {
+      const { data } = await supabaseAdmin.from("live_streams").select("id").eq("slug", candidate).maybeSingle();
+      return Boolean(data);
+    },
+    "stream"
+  );
 }
 
 export interface CreateStreamInput {
@@ -72,6 +86,7 @@ export interface CreateStreamInput {
 
 export async function createStream(input: CreateStreamInput): Promise<LiveStreamRecord> {
   const isScheduled = Boolean(input.scheduledAt);
+  const slug = await allocateStreamSlug(input.title);
   const { data, error } = await supabaseAdmin
     .from("live_streams")
     .insert({
@@ -79,6 +94,7 @@ export async function createStream(input: CreateStreamInput): Promise<LiveStream
       experience_id: input.experienceId,
       room_name: input.roomName,
       title: input.title,
+      slug,
       price_usdc: input.priceUsdc,
       status: isScheduled ? "scheduled" : "live",
       scheduled_at: input.scheduledAt ?? null,
@@ -115,6 +131,17 @@ export async function getStreamById(id: string): Promise<LiveStreamRecord | unde
   const { data, error } = await supabaseAdmin.from("live_streams").select(SELECT).eq("id", id).maybeSingle();
   if (error || !data) return undefined;
   return toStreamRecord(data);
+}
+
+export async function getStreamBySlug(slug: string): Promise<LiveStreamRecord | undefined> {
+  const { data, error } = await supabaseAdmin.from("live_streams").select(SELECT).eq("slug", slug).maybeSingle();
+  if (error || !data) return undefined;
+  return toStreamRecord(data);
+}
+
+export async function getStreamByIdOrSlug(idOrSlug: string): Promise<LiveStreamRecord | undefined> {
+  if (isUuid(idOrSlug)) return getStreamById(idOrSlug);
+  return getStreamBySlug(idOrSlug);
 }
 
 export async function listLiveStreams(): Promise<LiveStreamRecord[]> {

@@ -18,8 +18,12 @@ export function getGuideSharePath(guideId: string, slug?: string | null) {
   return slug ? `/g/${encodeURIComponent(slug)}` : `/guides/${guideId}`;
 }
 
-export function getStreamSharePath(streamId: string) {
-  return `/live/${streamId}`;
+export function getStreamSharePath(streamId: string, slug?: string | null) {
+  return slug ? `/live/${encodeURIComponent(slug)}` : `/live/${streamId}`;
+}
+
+export function getStreamShareUrl(streamId: string, slug?: string | null) {
+  return buildAppUrl(getStreamSharePath(streamId, slug));
 }
 
 export function getExperienceShareUrl(experienceId: string, slug?: string | null) {
@@ -30,6 +34,3 @@ export function getGuideShareUrl(guideId: string, slug?: string | null) {
   return buildAppUrl(getGuideSharePath(guideId, slug));
 }
 
-export function getStreamShareUrl(streamId: string) {
-  return buildAppUrl(getStreamSharePath(streamId));
-}

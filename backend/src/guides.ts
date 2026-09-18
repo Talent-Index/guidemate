@@ -113,6 +113,7 @@ export async function getGuidePublicProfile(guideIdOrSlug: string): Promise<Guid
 export interface GuideStreamInsight {
   id: string;
   title: string;
+  slug: string | null;
   status: "scheduled" | "live" | "ended";
   priceUsdc: number;
   experienceTitle: string | null;
@@ -142,6 +143,7 @@ export interface GuideInsights {
   upcomingStreams: Array<{
     id: string;
     title: string;
+    slug: string | null;
     status: "scheduled";
     priceUsdc: number;
     experienceTitle: string | null;
@@ -180,6 +182,7 @@ export async function getGuideInsights(guideId: string): Promise<GuideInsights |
     return {
       id: s.id,
       title: s.title,
+      slug: s.slug,
       status: s.status,
       priceUsdc: s.priceUsdc,
       experienceTitle: s.experienceTitle,
@@ -198,6 +201,7 @@ export async function getGuideInsights(guideId: string): Promise<GuideInsights |
     .map((s) => ({
       id: s.id,
       title: s.title,
+      slug: s.slug,
       status: "scheduled" as const,
       priceUsdc: s.priceUsdc,
       experienceTitle: s.experienceTitle,

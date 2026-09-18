@@ -899,7 +899,12 @@ export interface GuideApplicationInput {
   refereeName: string;
   refereePhone: string;
   refereeEmail?: string | null;
-  cv: GuideApplicationFilePayload;
+  nationalIdDoc: GuideApplicationFilePayload;
+  goodConduct: GuideApplicationFilePayload;
+  kraPin: string;
+  kraPinDoc: GuideApplicationFilePayload;
+  professionalCertificates: GuideApplicationFilePayload[];
+  cv?: GuideApplicationFilePayload | null;
   proof?: GuideApplicationFilePayload | null;
 }
 

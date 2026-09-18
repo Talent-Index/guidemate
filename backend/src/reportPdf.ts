@@ -1,6 +1,7 @@
 import PDFDocument from "pdfkit";
 import type PDFKit from "pdfkit";
 import { loadAuditReportData, type AuditReportData } from "./analytics.js";
+import { formatReportPeriodLabel } from "./reportDates.js";
 
 const BRAND = "#003B95";
 const MUTED = "#5B6B82";
@@ -128,7 +129,7 @@ function buildPdfDocument(data: AuditReportData): Promise<Buffer> {
     y = doc.y + 8;
     doc.font("Helvetica").fontSize(10).fillColor(MUTED);
     doc.text(`Generated ${fmtDate(data.generatedAt)}`, { align: "center" });
-    doc.text(`Period: ${data.from ?? "all time"} → ${data.to ?? "now"}`, { align: "center" });
+    doc.text(`Period: ${formatReportPeriodLabel(data.from, data.to)} (EAT)`, { align: "center" });
     y = doc.y + 16;
     doc.fillColor("#000000");
 

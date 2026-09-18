@@ -793,10 +793,15 @@ export function getAdminGuidePerformance(accessToken: string) {
   });
 }
 
-export function getAdminTransactions(accessToken: string, opts?: { limit?: number; type?: string }) {
+export function getAdminTransactions(
+  accessToken: string,
+  opts?: { limit?: number; type?: string; from?: string; to?: string }
+) {
   const params = new URLSearchParams();
   if (opts?.limit) params.set("limit", String(opts.limit));
   if (opts?.type) params.set("type", opts.type);
+  if (opts?.from) params.set("from", opts.from);
+  if (opts?.to) params.set("to", opts.to);
   const qs = params.toString();
   return request<{ transactions: WalletTransaction[] }>(`/api/admin/transactions${qs ? `?${qs}` : ""}`, {
     headers: authHeaders(accessToken),

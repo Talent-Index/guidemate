@@ -118,7 +118,7 @@ export default function SignUpPage() {
     <SignedInRedirect>
       <FormShell
         title="Create your account"
-        subtitle="Register as a tourist to book local experiences. Guides apply separately and are vetted before access."
+        subtitle="Register as a tourist to book local experiences."
         footer={
           <>
             Already have an account?{" "}
@@ -126,9 +126,13 @@ export default function SignUpPage() {
               Sign in
             </a>
             <br />
-            Want to be a vetted guide?{" "}
+            Want to host or go live?{" "}
+            <a href="/auth/sign-up/guide" className="font-semibold text-brand-accent underline">
+              Create a guide account (beta)
+            </a>
+            {" · "}
             <a href="/apply" className="font-semibold text-brand-accent underline">
-              Apply here
+              TRA application
             </a>
           </>
         }

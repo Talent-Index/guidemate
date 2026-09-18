@@ -434,6 +434,7 @@ export interface LiveStreamRecord {
   startedAt: string | null;
   endedAt: string | null;
   recordingUrl: string | null;
+  slug: string | null;
   createdAt: string;
 }
 
@@ -464,8 +465,15 @@ export function listMyScheduledStreams(accessToken: string) {
   });
 }
 
-export function getStream(streamId: string) {
-  return request<{ stream: LiveStreamRecord }>(`/api/streams/${streamId}`);
+export function registerOpenGuide(accessToken: string) {
+  return request<{ ok: true; walletAddress: string; slug: string }>("/api/guides/open-signup", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+  });
+}
+
+export function getStream(streamIdOrSlug: string) {
+  return request<{ stream: LiveStreamRecord }>(`/api/streams/${encodeURIComponent(streamIdOrSlug)}`);
 }
 
 export function listStreamTips(streamId: string) {

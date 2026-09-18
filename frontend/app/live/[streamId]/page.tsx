@@ -109,6 +109,12 @@ export default function LiveStreamPage() {
   }, [streamRouteKey, refreshTips]);
 
   useEffect(() => {
+    if (!stream?.slug || streamRouteKey === stream.slug) return;
+    if (typeof window === "undefined") return;
+    window.history.replaceState(null, "", `/live/${encodeURIComponent(stream.slug)}`);
+  }, [stream?.slug, streamRouteKey]);
+
+  useEffect(() => {
     if (!stream || stream.priceUsdc <= 0) return;
     let cancelled = false;
     getPaymentQuote(stream.priceUsdc, mpesaPhone.trim() || undefined)
@@ -256,12 +262,12 @@ export default function LiveStreamPage() {
     refresh();
     const interval = setInterval(refresh, 5000);
     return () => clearInterval(interval);
-  }, [streamRouteKey, stream?.status]);
+  }, [apiStreamId, stream?.status]);
 
   async function handleTapFlower() {
     setFlowers((f) => f + 1);
     try {
-      await postStreamReaction(streamRouteKey, "flower", session?.access_token);
+      await postStreamReaction(apiStreamId, "flower", session?.access_token);
     } catch {
       // best effort
     }
@@ -271,7 +277,7 @@ export default function LiveStreamPage() {
     e.preventDefault();
     if (!commentBody.trim()) return;
     try {
-      const { comment } = await postStreamComment(streamRouteKey, commentBody.trim(), session?.access_token);
+      const { comment } = await postStreamComment(apiStreamId, commentBody.trim(), session?.access_token);
       setComments((prev) => [...prev, comment]);
       setCommentBody("");
     } catch (err) {
@@ -290,7 +296,7 @@ export default function LiveStreamPage() {
     try {
       const hash = await transferUsdc(stream.guideWallet as `0x${string}`, amount);
       await recordStreamTip(
-        streamRouteKey,
+        apiStreamId,
         { amountUsdc: amount, txHash: hash, tipperWallet: address },
         session?.access_token
       );
@@ -305,7 +311,7 @@ export default function LiveStreamPage() {
     if (!session) return;
     setEnding(true);
     try {
-      const { stream: updated } = await endStream(streamRouteKey, session.access_token);
+      const { stream: updated } = await endStream(apiStreamId, session.access_token);
       setStream(updated);
       setToken(null);
     } catch (err) {
@@ -320,7 +326,7 @@ export default function LiveStreamPage() {
     setStarting(true);
     setError(null);
     try {
-      const { stream: updated, token: publishToken } = await startScheduledStream(streamRouteKey, session.access_token);
+      const { stream: updated, token: publishToken } = await startScheduledStream(apiStreamId, session.access_token);
       setStream(updated);
       setToken(publishToken);
       setRole("publisher");
@@ -336,7 +342,7 @@ export default function LiveStreamPage() {
     setNotifying(true);
     setError(null);
     try {
-      const { stream: updated } = await notifyStreamCommunity(streamRouteKey, session.access_token);
+      const { stream: updated } = await notifyStreamCommunity(apiStreamId, session.access_token);
       setStream(updated);
     } catch (err) {
       setError((err as Error).message);
@@ -385,7 +391,7 @@ export default function LiveStreamPage() {
           <ViewGuideProfileButton guideId={stream.guideId} className="mt-3 inline-block" />
           <div className="mt-4">
             <ShareLinkButton
-              path={getStreamSharePath(stream.id)}
+              path={getStreamSharePath(stream.id, stream.slug)}
               label="Share stream link"
               shareTitle={stream.title}
               shareText={`Watch ${stream.title} on Guidemate`}
@@ -421,7 +427,7 @@ export default function LiveStreamPage() {
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               <ShareLinkButton
-                path={getStreamSharePath(stream.id)}
+                path={getStreamSharePath(stream.id, stream.slug)}
                 label="Share"
                 shareTitle={stream.title}
                 shareText={`Join my live stream: ${stream.title}`}
@@ -501,7 +507,7 @@ export default function LiveStreamPage() {
                   </p>
                   <div className="mt-5 flex flex-col gap-2">
                     <ShareLinkButton
-                      path={getStreamSharePath(stream.id)}
+                      path={getStreamSharePath(stream.id, stream.slug)}
                       label="Share stream link"
                       shareTitle={stream.title}
                       shareText={`Join my live stream: ${stream.title}`}
@@ -525,7 +531,7 @@ export default function LiveStreamPage() {
                     here{stream.priceUsdc > 0 ? " after pay-per-view checkout" : ""}.
                   </p>
                   <ShareLinkButton
-                    path={getStreamSharePath(stream.id)}
+                    path={getStreamSharePath(stream.id, stream.slug)}
                     label="Share with friends"
                     shareTitle={stream.title}
                     shareText={`Join my live stream: ${stream.title}`}
@@ -563,7 +569,7 @@ export default function LiveStreamPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <ShareLinkButton
-              path={getStreamSharePath(stream.id)}
+              path={getStreamSharePath(stream.id, stream.slug)}
               label="Share"
               shareTitle={stream.title}
               shareText={

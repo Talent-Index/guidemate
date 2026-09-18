@@ -611,13 +611,13 @@ export default function GuideDashboardPage() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <ShareLinkButton
-                      path={getStreamSharePath(s.id)}
+                      path={getStreamSharePath(s.id, s.slug)}
                       label="Share"
                       shareTitle={s.title}
                       shareText={`Join my live stream: ${s.title}`}
                       className="px-4 py-2 text-xs"
                     />
-                    <Link href={`/live/${s.id}`}>
+                    <Link href={getStreamSharePath(s.id, s.slug)}>
                       <Button variant="secondary">Open</Button>
                     </Link>
                   </div>
@@ -655,13 +655,13 @@ export default function GuideDashboardPage() {
                       </a>
                     )}
                     <ShareLinkButton
-                      path={getStreamSharePath(s.id)}
+                      path={getStreamSharePath(s.id, s.slug)}
                       label="Share"
                       shareTitle={s.title}
                       shareText={`Watch ${s.title} on Guidemate`}
                       className="px-4 py-2 text-xs"
                     />
-                    <Link href={`/live/${s.id}`}>
+                    <Link href={getStreamSharePath(s.id, s.slug)}>
                       <Button variant="secondary">View</Button>
                     </Link>
                   </div>

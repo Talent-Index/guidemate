@@ -29,6 +29,11 @@ interface ApplicationRow {
   location: string;
   experience_pitch: string;
   portfolio_links: string[];
+  national_id_doc_path: string | null;
+  good_conduct_doc_path: string | null;
+  kra_pin: string | null;
+  kra_pin_doc_path: string | null;
+  professional_certificate_paths: string[] | null;
   cv_path: string | null;
   proof_of_work_path: string | null;
   referee_name: string | null;
@@ -37,6 +42,15 @@ interface ApplicationRow {
   status: ApplicationStatus;
   created_at: string;
 }
+
+type DocLinks = {
+  nationalId?: string;
+  goodConduct?: string;
+  kraPinDoc?: string;
+  professionalCerts: string[];
+  cv?: string;
+  proof?: string;
+};
 
 export function AdminIntakePanel({ onChanged }: { onChanged?: () => void }) {
   const { session, profile } = useAuth();
@@ -50,6 +64,7 @@ export function AdminIntakePanel({ onChanged }: { onChanged?: () => void }) {
   const [actingId, setActingId] = useState<string | null>(null);
   const [proofUrls, setProofUrls] = useState<Record<string, string>>({});
   const [cvUrls, setCvUrls] = useState<Record<string, string>>({});
+  const [docLinks, setDocLinks] = useState<Record<string, DocLinks>>({});
 
   async function loadApplications() {
     setLoading(true);
@@ -58,7 +73,7 @@ export function AdminIntakePanel({ onChanged }: { onChanged?: () => void }) {
     let query = supabase
       .from("guide_applications")
       .select(
-        "id, full_name, email, phone, id_number, location, experience_pitch, portfolio_links, cv_path, proof_of_work_path, referee_name, referee_phone, referee_email, status, created_at"
+        "id, full_name, email, phone, id_number, location, experience_pitch, portfolio_links, national_id_doc_path, good_conduct_doc_path, kra_pin, kra_pin_doc_path, professional_certificate_paths, cv_path, proof_of_work_path, referee_name, referee_phone, referee_email, status, created_at"
       )
       .order("created_at", { ascending: false });
     if (filter !== "all") query = query.eq("status", filter);
@@ -76,28 +91,43 @@ export function AdminIntakePanel({ onChanged }: { onChanged?: () => void }) {
 
     const urls: Record<string, string> = {};
     const cvSigned: Record<string, string> = {};
+    const traDocs: Record<string, DocLinks> = {};
+
+    async function signPath(path: string): Promise<string | undefined> {
+      const { data: signed } = await supabase.storage.from("guide-proofs").createSignedUrl(path, 3600);
+      return signed?.signedUrl;
+    }
+
     await Promise.all(
-      rows.flatMap((row) => {
-        const tasks: Promise<void>[] = [];
-        if (row.proof_of_work_path) {
-          tasks.push(
-            supabase.storage.from("guide-proofs").createSignedUrl(row.proof_of_work_path, 3600).then(({ data: signed }) => {
-              if (signed?.signedUrl) urls[row.id] = signed.signedUrl;
-            })
-          );
+      rows.map(async (row) => {
+        const links: DocLinks = { professionalCerts: [] };
+        if (row.national_id_doc_path) {
+          links.nationalId = await signPath(row.national_id_doc_path);
+        }
+        if (row.good_conduct_doc_path) {
+          links.goodConduct = await signPath(row.good_conduct_doc_path);
+        }
+        if (row.kra_pin_doc_path) {
+          links.kraPinDoc = await signPath(row.kra_pin_doc_path);
+        }
+        for (const path of row.professional_certificate_paths ?? []) {
+          const url = await signPath(path);
+          if (url) links.professionalCerts.push(url);
         }
         if (row.cv_path) {
-          tasks.push(
-            supabase.storage.from("guide-proofs").createSignedUrl(row.cv_path, 3600).then(({ data: signed }) => {
-              if (signed?.signedUrl) cvSigned[row.id] = signed.signedUrl;
-            })
-          );
+          const cvUrl = await signPath(row.cv_path);
+          if (cvUrl) cvSigned[row.id] = cvUrl;
         }
-        return tasks;
+        if (row.proof_of_work_path) {
+          const proofUrl = await signPath(row.proof_of_work_path);
+          if (proofUrl) urls[row.id] = proofUrl;
+        }
+        traDocs[row.id] = links;
       })
     );
     setProofUrls(urls);
     setCvUrls(cvSigned);
+    setDocLinks(traDocs);
     setLoading(false);
   }
 
@@ -280,6 +310,7 @@ export function AdminIntakePanel({ onChanged }: { onChanged?: () => void }) {
                   {app.email} · {app.phone} · {app.location}
                 </p>
                 {app.id_number && <p className="text-sm text-brand-muted">ID: {app.id_number}</p>}
+                {app.kra_pin && <p className="text-sm text-brand-muted">KRA PIN: {app.kra_pin}</p>}
                 <p className="mt-1 text-xs text-brand-muted">{new Date(app.created_at).toLocaleString()}</p>
               </div>
               <span
@@ -324,7 +355,48 @@ export function AdminIntakePanel({ onChanged }: { onChanged?: () => void }) {
               </div>
             )}
 
-            <div className="mt-3 flex flex-wrap gap-4">
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+              {docLinks[app.id]?.nationalId && (
+                <a
+                  href={docLinks[app.id].nationalId}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm font-semibold text-brand-accent hover:underline"
+                >
+                  National ID
+                </a>
+              )}
+              {docLinks[app.id]?.goodConduct && (
+                <a
+                  href={docLinks[app.id].goodConduct}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm font-semibold text-brand-accent hover:underline"
+                >
+                  Good conduct
+                </a>
+              )}
+              {docLinks[app.id]?.kraPinDoc && (
+                <a
+                  href={docLinks[app.id].kraPinDoc}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm font-semibold text-brand-accent hover:underline"
+                >
+                  KRA PIN certificate
+                </a>
+              )}
+              {(docLinks[app.id]?.professionalCerts ?? []).map((url, index) => (
+                <a
+                  key={url}
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm font-semibold text-brand-accent hover:underline"
+                >
+                  Professional cert {index + 1}
+                </a>
+              ))}
               {cvUrls[app.id] && (
                 <a
                   href={cvUrls[app.id]}
@@ -332,7 +404,7 @@ export function AdminIntakePanel({ onChanged }: { onChanged?: () => void }) {
                   rel="noreferrer"
                   className="text-sm font-semibold text-brand-accent hover:underline"
                 >
-                  View CV
+                  CV
                 </a>
               )}
               {proofUrls[app.id] && (
@@ -342,7 +414,7 @@ export function AdminIntakePanel({ onChanged }: { onChanged?: () => void }) {
                   rel="noreferrer"
                   className="text-sm font-semibold text-brand-accent hover:underline"
                 >
-                  View proof of work
+                  Proof of work
                 </a>
               )}
             </div>

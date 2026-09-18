@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
@@ -11,6 +11,11 @@ import { BarChart } from "@/components/admin/BarChart";
 import { DonutChart } from "@/components/admin/DonutChart";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isSuperAdmin } from "@/lib/auth/roles";
+import {
+  isoRangeFromDateInputs,
+  reportPeriodLabel,
+  todayDateInputValue,
+} from "@/lib/adminReportDates";
 import {
   getAdminOverview,
   getAdminTransactions,
@@ -26,23 +31,38 @@ export default function AdminDashboardPage() {
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+  const { from: rangeFrom, to: rangeTo } = useMemo(
+    () => isoRangeFromDateInputs(fromDate || undefined, toDate || undefined),
+    [fromDate, toDate]
+  );
+  const periodLabel = reportPeriodLabel(fromDate || undefined, toDate || undefined);
+  const filtered = Boolean(fromDate || toDate);
+  const periodSubtitle = filtered
+    ? `Activity for ${periodLabel} (East Africa Time). Exports use the same range.`
+    : "All-time totals. Pick a date to prepare a daily summary.";
 
   const loadDashboard = useCallback(() => {
     if (!session) return;
     Promise.all([
-      getAdminOverview(session.access_token),
-      getAdminTransactions(session.access_token, { limit: 20 }),
+      getAdminOverview(session.access_token, rangeFrom, rangeTo),
+      getAdminTransactions(session.access_token, { limit: 50, from: rangeFrom, to: rangeTo }),
     ])
       .then(([ov, tx]) => {
         setOverview(ov.overview);
         setTransactions(tx.transactions);
+        setError(null);
       })
       .catch((err) => setError((err as Error).message));
-  }, [session]);
+  }, [session, rangeFrom, rangeTo]);
 
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard, refreshKey]);
+
+  const exportOpts = { from: rangeFrom, to: rangeTo };
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.location.hash) return;
@@ -53,14 +73,12 @@ export default function AdminDashboardPage() {
   return (
     <AnalyticsGate>
       <div className="flex flex-col gap-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4 no-print">
           <div>
             <MobilePageBanner eyebrow="Admin" title="Dashboard" />
             <div className="hidden md:block">
               <h1 className="text-xl font-bold text-brand-blueDark">Platform audit</h1>
-              <p className="text-sm text-brand-muted">
-                Volume, custody, intake pipeline, and financial breakdown for Guidemate.
-              </p>
+              <p className="text-sm text-brand-muted">{periodSubtitle}</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -68,32 +86,93 @@ export default function AdminDashboardPage() {
               variant="accent"
               onClick={() =>
                 session &&
-                downloadAdminReport(session.access_token, { format: "pdf" }).catch((e) => setError(e.message))
+                downloadAdminReport(session.access_token, { ...exportOpts, format: "pdf" }).catch((e) =>
+                  setError(e.message)
+                )
               }
             >
-              Export PDF report
+              Export PDF
             </Button>
             <Button
               variant="secondary"
               onClick={() =>
                 session &&
-                downloadAdminReport(session.access_token, { format: "csv" }).catch((e) => setError(e.message))
+                downloadAdminReport(session.access_token, { ...exportOpts, format: "csv" }).catch((e) =>
+                  setError(e.message)
+                )
               }
             >
               Export CSV
             </Button>
+            <Button variant="secondary" onClick={() => window.print()} disabled={!filtered}>
+              Print summary
+            </Button>
           </div>
         </div>
+
+        <Card className="no-print">
+          <h2 className="text-sm font-bold text-brand-blueDark">Report period</h2>
+          <p className="mt-1 text-xs text-brand-muted">
+            Choose a single day or a range. Dashboard charts, transactions, and PDF/CSV exports all match these dates.
+          </p>
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1 text-xs font-medium text-brand-muted">
+              From
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="rounded-lg border border-brand-border bg-white px-3 py-2 text-sm text-brand-blueDark"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-brand-muted">
+              To <span className="font-normal">(optional)</span>
+              <input
+                type="date"
+                value={toDate}
+                min={fromDate || undefined}
+                onChange={(e) => setToDate(e.target.value)}
+                className="rounded-lg border border-brand-border bg-white px-3 py-2 text-sm text-brand-blueDark"
+              />
+            </label>
+            <Button type="button" variant="secondary" onClick={() => setFromDate(todayDateInputValue())}>
+              Today
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setFromDate("");
+                setToDate("");
+              }}
+            >
+              All time
+            </Button>
+          </div>
+          {filtered && (
+            <p className="mt-3 text-sm font-medium text-brand-accent">
+              Showing: {periodLabel}
+              <span className="font-normal text-brand-muted"> · East Africa Time</span>
+            </p>
+          )}
+        </Card>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         {overview && (
-          <>
+          <div id="admin-audit-summary" className="flex flex-col gap-6">
+            {filtered && (
+              <div className="hidden print:block">
+                <h1 className="text-2xl font-bold text-brand-blueDark">Guidemate daily summary</h1>
+                <p className="text-sm text-brand-muted">{periodLabel} (EAT)</p>
+                <p className="text-xs text-brand-muted">Generated {new Date().toLocaleString("en-KE")}</p>
+              </div>
+            )}
             <div className="grid gap-4 lg:grid-cols-2">
               <Card>
                 <DonutChart
                   title="Booking custody"
-                  subtitle="Escrow and settlement status across all bookings"
+                  subtitle={filtered ? `Bookings created in period` : "Escrow and settlement status across all bookings"}
                   segments={[
                     { label: "Locked (in escrow)", value: overview.bookingsLocked, color: "#FFB700" },
                     { label: "Paid / released", value: overview.bookingsPaid, color: "#008009" },
@@ -104,7 +183,7 @@ export default function AdminDashboardPage() {
               <Card>
                 <DonutChart
                   title="Guide application pipeline"
-                  subtitle="Status of /apply submissions"
+                  subtitle={filtered ? "Applications submitted in period" : "Status of /apply submissions"}
                   segments={[
                     { label: "Pending review", value: overview.pendingApplications, color: "#FFB700" },
                     { label: "Approved", value: overview.applicationsApproved, color: "#008009" },
@@ -118,7 +197,7 @@ export default function AdminDashboardPage() {
               <Card>
                 <BarChart
                   title="Financial breakdown (USDC)"
-                  subtitle="Gross volume vs platform take vs guide earnings"
+                  subtitle={filtered ? `Paid bookings in ${periodLabel}` : "Gross volume vs platform take vs guide earnings"}
                   valuePrefix=""
                   series={[
                     { label: "Gross volume (GMV)", value: overview.gmvUsdc, color: "#5B6B82" },
@@ -130,21 +209,25 @@ export default function AdminDashboardPage() {
               </Card>
               <Card>
                 <h3 className="text-sm font-bold text-brand-blueDark">Platform snapshot</h3>
-                <p className="mt-0.5 text-xs text-brand-muted">Key counts at a glance</p>
+                <p className="mt-0.5 text-xs text-brand-muted">
+                  {filtered ? `New signups and activity in period` : "Key counts at a glance"}
+                </p>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <StatCard label="Guides" value={overview.guides} />
-                  <StatCard label="Tourists" value={overview.tourists} />
+                  <StatCard label={filtered ? "New guides" : "Guides"} value={overview.guides} />
+                  <StatCard label={filtered ? "New tourists" : "Tourists"} value={overview.tourists} />
                   <StatCard label="Waitlist" value={overview.waitlistCount} accent="amber" />
                   <StatCard label="Pending apps" value={overview.pendingApplications} accent="amber" />
-                  <StatCard label="Live streams" value={overview.streamsLive} />
-                  <StatCard label="Total bookings" value={overview.bookingsTotal} />
+                  <StatCard label={filtered ? "Streams started" : "Live now"} value={filtered ? overview.streamsTotal : overview.streamsLive} />
+                  <StatCard label="Bookings" value={overview.bookingsTotal} />
                 </div>
               </Card>
             </div>
 
             <Card>
               <h2 className="text-lg font-bold text-brand-blueDark">Metrics summary</h2>
-              <p className="mt-1 text-sm text-brand-muted">Detailed breakdown included in the PDF and CSV audit exports.</p>
+              <p className="mt-1 text-sm text-brand-muted">
+                {filtered ? `Figures for ${periodLabel}` : "Detailed breakdown included in the PDF and CSV audit exports."}
+              </p>
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
@@ -171,45 +254,53 @@ export default function AdminDashboardPage() {
                 </table>
               </div>
             </Card>
-          </>
+
+            <Card>
+              <h2 className="text-lg font-bold text-brand-blueDark">
+                {filtered ? "Transactions in period" : "Recent transactions"}
+              </h2>
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-brand-border text-xs uppercase text-brand-muted">
+                      <th className="py-2 pr-4">Date</th>
+                      <th className="py-2 pr-4">Type</th>
+                      <th className="py-2 pr-4">Amount</th>
+                      <th className="py-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map((tx) => (
+                      <tr key={tx.id} className="border-b border-brand-border/50">
+                        <td className="py-2 pr-4 text-brand-muted">{new Date(tx.createdAt).toLocaleDateString()}</td>
+                        <td className="py-2 pr-4 capitalize">{tx.type.replace(/_/g, " ")}</td>
+                        <td className="py-2 pr-4">{tx.amountUsdc} USDC</td>
+                        <td className="py-2 capitalize">{tx.status}</td>
+                      </tr>
+                    ))}
+                    {transactions.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="py-4 text-center text-brand-muted">
+                          No transactions in this period.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
         )}
 
-        {superAdmin && <AdminIntakePanel onChanged={() => setRefreshKey((k) => k + 1)} />}
-
-        <AdminGuidePerformancePanel />
-
-        <Card>
-          <h2 className="text-lg font-bold text-brand-blueDark">Recent transactions</h2>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-brand-border text-xs uppercase text-brand-muted">
-                  <th className="py-2 pr-4">Date</th>
-                  <th className="py-2 pr-4">Type</th>
-                  <th className="py-2 pr-4">Amount</th>
-                  <th className="py-2">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.map((tx) => (
-                  <tr key={tx.id} className="border-b border-brand-border/50">
-                    <td className="py-2 pr-4 text-brand-muted">{new Date(tx.createdAt).toLocaleDateString()}</td>
-                    <td className="py-2 pr-4 capitalize">{tx.type.replace(/_/g, " ")}</td>
-                    <td className="py-2 pr-4">{tx.amountUsdc} USDC</td>
-                    <td className="py-2 capitalize">{tx.status}</td>
-                  </tr>
-                ))}
-                {transactions.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="py-4 text-center text-brand-muted">
-                      No transactions yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+        {superAdmin && (
+          <div className="no-print">
+            <AdminIntakePanel onChanged={() => setRefreshKey((k) => k + 1)} />
           </div>
-        </Card>
+        )}
+
+        <div className="no-print">
+          <AdminGuidePerformancePanel />
+        </div>
       </div>
     </AnalyticsGate>
   );

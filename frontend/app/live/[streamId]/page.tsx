@@ -52,13 +52,14 @@ const LIVE_CHECKOUT_KEY = "guidemate-live-checkout-draft";
 export default function LiveStreamPage() {
   const params = useParams<{ streamId: string }>();
   const searchParams = useSearchParams();
-  const streamId = params.streamId;
+  const streamRouteKey = params.streamId;
   const { session, profile } = useAuth();
   const { toast } = useToast();
   const { address } = useAccount();
   const { writeContractAsync, isPending: writing } = useWriteContract();
 
   const [stream, setStream] = useState<LiveStreamRecord | null>(null);
+  const apiStreamId = stream?.id ?? streamRouteKey;
   const [token, setToken] = useState<string | null>(null);
   const [role, setRole] = useState<"publisher" | "viewer" | null>(null);
   const [tips, setTips] = useState<StreamTip[]>([]);
@@ -83,16 +84,16 @@ export default function LiveStreamPage() {
 
   const refreshTips = useCallback(async () => {
     try {
-      const { tips: latest } = await listStreamTips(streamId);
+      const { tips: latest } = await listStreamTips(apiStreamId);
       setTips(latest);
     } catch {
       // tip feed is best-effort
     }
-  }, [streamId]);
+  }, [apiStreamId]);
 
   useEffect(() => {
     let cancelled = false;
-    getStream(streamId)
+    getStream(streamRouteKey)
       .then(({ stream: latest }) => {
         if (!cancelled) setStream(latest);
       })
@@ -105,7 +106,7 @@ export default function LiveStreamPage() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [streamId, refreshTips]);
+  }, [streamRouteKey, refreshTips]);
 
   useEffect(() => {
     if (!stream || stream.priceUsdc <= 0) return;
@@ -126,7 +127,7 @@ export default function LiveStreamPage() {
     setJoining(true);
     setError(null);
     try {
-      const result = await joinStream(streamId, session?.access_token, opts);
+      const result = await joinStream(streamRouteKey, session?.access_token, opts);
       setToken(result.token);
       setRole(result.role);
       setStream(result.stream);
@@ -150,8 +151,8 @@ export default function LiveStreamPage() {
       setPaying(true);
       try {
         const raw = sessionStorage.getItem(LIVE_CHECKOUT_KEY);
-        const draft = raw ? (JSON.parse(raw) as { streamId: string; intentId: string }) : null;
-        if (draft && draft.streamId === stream.id && draft.intentId !== intentId) {
+        const draft = raw ? (JSON.parse(raw) as { streamRouteKey: string; intentId: string }) : null;
+        if (draft && draft.streamRouteKey === stream.id && draft.intentId !== intentId) {
           throw new Error("Checkout session mismatch. Try paying again.");
         }
         await pollMpesaPayment(intentId, session.access_token);
@@ -205,7 +206,7 @@ export default function LiveStreamPage() {
         session.access_token
       );
       if (payment.checkoutUrl) {
-        sessionStorage.setItem(LIVE_CHECKOUT_KEY, JSON.stringify({ streamId: stream.id, intentId: payment.intentId }));
+        sessionStorage.setItem(LIVE_CHECKOUT_KEY, JSON.stringify({ streamRouteKey: stream.id, intentId: payment.intentId }));
         window.location.href = payment.checkoutUrl;
         return;
       }
@@ -249,18 +250,18 @@ export default function LiveStreamPage() {
   useEffect(() => {
     if (!stream || stream.status !== "live") return;
     const refresh = () => {
-      getStreamStats(streamId).then(setStats).catch(() => {});
-      listStreamComments(streamId).then((r) => setComments(r.comments)).catch(() => {});
+      getStreamStats(streamRouteKey).then(setStats).catch(() => {});
+      listStreamComments(streamRouteKey).then((r) => setComments(r.comments)).catch(() => {});
     };
     refresh();
     const interval = setInterval(refresh, 5000);
     return () => clearInterval(interval);
-  }, [streamId, stream?.status]);
+  }, [streamRouteKey, stream?.status]);
 
   async function handleTapFlower() {
     setFlowers((f) => f + 1);
     try {
-      await postStreamReaction(streamId, "flower", session?.access_token);
+      await postStreamReaction(streamRouteKey, "flower", session?.access_token);
     } catch {
       // best effort
     }
@@ -270,7 +271,7 @@ export default function LiveStreamPage() {
     e.preventDefault();
     if (!commentBody.trim()) return;
     try {
-      const { comment } = await postStreamComment(streamId, commentBody.trim(), session?.access_token);
+      const { comment } = await postStreamComment(streamRouteKey, commentBody.trim(), session?.access_token);
       setComments((prev) => [...prev, comment]);
       setCommentBody("");
     } catch (err) {
@@ -289,7 +290,7 @@ export default function LiveStreamPage() {
     try {
       const hash = await transferUsdc(stream.guideWallet as `0x${string}`, amount);
       await recordStreamTip(
-        streamId,
+        streamRouteKey,
         { amountUsdc: amount, txHash: hash, tipperWallet: address },
         session?.access_token
       );
@@ -304,7 +305,7 @@ export default function LiveStreamPage() {
     if (!session) return;
     setEnding(true);
     try {
-      const { stream: updated } = await endStream(streamId, session.access_token);
+      const { stream: updated } = await endStream(streamRouteKey, session.access_token);
       setStream(updated);
       setToken(null);
     } catch (err) {
@@ -319,7 +320,7 @@ export default function LiveStreamPage() {
     setStarting(true);
     setError(null);
     try {
-      const { stream: updated, token: publishToken } = await startScheduledStream(streamId, session.access_token);
+      const { stream: updated, token: publishToken } = await startScheduledStream(streamRouteKey, session.access_token);
       setStream(updated);
       setToken(publishToken);
       setRole("publisher");
@@ -335,7 +336,7 @@ export default function LiveStreamPage() {
     setNotifying(true);
     setError(null);
     try {
-      const { stream: updated } = await notifyStreamCommunity(streamId, session.access_token);
+      const { stream: updated } = await notifyStreamCommunity(streamRouteKey, session.access_token);
       setStream(updated);
     } catch (err) {
       setError((err as Error).message);

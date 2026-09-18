@@ -33,14 +33,25 @@ function friendlyApplyError(message: string): string {
   return message;
 }
 
+const UPLOAD_ACCEPT =
+  "application/pdf,.pdf,image/jpeg,image/png,image/webp,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,.docx";
+
 const REQUIRED_DOCUMENTS = [
   {
-    title: "National ID or passport",
-    detail: "You'll enter your ID number, have the document nearby for reference.",
+    title: "National ID",
+    detail: "Your ID number plus a clear scan or photo of the card (front, and back if applicable).",
   },
   {
-    title: "CV or résumé",
-    detail: "PDF or Word file showing your guiding or tourism experience.",
+    title: "Certificate of Good Conduct",
+    detail: "Issued by the Directorate of Criminal Investigations — required for TRA Class E tour leaders and guides.",
+  },
+  {
+    title: "KRA PIN",
+    detail: "Your Kenya Revenue Authority PIN and a copy of your PIN certificate.",
+  },
+  {
+    title: "Professional certificates",
+    detail: "Tourism or guiding qualifications (e.g. KPSGA, first aid, language, or sector training certificates).",
   },
   {
     title: "Referee details",
@@ -50,12 +61,12 @@ const REQUIRED_DOCUMENTS = [
 
 const OPTIONAL_DOCUMENTS = [
   {
-    title: "Proof of work",
-    detail: "Photo or PDF of past tours, certificates, or client reviews.",
+    title: "CV or résumé",
+    detail: "PDF or Word file summarising your guiding experience.",
   },
   {
-    title: "Portfolio links",
-    detail: "Instagram, TripAdvisor, website, or similar (optional but helpful).",
+    title: "Proof of work",
+    detail: "Photos or PDFs of past tours, client reviews, or portfolio links.",
   },
 ] as const;
 
@@ -68,17 +79,32 @@ const STEPS = [
   {
     id: "intro",
     title: "Become a Guidemate guide",
-    hint: "Approved guides get a payout wallet and can list experiences on the platform.",
+    hint: "We collect TRA Class E documents (Citizen Tour Leader / Guide) plus a short experience pitch.",
   },
   {
     id: "name",
     title: "What's your full name?",
-    hint: "As it appears on your ID or passport.",
+    hint: "As it appears on your National ID.",
   },
   {
     id: "id",
-    title: "National ID or passport number",
-    hint: "We use this for vetting only.",
+    title: "National ID",
+    hint: "ID number and a scan or photo of your card (PDF or image, max 10 MB).",
+  },
+  {
+    id: "goodConduct",
+    title: "Certificate of Good Conduct",
+    hint: "Upload the full certificate (PDF or clear photo).",
+  },
+  {
+    id: "kraPin",
+    title: "KRA PIN",
+    hint: "Enter your PIN and upload your KRA PIN certificate.",
+  },
+  {
+    id: "professionalCerts",
+    title: "Professional certificates",
+    hint: "Upload one or more tourism or guiding certificates (up to 5 files).",
   },
   {
     id: "contact",
@@ -102,8 +128,8 @@ const STEPS = [
   },
   {
     id: "cv",
-    title: "Upload your CV",
-    hint: "PDF or Word document.",
+    title: "Upload your CV (optional)",
+    hint: "PDF or Word document — helps us review your experience.",
   },
   {
     id: "proof",
@@ -137,6 +163,11 @@ export function GuideApplyWizard() {
   const [refereeName, setRefereeName] = useState("");
   const [refereePhone, setRefereePhone] = useState("");
   const [refereeEmail, setRefereeEmail] = useState("");
+  const [nationalIdFile, setNationalIdFile] = useState<File | null>(null);
+  const [goodConductFile, setGoodConductFile] = useState<File | null>(null);
+  const [kraPin, setKraPin] = useState("");
+  const [kraPinDocFile, setKraPinDocFile] = useState<File | null>(null);
+  const [professionalCertFiles, setProfessionalCertFiles] = useState<File[]>([]);
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -154,7 +185,19 @@ export function GuideApplyWizard() {
       case "name":
         return fullName.trim() ? null : "Enter your full name.";
       case "id":
-        return idNumber.trim() ? null : "Enter your ID or passport number.";
+        if (!idNumber.trim()) return "Enter your National ID number.";
+        if (!nationalIdFile) return "Upload a scan or photo of your National ID.";
+        return null;
+      case "goodConduct":
+        return goodConductFile ? null : "Upload your Certificate of Good Conduct.";
+      case "kraPin":
+        if (!kraPin.trim()) return "Enter your KRA PIN.";
+        if (!kraPinDocFile) return "Upload your KRA PIN certificate.";
+        return null;
+      case "professionalCerts":
+        return professionalCertFiles.length > 0
+          ? null
+          : "Upload at least one professional certificate.";
       case "contact":
         if (!email.trim()) return "Enter your email.";
         if (!phone.trim()) return "Enter your phone number.";
@@ -163,8 +206,6 @@ export function GuideApplyWizard() {
         return location.trim() ? null : "Enter your location.";
       case "experience":
         return experiencePitch.trim() ? null : "Tell us about your experience.";
-      case "cv":
-        return cvFile ? null : "Upload your CV to continue.";
       case "referee":
         if (!refereeName.trim()) return "Enter your referee's name.";
         if (!refereePhone.trim()) return "Enter your referee's phone.";
@@ -209,9 +250,8 @@ export function GuideApplyWizard() {
 
   async function handleSubmit(e?: FormEvent) {
     e?.preventDefault();
-    if (!cvFile) {
-      setError("Upload your CV to continue.");
-      setStep(STEPS.findIndex((s) => s.id === "cv"));
+    if (!nationalIdFile || !goodConductFile || !kraPinDocFile || professionalCertFiles.length === 0) {
+      setError("Upload all required TRA documents before submitting.");
       return;
     }
 
@@ -219,9 +259,13 @@ export function GuideApplyWizard() {
     setLoading(true);
 
     try {
-      const [cv, proof] = await Promise.all([
-        fileToPayload(cvFile),
+      const [nationalIdDoc, goodConduct, kraPinDoc, cv, proof, ...professionalCertificates] = await Promise.all([
+        fileToPayload(nationalIdFile),
+        fileToPayload(goodConductFile),
+        fileToPayload(kraPinDocFile),
+        cvFile ? fileToPayload(cvFile) : Promise.resolve(null),
         proofFile ? fileToPayload(proofFile) : Promise.resolve(null),
+        ...professionalCertFiles.map((file) => fileToPayload(file)),
       ]);
 
       await submitGuideApplication({
@@ -238,6 +282,11 @@ export function GuideApplyWizard() {
         refereeName: refereeName.trim(),
         refereePhone: refereePhone.trim(),
         refereeEmail: refereeEmail.trim() || null,
+        nationalIdDoc,
+        goodConduct,
+        kraPin: kraPin.trim(),
+        kraPinDoc,
+        professionalCertificates,
         cv,
         proof,
       });
@@ -345,8 +394,9 @@ export function GuideApplyWizard() {
 
           {current.id === "intro" && (
             <p className="text-sm leading-relaxed text-brand-muted">
-              You will share contact details, your experience pitch, CV, and a referee. Tourists sign up separately -
-              guides are vetted before listing experiences.
+              Guidemate vets guides before listing experiences. You will upload the documents Tourism Regulatory
+              Authority (TRA) lists for Class E Citizen Tour Leaders and Guides, plus a referee contact. Tourists sign
+              up separately on the platform.
             </p>
           )}
 
@@ -362,16 +412,87 @@ export function GuideApplyWizard() {
           )}
 
           {current.id === "id" && (
-            <input
-              autoFocus
-              required
-              className="form-input-light text-lg"
-              value={idNumber}
-              onChange={(e) => setIdNumber(e.target.value)}
-              placeholder="e.g. 12345678"
-              inputMode="numeric"
-              autoComplete="off"
-            />
+            <div className="space-y-4">
+              <input
+                autoFocus
+                required
+                className="form-input-light text-lg"
+                value={idNumber}
+                onChange={(e) => setIdNumber(e.target.value)}
+                placeholder="National ID number"
+                inputMode="numeric"
+                autoComplete="off"
+              />
+              <input
+                required
+                type="file"
+                accept={UPLOAD_ACCEPT}
+                onChange={(e) => setNationalIdFile(e.target.files?.[0] ?? null)}
+                className={fileInputClass}
+              />
+              {nationalIdFile && (
+                <p className="text-sm text-brand-success">Selected: {nationalIdFile.name}</p>
+              )}
+            </div>
+          )}
+
+          {current.id === "goodConduct" && (
+            <>
+              <input
+                required
+                type="file"
+                accept={UPLOAD_ACCEPT}
+                onChange={(e) => setGoodConductFile(e.target.files?.[0] ?? null)}
+                className={fileInputClass}
+              />
+              {goodConductFile && (
+                <p className="mt-2 text-sm text-brand-success">Selected: {goodConductFile.name}</p>
+              )}
+            </>
+          )}
+
+          {current.id === "kraPin" && (
+            <div className="space-y-4">
+              <input
+                autoFocus
+                required
+                className="form-input-light text-lg uppercase"
+                value={kraPin}
+                onChange={(e) => setKraPin(e.target.value.toUpperCase())}
+                placeholder="KRA PIN (e.g. A123456789X)"
+                autoComplete="off"
+              />
+              <input
+                required
+                type="file"
+                accept={UPLOAD_ACCEPT}
+                onChange={(e) => setKraPinDocFile(e.target.files?.[0] ?? null)}
+                className={fileInputClass}
+              />
+              {kraPinDocFile && (
+                <p className="text-sm text-brand-success">PIN certificate: {kraPinDocFile.name}</p>
+              )}
+            </div>
+          )}
+
+          {current.id === "professionalCerts" && (
+            <>
+              <input
+                required
+                type="file"
+                multiple
+                accept={UPLOAD_ACCEPT}
+                onChange={(e) => setProfessionalCertFiles(Array.from(e.target.files ?? []).slice(0, 5))}
+                className={fileInputClass}
+              />
+              {professionalCertFiles.length > 0 && (
+                <ul className="mt-2 space-y-1 text-sm text-brand-muted">
+                  {professionalCertFiles.map((file) => (
+                    <li key={file.name}>{file.name}</li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
 
           {current.id === "contact" && (
@@ -430,13 +551,19 @@ export function GuideApplyWizard() {
           {current.id === "cv" && (
             <>
               <input
-                required
                 type="file"
                 accept="application/pdf,.pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,.docx"
                 onChange={(e) => setCvFile(e.target.files?.[0] ?? null)}
                 className={fileInputClass}
               />
-              {cvFile && <p className="mt-2 text-sm text-brand-success">Selected: {cvFile.name}</p>}
+              {cvFile && <p className="mt-2 text-sm text-brand-muted">Selected: {cvFile.name}</p>}
+              <button
+                type="button"
+                onClick={goNext}
+                className="mt-4 self-start text-sm font-semibold text-brand-accent hover:underline"
+              >
+                Skip this step
+              </button>
             </>
           )}
 

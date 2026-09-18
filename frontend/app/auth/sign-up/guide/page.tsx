@@ -106,9 +106,9 @@ export default function GuideSignUpPage() {
               Sign in
             </a>
             <br />
-            Applying for TRA Class E vetting?{" "}
+            Want to be a vetted guide?{" "}
             <a href="/apply" className="font-semibold text-brand-accent underline">
-              Full application
+              Apply here
             </a>
             <br />
             Booking as a tourist?{" "}

@@ -131,8 +131,9 @@ export default function SignUpPage() {
               Create a guide account (beta)
             </a>
             {" · "}
+            Want to be a vetted guide?{" "}
             <a href="/apply" className="font-semibold text-brand-accent underline">
-              TRA application
+              Apply here
             </a>
           </>
         }

@@ -114,9 +114,9 @@ function SignInForm() {
               Sign up as a guide
             </a>
             <br />
-            TRA Class E licensing?{" "}
+            Want to be a vetted guide?{" "}
             <a href="/apply" className="font-semibold text-brand-accent underline">
-              Full application
+              Apply here
             </a>
           </>
         }

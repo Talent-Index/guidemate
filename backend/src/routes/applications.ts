@@ -24,7 +24,12 @@ const applicationSchema = z.object({
   refereeName: z.string().min(1).max(200),
   refereePhone: z.string().min(1).max(40),
   refereeEmail: z.string().email().max(320).optional().nullable(),
-  cv: filePayloadSchema,
+  nationalIdDoc: filePayloadSchema,
+  goodConduct: filePayloadSchema,
+  kraPin: z.string().min(1).max(20),
+  kraPinDoc: filePayloadSchema,
+  professionalCertificates: z.array(filePayloadSchema).min(1).max(5),
+  cv: filePayloadSchema.optional().nullable(),
   proof: filePayloadSchema.optional().nullable(),
 });
 
@@ -76,13 +81,24 @@ applicationsRouter.post("/", async (req, res) => {
   const input = parsed.data;
 
   try {
-    const cv = decodeFile(input.cv);
+    const nationalIdDoc = decodeFile(input.nationalIdDoc);
+    const goodConduct = decodeFile(input.goodConduct);
+    const kraPinDoc = decodeFile(input.kraPinDoc);
+    const cv = input.cv ? decodeFile(input.cv) : null;
     const proof = input.proof ? decodeFile(input.proof) : null;
+    const professionalFiles = input.professionalCertificates.map((file) => decodeFile(file));
 
-    const [cvPath, proofPath] = await Promise.all([
-      uploadGuideDoc(cv.buffer, cv.filename, cv.contentType),
-      proof ? uploadGuideDoc(proof.buffer, proof.filename, proof.contentType) : Promise.resolve(null),
-    ]);
+    const [nationalIdPath, goodConductPath, kraPinDocPath, cvPath, proofPath, ...professionalPaths] =
+      await Promise.all([
+        uploadGuideDoc(nationalIdDoc.buffer, nationalIdDoc.filename, nationalIdDoc.contentType),
+        uploadGuideDoc(goodConduct.buffer, goodConduct.filename, goodConduct.contentType),
+        uploadGuideDoc(kraPinDoc.buffer, kraPinDoc.filename, kraPinDoc.contentType),
+        cv ? uploadGuideDoc(cv.buffer, cv.filename, cv.contentType) : Promise.resolve(null),
+        proof ? uploadGuideDoc(proof.buffer, proof.filename, proof.contentType) : Promise.resolve(null),
+        ...professionalFiles.map((file) =>
+          uploadGuideDoc(file.buffer, file.filename, file.contentType)
+        ),
+      ]);
 
     const { error: insertError } = await supabaseAdmin.from("guide_applications").insert({
       full_name: input.fullName.trim(),
@@ -92,6 +108,11 @@ applicationsRouter.post("/", async (req, res) => {
       location: input.location.trim(),
       experience_pitch: input.experiencePitch.trim(),
       portfolio_links: input.portfolioLinks.map((link) => link.trim()).filter(Boolean),
+      national_id_doc_path: nationalIdPath,
+      good_conduct_doc_path: goodConductPath,
+      kra_pin: input.kraPin.trim().toUpperCase(),
+      kra_pin_doc_path: kraPinDocPath,
+      professional_certificate_paths: professionalPaths,
       cv_path: cvPath,
       proof_of_work_path: proofPath,
       referee_name: input.refereeName.trim(),

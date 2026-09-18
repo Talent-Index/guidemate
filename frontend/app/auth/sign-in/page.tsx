@@ -10,8 +10,9 @@ import { createClient } from "@/lib/supabase/client";
 import { authConfirmUrl } from "@/lib/auth/oauthRedirect";
 import { homeForRole, type AccountRole } from "@/lib/auth/home";
 import { consumeAuthReturnTo, storeAuthReturnTo } from "@/lib/auth/returnTo";
-import { provisionWallet } from "@/lib/api";
+import { provisionWallet, registerOpenGuide } from "@/lib/api";
 import { ensureTouristProfile } from "@/lib/auth/ensureProfile";
+import { readPendingOpenGuideProfile, clearPendingOpenGuideProfile } from "@/lib/auth/openGuideSignup";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/components/ui/Toast";
 
@@ -67,12 +68,20 @@ function SignInForm() {
       if (signInError) throw signInError;
 
       const userId = data.user.id;
-      const profile = await ensureTouristProfile(
-        supabase,
-        userId,
-        trimmedEmail,
-        data.user.user_metadata as Record<string, unknown>
-      );
+      const pendingOpenGuide = readPendingOpenGuideProfile(trimmedEmail);
+      let profile: { role: string } | null;
+      if (pendingOpenGuide) {
+        await registerOpenGuide(data.session.access_token);
+        clearPendingOpenGuideProfile(trimmedEmail);
+        profile = { role: "guide" };
+      } else {
+        profile = await ensureTouristProfile(
+          supabase,
+          userId,
+          trimmedEmail,
+          data.user.user_metadata as Record<string, unknown>
+        );
+      }
       if (profile?.role === "guide") {
         await provisionWallet(data.session.access_token);
       }
@@ -93,17 +102,21 @@ function SignInForm() {
     <SignedInRedirect>
       <FormShell
         title="Sign in"
-        subtitle="Tourists and approved guides sign in here. Guides receive an email invite after vetting."
+        subtitle="Tourists and guides sign in here. New guides can create a beta account without waiting for TRA vetting."
         footer={
           <>
             Don&apos;t have an account?{" "}
             <a href="/auth/sign-up" className="font-semibold text-brand-accent underline">
               Register as a tourist
             </a>
+            {" · "}
+            <a href="/auth/sign-up/guide" className="font-semibold text-brand-accent underline">
+              Sign up as a guide
+            </a>
             <br />
-            Want to guide?{" "}
+            TRA Class E licensing?{" "}
             <a href="/apply" className="font-semibold text-brand-accent underline">
-              Apply here
+              Full application
             </a>
           </>
         }

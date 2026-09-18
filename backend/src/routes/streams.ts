@@ -180,7 +180,9 @@ streamsRouter.get("/:id", async (req, res) => {
 });
 
 streamsRouter.get("/:id/tips", async (req, res) => {
-  const tips = await listStreamTips(req.params.id);
+  const stream = await getStreamByIdOrSlug(req.params.id);
+  if (!stream) return res.status(404).json({ error: "stream not found" });
+  const tips = await listStreamTips(stream.id);
   res.json({ tips });
 });
 
@@ -404,7 +406,9 @@ streamsRouter.post("/:id/tip", async (req, res) => {
 });
 
 streamsRouter.get("/:id/comments", async (req, res) => {
-  const comments = await listStreamComments(req.params.id);
+  const stream = await getStreamByIdOrSlug(req.params.id);
+  if (!stream) return res.status(404).json({ error: "stream not found" });
+  const comments = await listStreamComments(stream.id);
   res.json({ comments: comments.reverse() });
 });
 

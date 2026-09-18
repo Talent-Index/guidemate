@@ -144,3 +144,17 @@ html.dark .shadow-card {
   gap: 0.5rem;
   padding: 0.5rem;
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  #admin-audit-summary {
+    break-inside: avoid;
+  }
+}

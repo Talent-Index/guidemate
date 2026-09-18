@@ -47,6 +47,8 @@ export interface MatchResult {
   experience: Experience;
   reason: string;
   source: "gemini" | "local";
+  exactMatch: boolean;
+  alternatives: Experience[];
 }
 
 export type BookingStatus = "locked" | "released" | "paid" | "refunded";

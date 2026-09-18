@@ -803,22 +803,27 @@ export function getAdminTransactions(accessToken: string, opts?: { limit?: numbe
   });
 }
 
-export function getAdminReportUrl(from?: string, to?: string) {
+export function getAdminReportUrl(from?: string, to?: string, format: "pdf" | "csv" = "pdf") {
   const params = new URLSearchParams();
   if (from) params.set("from", from);
   if (to) params.set("to", to);
+  if (format === "csv") params.set("format", "csv");
   const qs = params.toString();
   return `${getApiBase()}/api/admin/reports/export${qs ? `?${qs}` : ""}`;
 }
 
-export async function downloadAdminReport(accessToken: string, from?: string, to?: string) {
-  const url = getAdminReportUrl(from, to);
+export async function downloadAdminReport(
+  accessToken: string,
+  opts?: { from?: string; to?: string; format?: "pdf" | "csv" }
+) {
+  const format = opts?.format ?? "pdf";
+  const url = getAdminReportUrl(opts?.from, opts?.to, format);
   const res = await fetch(url, { headers: authHeaders(accessToken) });
   if (!res.ok) throw new Error("Failed to download report");
   const blob = await res.blob();
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "guidemate-report.csv";
+  a.download = format === "csv" ? "guidemate-audit-report.csv" : "guidemate-audit-report.pdf";
   a.click();
   URL.revokeObjectURL(a.href);
 }

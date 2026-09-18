@@ -15,6 +15,7 @@ import {
   countStreamReactions,
   createStream,
   getStreamById,
+  getStreamByIdOrSlug,
   grantStreamAccess,
   hasStreamAccess,
   listGuideScheduledStreams,

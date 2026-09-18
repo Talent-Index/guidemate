@@ -20,9 +20,11 @@ const EXAMPLE_REQUESTS = [
 export function ExperienceMatchCard({
   signedIn,
   initialQuery = "",
+  prominent,
 }: {
   signedIn: boolean;
   initialQuery?: string;
+  prominent?: boolean;
 }) {
   const [requestText, setRequestText] = useState(initialQuery);
   const [matching, setMatching] = useState(false);
@@ -50,13 +52,14 @@ export function ExperienceMatchCard({
   if (!signedIn) {
     return (
       <Card className="text-center sm:text-left">
-        <h2 className="text-lg font-bold text-brand-blueDark">Want something more tailored?</h2>
+        <h2 className="text-lg font-bold text-brand-blueDark">Describe your ideal experience</h2>
         <p className="mt-1 text-sm text-brand-muted">
-          Sign in and tell our AI agent what you&apos;re after. We&apos;ll match you with a vetted guide, not just a list.
+          Sign in with a short description of what you want. We match you to vetted guides — or suggest what&apos;s
+          available today.
         </p>
         <div className="mt-4 flex flex-wrap justify-center gap-3 sm:justify-start">
           <Link href="/auth/sign-in">
-            <Button variant="primary">Sign in for AI matches</Button>
+            <Button variant="primary">Sign in to get matched</Button>
           </Link>
           <Link href="/auth/sign-up">
             <Button variant="secondary">Create an account</Button>
@@ -67,16 +70,20 @@ export function ExperienceMatchCard({
   }
 
   return (
-    <Card id="experience-match">
-      <h2 className="text-lg font-bold text-brand-blueDark">Get a tailored match</h2>
+    <Card
+      id="experience-match"
+      className={prominent ? "border-brand-accent/40 bg-gradient-to-br from-brand-accent/5 to-white" : undefined}
+    >
+      <h2 className="text-lg font-bold text-brand-blueDark">Describe your experience</h2>
       <p className="mt-1 text-sm text-brand-muted">
-        Describe the experience you&apos;re after. Our AI agent matches you with a vetted local guide.
+        Tell us what you&apos;re looking for in a sentence or two. We&apos;ll match you with the best guide — or
+        recommend similar experiences that are bookable now.
       </p>
 
       <textarea
         className="form-input-light mt-4 resize-none"
         rows={3}
-        placeholder="e.g. I want authentic street food in downtown Nairobi tonight."
+        placeholder="e.g. A 4-hour food tour in Westlands this Saturday for two people."
         value={requestText}
         onChange={(e) => setRequestText(e.target.value)}
       />
@@ -100,15 +107,35 @@ export function ExperienceMatchCard({
         disabled={requestText.trim().length < 3 || matching}
         onClick={() => void handleMatch()}
       >
-        {matching ? "Matching..." : "Find my guide"}
+        {matching ? "Finding matches..." : "Match me"}
       </Button>
 
       {matchError && <p className="mt-2 text-sm text-red-600">{matchError}</p>}
 
       {match && (
-        <div className="mt-4 rounded-lg border border-brand-accent/30 bg-brand-accent/5 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-brand-accent">Best match</p>
-          <MatchedExperience experience={match.experience} reason={match.reason} />
+        <div className="mt-4 space-y-4">
+          <div className="rounded-lg border border-brand-accent/30 bg-brand-accent/5 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-brand-accent">
+              {match.exactMatch ? "Best match" : "Closest match"}
+            </p>
+            {!match.exactMatch && (
+              <p className="mt-1 text-xs text-brand-muted">
+                That exact trip isn&apos;t listed yet — here&apos;s the nearest fit on Guidemate.
+              </p>
+            )}
+            <MatchedExperience experience={match.experience} reason={match.reason} />
+          </div>
+
+          {match.alternatives.length > 0 && (
+            <div>
+              <p className="text-sm font-bold text-brand-blueDark">Other experiences you can book</p>
+              <ul className="mt-2 flex flex-col gap-3">
+                {match.alternatives.map((exp) => (
+                  <AlternativeExperience key={exp.id} experience={exp} />
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </Card>
@@ -139,7 +166,7 @@ function MatchedExperience({ experience, reason }: { experience: Experience; rea
         <Price amountUsdc={experience.priceUsdc} />
       </div>
       <p className="mt-2 text-sm text-brand-muted">
-        <span className="font-semibold text-brand-blueDark">Why this match: </span>
+        <span className="font-semibold text-brand-blueDark">Why: </span>
         {reason}
       </p>
       <div className="mt-3 flex flex-wrap gap-1.5">
@@ -151,10 +178,31 @@ function MatchedExperience({ experience, reason }: { experience: Experience; rea
       </div>
       <Link href={getExperienceSharePath(experience.id, experience.slug)}>
         <Button variant="primary" className="mt-4">
-          View this experience
+          View &amp; book
         </Button>
       </Link>
       <ViewGuideProfileButton guideId={experience.guide.id} slug={experience.guide.slug} className="mt-3 inline-block" />
     </div>
+  );
+}
+
+function AlternativeExperience({ experience }: { experience: Experience }) {
+  return (
+    <li className="flex gap-3 rounded-lg border border-brand-border bg-white p-3">
+      <ExperiencePhoto src={experience.imageUrl} alt={experience.title} className="h-16 w-16 shrink-0 rounded-md" />
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold text-brand-blueDark">{experience.title}</p>
+        <p className="text-xs text-brand-muted">{experience.guide.fullName}</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Price amountUsdc={experience.priceUsdc} size="sm" />
+          <Link
+            href={getExperienceSharePath(experience.id, experience.slug)}
+            className="text-xs font-semibold text-brand-accent hover:underline"
+          >
+            View experience
+          </Link>
+        </div>
+      </div>
+    </li>
   );
 }

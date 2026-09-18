@@ -356,6 +356,7 @@ export interface GuideInsightsOverview {
 export interface GuideStreamInsight {
   id: string;
   title: string;
+  slug: string | null;
   status: StreamStatus;
   priceUsdc: number;
   experienceTitle: string | null;
@@ -375,6 +376,7 @@ export interface GuideInsights {
   upcomingStreams: Array<{
     id: string;
     title: string;
+    slug: string | null;
     status: "scheduled";
     priceUsdc: number;
     experienceTitle: string | null;

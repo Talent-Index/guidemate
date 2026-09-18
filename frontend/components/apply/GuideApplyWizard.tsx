@@ -339,6 +339,17 @@ export function GuideApplyWizard() {
         >
           {current.id === "prepare" && (
             <div className="space-y-6">
+              <div className="rounded-xl border border-brand-accent/30 bg-brand-accent/5 p-5">
+                <p className="text-base font-semibold text-brand-blueDark">Testing Guidemate as a guide?</p>
+                <p className="mt-1 text-sm text-brand-muted">
+                  Skip this form and{" "}
+                  <a href="/auth/sign-up/guide" className="font-semibold text-brand-accent underline">
+                    create a beta guide account
+                  </a>{" "}
+                  to list experiences and go live. Use this application when you&apos;re ready for full TRA Class E
+                  vetting.
+                </p>
+              </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-brand-blueDark">Required</p>
                 <ul className="mt-3 space-y-3">

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "./supabase.js";
 import { listAllTransactions, type WalletTransaction } from "./ledger.js";
+import { applyCreatedAtRange, formatReportPeriodLabel } from "./reportDates.js";
 
 export interface AuditReportData {
   overview: AnalyticsOverview;
@@ -45,15 +46,25 @@ export interface AnalyticsOverview {
 }
 
 export async function getAnalyticsOverview(from?: string, to?: string): Promise<AnalyticsOverview> {
+  const dated = Boolean(from || to);
+
+  let guidesQuery = supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).eq("role", "guide");
+  let touristsQuery = supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).eq("role", "tourist");
+  let adminsQuery = supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).eq("role", "admin");
+  if (dated) {
+    guidesQuery = applyCreatedAtRange(guidesQuery, "created_at", from, to);
+    touristsQuery = applyCreatedAtRange(touristsQuery, "created_at", from, to);
+    adminsQuery = applyCreatedAtRange(adminsQuery, "created_at", from, to);
+  }
+
   const [{ count: guides }, { count: tourists }, { count: admins }] = await Promise.all([
-    supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).eq("role", "guide"),
-    supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).eq("role", "tourist"),
-    supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).eq("role", "admin"),
+    guidesQuery,
+    touristsQuery,
+    adminsQuery,
   ]);
 
   let bookingsQuery = supabaseAdmin.from("bookings").select("status, amount_usdc, guide_split, protocol_split, hotel_split");
-  if (from) bookingsQuery = bookingsQuery.gte("created_at", from);
-  if (to) bookingsQuery = bookingsQuery.lte("created_at", to);
+  bookingsQuery = applyCreatedAtRange(bookingsQuery, "created_at", from, to);
   const { data: bookings } = await bookingsQuery;
 
   const rows = bookings ?? [];
@@ -65,6 +76,25 @@ export async function getAnalyticsOverview(from?: string, to?: string): Promise<
     0
   );
 
+  const countApplications = (status?: string) => {
+    let q = supabaseAdmin.from("guide_applications").select("*", { count: "exact", head: true });
+    if (status) q = q.eq("status", status);
+    if (dated) q = applyCreatedAtRange(q, "created_at", from, to);
+    return q;
+  };
+
+  let waitlistQuery = supabaseAdmin.from("waitlist").select("*", { count: "exact", head: true });
+  if (dated) waitlistQuery = applyCreatedAtRange(waitlistQuery, "created_at", from, to);
+
+  let streamsQuery = supabaseAdmin.from("live_streams").select("*", { count: "exact", head: true });
+  if (dated) streamsQuery = applyCreatedAtRange(streamsQuery, "created_at", from, to);
+
+  let streamsLiveQuery = supabaseAdmin
+    .from("live_streams")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "live");
+  if (dated) streamsLiveQuery = applyCreatedAtRange(streamsLiveQuery, "created_at", from, to);
+
   const [
     { count: streamsTotal },
     { count: streamsLive },
@@ -74,16 +104,18 @@ export async function getAnalyticsOverview(from?: string, to?: string): Promise<
     { count: applicationsRejected },
     { count: applicationsTotal },
   ] = await Promise.all([
-    supabaseAdmin.from("live_streams").select("*", { count: "exact", head: true }),
-    supabaseAdmin.from("live_streams").select("*", { count: "exact", head: true }).eq("status", "live"),
-    supabaseAdmin.from("waitlist").select("*", { count: "exact", head: true }),
-    supabaseAdmin.from("guide_applications").select("*", { count: "exact", head: true }).eq("status", "pending"),
-    supabaseAdmin.from("guide_applications").select("*", { count: "exact", head: true }).eq("status", "approved"),
-    supabaseAdmin.from("guide_applications").select("*", { count: "exact", head: true }).eq("status", "rejected"),
-    supabaseAdmin.from("guide_applications").select("*", { count: "exact", head: true }),
+    streamsQuery,
+    streamsLiveQuery,
+    waitlistQuery,
+    countApplications("pending"),
+    countApplications("approved"),
+    countApplications("rejected"),
+    countApplications(),
   ]);
 
-  const { data: tips } = await supabaseAdmin.from("stream_tips").select("amount_usdc");
+  let tipsQuery = supabaseAdmin.from("stream_tips").select("amount_usdc");
+  if (dated) tipsQuery = applyCreatedAtRange(tipsQuery, "created_at", from, to);
+  const { data: tips } = await tipsQuery;
   const streamTipsUsdc = (tips ?? []).reduce((s, t) => s + Number(t.amount_usdc ?? 0), 0);
 
   return {
@@ -148,14 +180,24 @@ export async function loadAuditReportData(from?: string, to?: string): Promise<A
   const overview = await getAnalyticsOverview(from, to);
   const transactions = await listAllTransactions({ limit: 5000, from, to });
   const [{ data: applications }, { data: waitlist }] = await Promise.all([
-    supabaseAdmin
-      .from("guide_applications")
-      .select("full_name, email, phone, location, status, created_at")
-      .order("created_at", { ascending: false }),
-    supabaseAdmin
-      .from("waitlist")
-      .select("full_name, email, interest, created_at")
-      .order("created_at", { ascending: false }),
+    applyCreatedAtRange(
+      supabaseAdmin
+        .from("guide_applications")
+        .select("full_name, email, phone, location, status, created_at")
+        .order("created_at", { ascending: false }),
+      "created_at",
+      from,
+      to
+    ),
+    applyCreatedAtRange(
+      supabaseAdmin
+        .from("waitlist")
+        .select("full_name, email, interest, created_at")
+        .order("created_at", { ascending: false }),
+      "created_at",
+      from,
+      to
+    ),
   ]);
 
   return {
@@ -176,7 +218,7 @@ export async function buildReportCsv(from?: string, to?: string): Promise<string
   const lines: string[] = [
     "Guidemate Platform Audit Report",
     `Generated,${generatedAt}`,
-    `Period,${fromDate ?? "all"} to ${toDate ?? "now"}`,
+    `Period,${formatReportPeriodLabel(fromDate, toDate)} (EAT)`,
     "",
     "=== USER BASE ===",
     "Metric,Value",

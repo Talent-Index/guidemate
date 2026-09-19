@@ -55,6 +55,7 @@ type StreamRoomProps = {
 export function StreamRoom({ serverUrl, token, isPublisher, height = "min(70vh, 560px)" }: StreamRoomProps) {
   return (
     <LiveKitRoom
+      key={token}
       serverUrl={serverUrl}
       token={token}
       connect

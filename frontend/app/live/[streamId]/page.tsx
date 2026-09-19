@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { StreamRoom } from "@/components/StreamRoom";
@@ -42,12 +42,14 @@ import { PaymentRailGuide } from "@/components/payments/PaymentRailGuide";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
 import { getStreamSharePath } from "@/lib/share";
+import { consumeLivePublishToken } from "@/lib/livePublishToken";
 import { useToast } from "@/components/ui/Toast";
 import "@livekit/components-styles";
 
 const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? "";
 const USDC_ADDRESS = (process.env.NEXT_PUBLIC_MOCK_USDC_ADDRESS ?? "") as `0x${string}`;
 const LIVE_CHECKOUT_KEY = "guidemate-live-checkout-draft";
+const LIVEKIT_TOKEN_REFRESH_MS = 45 * 60 * 1000;
 
 export default function LiveStreamPage() {
   const params = useParams<{ streamId: string }>();
@@ -147,6 +149,45 @@ export default function LiveStreamPage() {
       setJoining(false);
     }
   }
+
+  const handleJoinStable = useCallback(
+    (opts?: { txHash?: string; paymentIntentId?: string }) => handleJoin(opts),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [apiStreamId, session?.access_token]
+  );
+
+  useEffect(() => {
+    if (!stream || token) return;
+    const publishToken = consumeLivePublishToken(stream.id);
+    if (publishToken) {
+      setToken(publishToken);
+      setRole("publisher");
+    }
+  }, [stream, token]);
+
+  const autoJoinStarted = useRef(false);
+  useEffect(() => {
+    if (!stream || stream.status !== "live" || token || joining || !LIVEKIT_URL) return;
+    if (needsPayment) return;
+    if (!isGuide && stream.priceUsdc > 0) return;
+    if (autoJoinStarted.current) return;
+    autoJoinStarted.current = true;
+    void handleJoinStable();
+  }, [stream, token, joining, needsPayment, isGuide, LIVEKIT_URL, handleJoinStable]);
+
+  useEffect(() => {
+    if (!token || stream?.status !== "live") return;
+    const refresh = () => {
+      void joinStream(apiStreamId, session?.access_token)
+        .then((result) => {
+          setToken(result.token);
+          setRole(result.role);
+        })
+        .catch(() => {});
+    };
+    const interval = setInterval(refresh, LIVEKIT_TOKEN_REFRESH_MS);
+    return () => clearInterval(interval);
+  }, [token, stream?.status, apiStreamId, session?.access_token]);
 
   useEffect(() => {
     if (!session || !stream || token) return;
@@ -679,6 +720,10 @@ export default function LiveStreamPage() {
                   )}
                 </div>
                 {payError && <p className="mt-2 text-sm text-red-600">{payError}</p>}
+              </Card>
+            ) : joining && !token ? (
+              <Card className="flex items-center justify-center p-10 sm:p-12">
+                <p className="text-sm font-medium text-brand-muted">Connecting to the live stream…</p>
               </Card>
             ) : (
               <Card className="flex flex-wrap items-center justify-between gap-3 p-6 sm:p-8">

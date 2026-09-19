@@ -104,7 +104,7 @@ export async function createLiveKitToken(grant: TokenGrant): Promise<string> {
   const token = new AccessToken(apiKey, apiSecret, {
     identity: grant.identity,
     name: grant.name,
-    ttl: "10m",
+    ttl: "6h",
   });
   token.addGrant({
     room: grant.roomName,

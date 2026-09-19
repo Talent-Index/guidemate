@@ -6,8 +6,8 @@ import {
   isRecordingConfigured,
   requireLiveKit,
   startRecording,
-  stopRecording,
 } from "../livekit.js";
+import { closeLiveStreamRecord, reconcileStaleLiveStreams, reconcileStreamIfStale } from "../streamLifecycle.js";
 import {
   addStreamComment,
   addStreamReaction,
@@ -164,6 +164,7 @@ streamsRouter.get("/mine/scheduled", async (req, res) => {
 });
 
 streamsRouter.get("/live", async (_req, res) => {
+  await reconcileStaleLiveStreams();
   const streams = await listLiveStreams();
   res.json({ streams });
 });
@@ -174,8 +175,12 @@ streamsRouter.get("/recorded", async (_req, res) => {
 });
 
 streamsRouter.get("/:id", async (req, res) => {
-  const stream = await getStreamByIdOrSlug(req.params.id);
+  let stream = await getStreamByIdOrSlug(req.params.id);
   if (!stream) return res.status(404).json({ error: "stream not found" });
+  if (stream.status === "live") {
+    const reconciled = await reconcileStreamIfStale(stream);
+    if (reconciled) stream = reconciled;
+  }
   res.json({ stream });
 });
 
@@ -348,21 +353,8 @@ streamsRouter.post("/:id/end", async (req, res) => {
   }
 
   try {
-    const { roomService } = requireLiveKit();
-
-    if (stream.egressId) {
-      try {
-        await stopRecording(stream.egressId);
-      } catch (err) {
-        console.warn("[streams] failed to stop recording egress", (err as Error).message);
-      }
-    }
-
-    await roomService.deleteRoom(stream.roomName).catch(() => {
-      // Room may have already emptied out and been cleaned up - not an error.
-    });
-
-    const updated = await updateStream(stream.id, { status: "ended", endedAt: new Date().toISOString() });
+    const updated = await closeLiveStreamRecord(stream);
+    if (!updated) return res.status(500).json({ error: "failed to end stream" });
     res.json({ stream: updated });
   } catch (err) {
     console.error("[streams] end failed", err);

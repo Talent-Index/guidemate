@@ -24,6 +24,7 @@ import { Price } from "@/lib/fx";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
 import { getStreamSharePath } from "@/lib/share";
+import { storeLivePublishToken } from "@/lib/livePublishToken";
 
 function formatWhen(iso: string) {
   return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -103,10 +104,11 @@ export default function LiveBrowsePage() {
     setStarting(true);
     setStartError(null);
     try {
-      const { stream } = await startStream(
+      const { stream, token } = await startStream(
         { title: title.trim(), priceUsdc: Number(price) || 0 },
         session.access_token
       );
+      storeLivePublishToken(stream.id, token);
       router.push(getStreamSharePath(stream.id, stream.slug));
     } catch (err) {
       setStartError((err as Error).message);
@@ -190,7 +192,8 @@ export default function LiveBrowsePage() {
     setGuideActionId(streamId);
     setStartError(null);
     try {
-      const { stream } = await startScheduledStream(streamId, session.access_token);
+      const { stream, token } = await startScheduledStream(streamId, session.access_token);
+      storeLivePublishToken(stream.id, token);
       router.push(getStreamSharePath(stream.id, stream.slug));
     } catch (err) {
       setStartError((err as Error).message);

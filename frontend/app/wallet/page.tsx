@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
-import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
-import { GreetingRow } from "@/components/ui/GreetingRow";
 import { RoleGate } from "@/components/auth/RoleGate";
 import { firstNameFromProfile, useAuth } from "@/lib/auth/AuthProvider";
 import {
@@ -41,6 +39,7 @@ export default function WalletPage() {
   const [hideAmounts, setHideAmounts] = useState(false);
   const [triedProvision, setTriedProvision] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -95,6 +94,7 @@ export default function WalletPage() {
         : `KES ${result.kesAmount.toLocaleString()} sent to M-Pesa · Ref ${result.reference}`;
       setMessage(next);
       toast(next, "success");
+      setWithdrawOpen(false);
       await refresh();
     } catch (err) {
       const next = friendlyWalletError((err as Error).message);
@@ -122,44 +122,38 @@ export default function WalletPage() {
   const first = firstNameFromProfile(profile, user?.email);
 
   return (
-    <div className="flex flex-col gap-6">
-      <MobilePageBanner eyebrow="Wallet" title={`Hi, ${first}`} />
-      <GreetingRow
-        subtitle={
-          isGuide
-            ? "Your share (85%) from completed trips. Withdraw to M-Pesa when you are ready."
-            : "Your Guidemate balance. Withdraw to M-Pesa when you are ready."
-        }
-      />
+    <div className="mx-auto flex max-w-lg flex-col gap-6 pb-8">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-accent">Wallet</p>
+        <h1 className="mt-1 text-2xl font-bold text-brand-blueDark">Hi, {first}</h1>
+        <p className="mt-2 text-sm text-brand-muted">
+          {isGuide
+            ? "Your 85% share from trips and live streams. Withdraw to M-Pesa when you are ready."
+            : "Your Guidemate balance. Withdraw to M-Pesa when you are ready."}
+        </p>
+      </div>
 
-      <div className="rounded-card bg-brand-blue p-6 text-white shadow-card max-md:rounded-3xl">
+      <div className="rounded-2xl border border-brand-border bg-gradient-to-br from-brand-blueDark to-brand-blue p-6 text-white shadow-card">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-white/70">
-              {isGuide ? "Available balance · your share (85%)" : "Available balance"}
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Available balance</p>
             {loading ? (
-              <p className="mt-2 text-sm text-white/80">Loading…</p>
+              <p className="mt-3 text-sm text-white/80">Loading…</p>
             ) : hideAmounts ? (
-              <p className="mt-2 text-3xl font-bold tracking-widest">••••</p>
+              <p className="mt-3 text-3xl font-bold tracking-widest">••••</p>
             ) : (
-              <div className="mt-2">
-                <p className="text-3xl font-bold">
+              <div className="mt-3">
+                <p className="text-3xl font-bold tabular-nums">
                   {formatFiat(wallet?.balanceUsdc ?? 0) ?? `${wallet?.balanceUsdc ?? 0} USDC`}
                 </p>
-                <p className="mt-1 text-sm text-white/70">{wallet?.balanceUsdc ?? 0} USDC</p>
-                {isGuide && !hideAmounts && (
-                  <p className="mt-2 text-xs text-white/60">
-                    Credited after you finish a trip (End trip). Not the full guest payment.
-                  </p>
-                )}
+                <p className="mt-1 text-sm text-white/75 tabular-nums">{wallet?.balanceUsdc ?? 0} USDC</p>
               </div>
             )}
           </div>
           <button
             type="button"
             onClick={() => setHideAmounts((v) => !v)}
-            className="rounded-full border border-white/30 px-3 py-1 text-xs font-semibold text-white/90 hover:bg-white/10"
+            className="rounded-full border border-white/25 px-3 py-1 text-xs font-semibold text-white/90 hover:bg-white/10"
           >
             {hideAmounts ? "Show" : "Hide"}
           </button>
@@ -167,6 +161,8 @@ export default function WalletPage() {
       </div>
 
       <WithdrawMpesaPanel
+        open={withdrawOpen}
+        onOpenChange={setWithdrawOpen}
         balanceUsdc={wallet?.balanceUsdc ?? 0}
         phone={phone}
         settingsHref={settingsHref}
@@ -174,6 +170,9 @@ export default function WalletPage() {
         withdrawing={withdrawing}
         onWithdraw={(amount) => void handleWithdraw(amount)}
       />
+      {!withdrawOpen && (wallet?.balanceUsdc ?? 0) <= 0 && !loading && (
+        <p className="-mt-4 text-center text-xs text-brand-muted">Nothing to withdraw yet.</p>
+      )}
 
       {message && <p className="text-sm text-brand-success">{message}</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}

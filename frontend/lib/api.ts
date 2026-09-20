@@ -725,6 +725,9 @@ export interface StreamComment {
 
 export interface StreamStats {
   viewerCount: number;
+  peakViewerCount: number;
+  totalJoins: number;
+  uniqueJoins: number;
   reactionCount: number;
   tipCount: number;
   tipTotalUsdc: number;

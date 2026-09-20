@@ -124,6 +124,7 @@ export interface GuideStreamInsight {
   createdAt: string;
   tipCount: number;
   tipTotalUsdc: number;
+  guideEarningsUsdc: number;
   reactionCount: number;
   commentCount: number;
 }
@@ -178,7 +179,13 @@ export async function getGuideInsights(guideId: string): Promise<GuideInsights |
 
   const pastStreamRows = streams.filter((s) => s.status === "ended");
   const pastStreams: GuideStreamInsight[] = pastStreamRows.map((s) => {
-    const stats = streamStats.get(s.id) ?? { tipCount: 0, tipTotalUsdc: 0, reactionCount: 0, commentCount: 0 };
+    const stats = streamStats.get(s.id) ?? {
+      tipCount: 0,
+      tipTotalUsdc: 0,
+      guideEarningsUsdc: 0,
+      reactionCount: 0,
+      commentCount: 0,
+    };
     return {
       id: s.id,
       title: s.title,
@@ -191,11 +198,15 @@ export async function getGuideInsights(guideId: string): Promise<GuideInsights |
       endedAt: s.endedAt,
       recordingUrl: s.recordingUrl,
       createdAt: s.createdAt,
-      ...stats,
+      tipCount: stats.tipCount,
+      tipTotalUsdc: stats.tipTotalUsdc,
+      guideEarningsUsdc: stats.guideEarningsUsdc,
+      reactionCount: stats.reactionCount,
+      commentCount: stats.commentCount,
     };
   });
 
-  const streamEarningsUsdc = pastStreams.reduce((sum, s) => sum + s.tipTotalUsdc, 0);
+  const streamEarningsUsdc = pastStreams.reduce((sum, s) => sum + s.guideEarningsUsdc, 0);
   const upcomingStreams = streams
     .filter((s) => s.status === "scheduled")
     .map((s) => ({

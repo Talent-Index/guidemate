@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { listLiveStreams, type LiveStreamRecord } from "@/lib/api";
 import { getStreamSharePath } from "@/lib/share";
+import { KesPrice } from "@/lib/fx";
 
 export function LiveNowSection() {
   const [streams, setStreams] = useState<LiveStreamRecord[]>([]);
@@ -55,7 +56,13 @@ export function LiveNowSection() {
                 </div>
                 <p className="mt-2 text-sm text-brand-muted">with {stream.guideName}</p>
                 <p className="mt-3 text-xs font-semibold text-brand-accent">
-                  {stream.priceUsdc > 0 ? `${stream.priceUsdc} USDC to watch` : "Free to watch →"}
+                  {stream.priceUsdc > 0 ? (
+                    <>
+                      <KesPrice amountUsdc={stream.priceUsdc} className="text-brand-accent" suffix=" to watch" />
+                    </>
+                  ) : (
+                    "Free to watch →"
+                  )}
                 </p>
               </Link>
             </li>

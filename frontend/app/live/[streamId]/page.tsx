@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { StreamRoom } from "@/components/StreamRoom";
 import { parseUnits } from "viem";
 import { useAccount, useChainId, useSwitchChain, useWriteContract } from "wagmi";
@@ -44,7 +44,7 @@ import { Price } from "@/lib/fx";
 import { PaymentRailGuide } from "@/components/payments/PaymentRailGuide";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
-import { getStreamSharePath } from "@/lib/share";
+import { getStreamSharePath, getGuideSharePath } from "@/lib/share";
 import { consumeLivePublishToken } from "@/lib/livePublishToken";
 import { useToast } from "@/components/ui/Toast";
 import "@livekit/components-styles";
@@ -374,10 +374,13 @@ export default function LiveStreamPage() {
   async function handleEnd() {
     if (!session) return;
     setEnding(true);
+    setError(null);
     try {
       const { stream: updated } = await endStream(apiStreamId, session.access_token);
       setStream(updated);
       setToken(null);
+      setRole(null);
+      toast("Stream ended", "success");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -840,16 +843,16 @@ export default function LiveStreamPage() {
       </div>
 
       {showEndBar && (
-        <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-40 border-t border-brand-border bg-[var(--gm-nav)]/95 px-4 py-3 backdrop-blur-md md:bottom-6 md:mx-auto md:max-w-lg md:rounded-full md:border md:shadow-lg">
+        <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-40 px-4 md:bottom-6 md:mx-auto md:max-w-lg">
           <button
             type="button"
             disabled={ending}
             onClick={handleEnd}
-            className="mx-auto flex w-full max-w-md items-center justify-center gap-2 rounded-full bg-red-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-60 md:w-full"
+            className="flex w-full items-center justify-center gap-2 rounded-full border border-red-200 bg-white px-5 py-3.5 text-sm font-bold text-red-700 shadow-lg transition hover:bg-red-50 disabled:opacity-60 dark:border-red-900/40 dark:bg-[var(--gm-nav)] dark:text-red-300 dark:hover:bg-red-950/40"
             aria-label="End live stream"
           >
             <EndStreamIcon />
-            {ending ? "Ending stream..." : "End stream"}
+            {ending ? "Ending stream…" : "End stream"}
           </button>
         </div>
       )}
@@ -865,8 +868,8 @@ function EndedStreamView({
   stream: LiveStreamRecord;
   apiStreamId: string;
   isGuide: boolean;
-  sessionUserId?: string;
 }) {
+  const router = useRouter();
   const [stats, setStats] = useState<StreamStats | null>(null);
 
   useEffect(() => {
@@ -874,35 +877,55 @@ function EndedStreamView({
   }, [apiStreamId]);
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 pb-28">
       <Link href="/live" className="text-sm font-semibold text-brand-accent hover:underline">
         ← All live streams
       </Link>
-      <Card>
-        <Chip tone="neutral" label="Ended" />
-        <h1 className="mt-2 text-xl font-bold text-brand-blueDark">{stream.title}</h1>
-        <p className="text-sm text-brand-muted">with {stream.guideName}</p>
-        <ViewGuideProfileButton guideId={stream.guideId} className="mt-3 inline-block" />
-        <div className="mt-4">
-          <ShareLinkButton
-            path={getStreamSharePath(stream.id, stream.slug)}
-            label="Share stream link"
-            shareTitle={stream.title}
-            shareText={`Watch ${stream.title} on Guidemate`}
-          />
+
+      <Card className="overflow-hidden p-0">
+        <div className="border-b border-brand-border bg-brand-bg/50 px-6 py-5">
+          <Chip tone="neutral" label="Ended" />
+          <h1 className="mt-3 text-2xl font-bold text-brand-blueDark">{stream.title}</h1>
+          <p className="mt-1 text-sm text-brand-muted">with {stream.guideName}</p>
         </div>
+
         {stream.recordingUrl ? (
-          <video className="mt-4 w-full rounded-lg bg-black" src={stream.recordingUrl} controls playsInline />
+          <video className="w-full bg-black" src={stream.recordingUrl} controls playsInline />
         ) : (
-          <p className="mt-4 text-sm text-brand-muted">This stream has ended and no recording was saved.</p>
+          <p className="px-6 py-4 text-sm text-brand-muted">No recording was saved for this stream.</p>
         )}
       </Card>
-      {stats && isGuide && <StreamMetricsCard stats={stats} title="Stream recap" />}
-      {isGuide && (
-        <Link href="/live">
-          <Button variant="primary">Host another stream</Button>
-        </Link>
-      )}
+
+      {stats && isGuide && <StreamMetricsCard stats={stats} title="Stream recap" compact />}
+
+      <div className="flex flex-col gap-2">
+        {isGuide && (
+          <Button variant="primary" className="w-full" type="button" onClick={() => router.push("/live")}>
+            Host another stream
+          </Button>
+        )}
+        <ShareLinkButton
+          path={getStreamSharePath(stream.id, stream.slug)}
+          label="Share stream link"
+          shareTitle={stream.title}
+          shareText={`Watch ${stream.title} on Guidemate`}
+          variant="secondary"
+          className="w-full"
+        />
+        <Button
+          variant="secondary"
+          className="w-full"
+          type="button"
+          onClick={() => router.push(getGuideSharePath(stream.guideId))}
+        >
+          View guide profile
+        </Button>
+        {isGuide && (
+          <Button variant="secondary" className="w-full" type="button" onClick={() => router.push("/guide/dashboard")}>
+            Open guide dashboard
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

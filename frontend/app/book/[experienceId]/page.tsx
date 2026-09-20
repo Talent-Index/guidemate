@@ -24,7 +24,7 @@ import {
   type PaymentQuote,
 } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
-import { Price } from "@/lib/fx";
+import { Price, useCurrency } from "@/lib/fx";
 import { getExperienceSharePath } from "@/lib/share";
 import { PaymentRailGuide } from "@/components/payments/PaymentRailGuide";
 import {
@@ -73,6 +73,7 @@ export default function BookExperiencePage() {
 
   const { loading: authLoading, session, profile } = useAuth();
   const { toast } = useToast();
+  const { formatFiat } = useCurrency();
 
   const [experience, setExperience] = useState<ExperienceDetail | null>(null);
   const [loadingExperience, setLoadingExperience] = useState(true);
@@ -362,6 +363,8 @@ export default function BookExperiencePage() {
   }
 
   const totalUsdc = experience.price_usdc * guests;
+  const perGuestKes = formatFiat(experience.price_usdc, "KES");
+  const totalKesDisplay = formatFiat(totalUsdc, "KES");
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -536,10 +539,15 @@ export default function BookExperiencePage() {
                 <p className="font-semibold text-brand-blueDark">Price details</p>
                 <div className="mt-2 flex justify-between text-brand-muted">
                   <span>
-                    {totalUsdc.toFixed(2)} USDC x {guests} guest{guests !== 1 ? "s" : ""}
+                    {perGuestKes ?? `${experience.price_usdc} USDC`} x {guests} guest{guests !== 1 ? "s" : ""}
                   </span>
-                  <span className="font-semibold text-brand-blueDark">{totalUsdc.toFixed(2)} USDC</span>
+                  <span className="font-semibold text-brand-blueDark">
+                    {totalKesDisplay ?? `${totalUsdc.toFixed(2)} USDC`}
+                  </span>
                 </div>
+                <p className="mt-1 text-xs text-brand-muted">
+                  {totalUsdc.toFixed(2)} USDC at today&apos;s rate
+                </p>
                 <div className="mt-3 flex justify-between border-t border-brand-border pt-3 font-bold text-brand-blueDark">
                   <span>Total</span>
                   {paymentMethod === "mpesa" && quote ? (
@@ -557,7 +565,9 @@ export default function BookExperiencePage() {
                   </p>
                 )}
                 {paymentMethod === "checkout" && (
-                  <p className="mt-2 text-xs text-brand-muted">{totalUsdc.toFixed(2)} USDC / USDT on Minisend</p>
+                  <p className="mt-2 text-xs text-brand-muted">
+                    {totalKesDisplay ?? ""} · {totalUsdc.toFixed(2)} USDC / USDT on Minisend
+                  </p>
                 )}
               </div>
 

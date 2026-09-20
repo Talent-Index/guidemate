@@ -37,7 +37,7 @@ export function ExperienceBookingPanel({
         <div>
           <div className="flex flex-wrap items-baseline gap-1">
             <span className="text-sm text-brand-muted">From</span>
-            <Price amountUsdc={priceUsdc} size="lg" align="start" className="font-bold" />
+            <Price amountUsdc={priceUsdc} size="lg" align="start" showUsdc={false} className="font-bold" />
             <span className="text-sm text-brand-muted">/ guest</span>
           </div>
           <p className="mt-1 text-xs font-semibold text-brand-accent">Free cancellation</p>

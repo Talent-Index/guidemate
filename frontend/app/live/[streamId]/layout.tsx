@@ -41,7 +41,11 @@ export async function generateMetadata({ params }: { params: { streamId: string 
 
   const path = stream.slug ? `/live/${encodeURIComponent(stream.slug)}` : `/live/${stream.id}`;
   const url = `${appUrl}${path}`;
-  const priceLine = stream.priceUsdc > 0 ? ` · ${stream.priceUsdc} USDC ticket` : " · Free to watch";
+  const kesRate = Number(process.env.NEXT_PUBLIC_USDC_TO_KES_RATE ?? 145);
+  const priceLine =
+    stream.priceUsdc > 0
+      ? ` · KES ${Math.round(stream.priceUsdc * kesRate).toLocaleString("en-KE")} ticket`
+      : " · Free to watch";
   const description = `Watch “${stream.title}” with ${stream.guideName}${priceLine}. Join on Guidemate.`;
 
   return {

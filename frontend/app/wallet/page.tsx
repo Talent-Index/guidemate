@@ -144,7 +144,8 @@ export default function WalletPage() {
             ) : (
               <div className="mt-3">
                 <p className="text-3xl font-bold tabular-nums">
-                  {formatFiat(wallet?.balanceUsdc ?? 0) ?? `${wallet?.balanceUsdc ?? 0} USDC`}
+                  {formatFiat(wallet?.balanceUsdc ?? 0, "KES") ??
+                    `${wallet?.balanceUsdc ?? 0} USDC`}
                 </p>
                 <p className="mt-1 text-sm text-white/75 tabular-nums">{wallet?.balanceUsdc ?? 0} USDC</p>
               </div>

@@ -30,7 +30,7 @@ export function WithdrawMpesaPanel({
   withdrawing: boolean;
   onWithdraw: (amountUsdc: number) => void;
 }) {
-  const { convert } = useCurrency();
+  const { convert, formatFiat } = useCurrency();
   const [amountUsdc, setAmountUsdc] = useState("");
   const [quote, setQuote] = useState<PaymentQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
@@ -128,10 +128,10 @@ export function WithdrawMpesaPanel({
       </p>
 
       <div className="mt-4 rounded-xl border border-brand-border bg-brand-bg/40 px-4 py-3 text-sm">
-        <p className="font-semibold text-brand-blueDark">{balanceUsdc.toFixed(2)} USDC available</p>
-        {balanceKes != null && (
-          <p className="mt-0.5 text-brand-muted">About KES {formatKes(balanceKes)} at today&apos;s rate</p>
-        )}
+        <p className="font-semibold text-brand-blueDark">
+          {formatFiat(balanceUsdc, "KES") ?? `KES ${formatKes(balanceKes ?? 0)}`} available
+        </p>
+        <p className="mt-0.5 text-brand-muted">{balanceUsdc.toFixed(2)} USDC at today&apos;s rate</p>
         <p className="mt-1 text-xs text-brand-muted">To {phone}</p>
       </div>
 

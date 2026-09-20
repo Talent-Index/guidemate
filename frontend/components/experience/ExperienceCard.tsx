@@ -87,7 +87,7 @@ export function ExperienceCard({
       <div className="mt-3 space-y-1">
         <p className="line-clamp-2 text-[15px] font-semibold leading-snug text-[var(--gm-ink)]">{experience.title}</p>
         <div className="flex flex-wrap items-center gap-x-2 text-sm text-brand-muted">
-          <Price amountUsdc={experience.price_usdc} size="sm" align="start" className="inline-flex font-semibold text-[var(--gm-ink)]" />
+          <Price amountUsdc={experience.price_usdc} size="sm" align="start" showUsdc={false} className="inline-flex font-semibold text-[var(--gm-ink)]" />
           <span>/ guest</span>
           {ratingCount > 0 && (
             <>

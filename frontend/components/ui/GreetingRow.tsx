@@ -1,6 +1,5 @@
 "use client";
 
-import { CurrencySelect } from "@/lib/fx";
 import { firstNameFromProfile, useAuth } from "@/lib/auth/AuthProvider";
 
 function greetingWord() {
@@ -22,7 +21,6 @@ export function GreetingRow({ subtitle }: { subtitle: string }) {
         </h1>
         <p className="mt-1 text-sm text-brand-muted">{subtitle}</p>
       </div>
-      <CurrencySelect variant="light" />
     </div>
   );
 }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { StreamRoom } from "@/components/StreamRoom";
 import { parseUnits } from "viem";
-import { useAccount, useWriteContract } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -31,12 +31,15 @@ import {
   postStreamReaction,
   recordStreamTip,
   startScheduledStream,
-  SNOWTRACE_TX_BASE,
   type LiveStreamRecord,
   type PaymentQuote,
+  type StreamStats,
   type StreamComment,
   type StreamTip,
 } from "@/lib/api";
+import { StreamMetricsCard } from "@/components/live/StreamMetricsCard";
+import { BASE_EXPLORER_TX, BASE_USDC_ADDRESS, splitStreamRevenue } from "@/lib/streamRevenue";
+import { base } from "@/lib/wagmi";
 import { Price } from "@/lib/fx";
 import { PaymentRailGuide } from "@/components/payments/PaymentRailGuide";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
@@ -47,7 +50,8 @@ import { useToast } from "@/components/ui/Toast";
 import "@livekit/components-styles";
 
 const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? "";
-const USDC_ADDRESS = (process.env.NEXT_PUBLIC_MOCK_USDC_ADDRESS ?? "") as `0x${string}`;
+const USDC_ADDRESS = (process.env.NEXT_PUBLIC_BASE_USDC_ADDRESS ?? BASE_USDC_ADDRESS) as `0x${string}`;
+const PLATFORM_USDC_WALLET = process.env.NEXT_PUBLIC_PLATFORM_USDC_WALLET as `0x${string}` | undefined;
 const LIVE_CHECKOUT_KEY = "guidemate-live-checkout-draft";
 const LIVEKIT_TOKEN_REFRESH_MS = 45 * 60 * 1000;
 
@@ -58,6 +62,8 @@ export default function LiveStreamPage() {
   const { session, profile } = useAuth();
   const { toast } = useToast();
   const { address } = useAccount();
+  const chainId = useChainId();
+  const { switchChainAsync } = useSwitchChain();
   const { writeContractAsync, isPending: writing } = useWriteContract();
 
   const [stream, setStream] = useState<LiveStreamRecord | null>(null);
@@ -78,7 +84,15 @@ export default function LiveStreamPage() {
   const [quote, setQuote] = useState<PaymentQuote | null>(null);
   const [comments, setComments] = useState<StreamComment[]>([]);
   const [commentBody, setCommentBody] = useState("");
-  const [stats, setStats] = useState({ viewerCount: 0, reactionCount: 0 });
+  const [stats, setStats] = useState<StreamStats>({
+    viewerCount: 0,
+    peakViewerCount: 0,
+    totalJoins: 0,
+    uniqueJoins: 0,
+    reactionCount: 0,
+    tipCount: 0,
+    tipTotalUsdc: 0,
+  });
   const [flowers, setFlowers] = useState(0);
 
   const isGuide = Boolean(session && stream && session.user.id === stream.guideId);
@@ -218,15 +232,19 @@ export default function LiveStreamPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, stream, searchParams, token]);
 
-  async function transferUsdc(to: `0x${string}`, amount: number) {
-    if (!USDC_ADDRESS) throw new Error("NEXT_PUBLIC_MOCK_USDC_ADDRESS is not set");
+  async function transferUsdcOnBase(to: `0x${string}`, amount: number) {
+    if (!USDC_ADDRESS) throw new Error("Base USDC is not configured");
+    if (chainId !== base.id) {
+      await switchChainAsync({ chainId: base.id });
+    }
     const hash = await writeContractAsync({
       address: USDC_ADDRESS,
       abi: mockUsdcAbi,
       functionName: "transfer",
       args: [to, parseUnits(amount.toString(), 6)],
+      chainId: base.id,
     });
-    await waitForTransactionReceipt(wagmiConfig, { hash });
+    await waitForTransactionReceipt(wagmiConfig, { hash, chainId: base.id });
     return hash;
   }
 
@@ -335,7 +353,12 @@ export default function LiveStreamPage() {
     if (!amount || amount <= 0) return;
     setPayError(null);
     try {
-      const hash = await transferUsdc(stream.guideWallet as `0x${string}`, amount);
+      const { guideAmount, platformAmount } = splitStreamRevenue(amount);
+      const guideWallet = stream.guideWallet as `0x${string}`;
+      const hash = await transferUsdcOnBase(guideWallet, guideAmount);
+      if (platformAmount >= 0.01 && PLATFORM_USDC_WALLET) {
+        await transferUsdcOnBase(PLATFORM_USDC_WALLET, platformAmount);
+      }
       await recordStreamTip(
         apiStreamId,
         { amountUsdc: amount, txHash: hash, tipperWallet: address },
@@ -421,30 +444,7 @@ export default function LiveStreamPage() {
 
   if (stream.status === "ended") {
     return (
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <Link href="/live" className="text-sm font-semibold text-brand-accent hover:underline">
-          ← All live streams
-        </Link>
-        <Card>
-          <Chip tone="neutral" label="Ended" />
-          <h1 className="mt-2 text-xl font-bold text-brand-blueDark">{stream.title}</h1>
-          <p className="text-sm text-brand-muted">with {stream.guideName}</p>
-          <ViewGuideProfileButton guideId={stream.guideId} className="mt-3 inline-block" />
-          <div className="mt-4">
-            <ShareLinkButton
-              path={getStreamSharePath(stream.id, stream.slug)}
-              label="Share stream link"
-              shareTitle={stream.title}
-              shareText={`Watch ${stream.title} on Guidemate`}
-            />
-          </div>
-          {stream.recordingUrl ? (
-            <video className="mt-4 w-full rounded-lg bg-black" src={stream.recordingUrl} controls playsInline />
-          ) : (
-            <p className="mt-4 text-sm text-brand-muted">This stream has ended and no recording was saved.</p>
-          )}
-        </Card>
-      </div>
+      <EndedStreamView stream={stream} apiStreamId={apiStreamId} isGuide={isGuide} />
     );
   }
 
@@ -639,7 +639,10 @@ export default function LiveStreamPage() {
               <div className="relative overflow-hidden rounded-2xl border border-brand-border shadow-card" data-lk-theme="default">
                 <div className="pointer-events-none absolute left-3 top-3 z-20 flex flex-wrap items-center gap-2">
                   <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white">
-                    {stats.viewerCount} watching
+                    {stats.viewerCount} watching · peak {stats.peakViewerCount}
+                  </span>
+                  <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white">
+                    {stats.uniqueJoins} viewers joined
                   </span>
                   <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white">
                     {stats.reactionCount + flowers} flowers
@@ -661,7 +664,9 @@ export default function LiveStreamPage() {
                   Pay-per-view
                   <Price amountUsdc={stream.priceUsdc} size="sm" align="start" />
                 </h2>
-                <p className="mt-1 text-sm text-brand-muted">Kenya: pay with M-Pesa. Visiting: pay with USDC or USDT.</p>
+                <p className="mt-1 text-sm text-brand-muted">
+                  Kenya: pay with M-Pesa. Visiting: pay with USDC or USDT. Ticket revenue split: guide 85%, Guidemate 15%.
+                </p>
                 <div className="mt-4 grid gap-2 sm:grid-cols-2">
                   <button
                     type="button"
@@ -740,6 +745,9 @@ export default function LiveStreamPage() {
           </div>
 
           <aside className="flex flex-col gap-4 lg:col-span-4 lg:sticky lg:top-24 lg:self-start">
+            {isGuide && (
+              <StreamMetricsCard stats={stats} title="Your stream metrics" />
+            )}
             <Card className="p-5 sm:p-6">
               <h2 className="text-sm font-bold text-brand-blueDark">Live chat</h2>
               <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto lg:max-h-72">
@@ -770,7 +778,7 @@ export default function LiveStreamPage() {
             <Card className="p-5 sm:p-6">
               <h2 className="text-sm font-bold text-brand-blueDark">Tip the guide</h2>
               <p className="mt-1 text-xs text-brand-muted">
-                Wallet-to-wallet tips still use test mUSDC on Fuji. Paid streams use M-Pesa or Minisend USDC checkout.
+                Tips use USDC on Base (same rail as payouts). Guidemate keeps 15%; your guide receives 85%.
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <WalletConnectButton />
@@ -802,14 +810,16 @@ export default function LiveStreamPage() {
                         {tip.amountUsdc} USDC
                         {tip.tipperWallet ? ` · ${tip.tipperWallet.slice(0, 6)}…${tip.tipperWallet.slice(-4)}` : ""}
                       </span>
-                      <a
-                        href={`${SNOWTRACE_TX_BASE}/${tip.txHash}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs font-semibold text-brand-accent underline"
-                      >
-                        tx
-                      </a>
+                      {!tip.txHash.startsWith("mpesa-") && (
+                        <a
+                          href={`${BASE_EXPLORER_TX}/${tip.txHash}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs font-semibold text-brand-accent underline"
+                        >
+                          tx
+                        </a>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -842,6 +852,56 @@ export default function LiveStreamPage() {
             {ending ? "Ending stream..." : "End stream"}
           </button>
         </div>
+      )}
+    </div>
+  );
+}
+
+function EndedStreamView({
+  stream,
+  apiStreamId,
+  isGuide,
+}: {
+  stream: LiveStreamRecord;
+  apiStreamId: string;
+  isGuide: boolean;
+  sessionUserId?: string;
+}) {
+  const [stats, setStats] = useState<StreamStats | null>(null);
+
+  useEffect(() => {
+    getStreamStats(apiStreamId).then(setStats).catch(() => {});
+  }, [apiStreamId]);
+
+  return (
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+      <Link href="/live" className="text-sm font-semibold text-brand-accent hover:underline">
+        ← All live streams
+      </Link>
+      <Card>
+        <Chip tone="neutral" label="Ended" />
+        <h1 className="mt-2 text-xl font-bold text-brand-blueDark">{stream.title}</h1>
+        <p className="text-sm text-brand-muted">with {stream.guideName}</p>
+        <ViewGuideProfileButton guideId={stream.guideId} className="mt-3 inline-block" />
+        <div className="mt-4">
+          <ShareLinkButton
+            path={getStreamSharePath(stream.id, stream.slug)}
+            label="Share stream link"
+            shareTitle={stream.title}
+            shareText={`Watch ${stream.title} on Guidemate`}
+          />
+        </div>
+        {stream.recordingUrl ? (
+          <video className="mt-4 w-full rounded-lg bg-black" src={stream.recordingUrl} controls playsInline />
+        ) : (
+          <p className="mt-4 text-sm text-brand-muted">This stream has ended and no recording was saved.</p>
+        )}
+      </Card>
+      {stats && isGuide && <StreamMetricsCard stats={stats} title="Stream recap" />}
+      {isGuide && (
+        <Link href="/live">
+          <Button variant="primary">Host another stream</Button>
+        </Link>
       )}
     </div>
   );

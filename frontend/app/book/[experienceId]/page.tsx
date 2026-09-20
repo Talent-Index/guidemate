@@ -92,7 +92,7 @@ export default function BookExperiencePage() {
   const [receiptSlotTime, setReceiptSlotTime] = useState<string | undefined>();
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("checkout");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("mpesa");
   const [mpesaPhone, setMpesaPhone] = useState("");
   const [quote, setQuote] = useState<PaymentQuote | null>(null);
   const [finishingCheckout, setFinishingCheckout] = useState(false);
@@ -404,8 +404,8 @@ export default function BookExperiencePage() {
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
               {(
                 [
-                  { id: "checkout" as const, label: "USDC / USDT", desc: "Pay on Minisend" },
                   { id: "mpesa" as const, label: "M-Pesa", desc: "Pay from your phone" },
+                  { id: "checkout" as const, label: "USDC / USDT", desc: "Pay on Minisend" },
                   ...(SHOW_DEMO_PAY
                     ? [{ id: "demo" as const, label: "Demo", desc: "Test only (no real money)" }]
                     : []),

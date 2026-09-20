@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
+import { LiveNowSection } from "@/components/live/LiveNowSection";
 
 const OFFERINGS = [
   {
@@ -111,20 +112,28 @@ export default function HomePage() {
             </p>
             <div className="mt-10 flex flex-wrap items-center gap-3">
               <Link
-                href="/apply"
+                href="/live"
                 className="bg-brand-amber px-7 py-3 text-sm font-semibold text-brand-blueDark transition hover:bg-brand-amberDark"
               >
-                Apply to be a guide
+                Watch live
               </Link>
               <Link
-                href="/auth/sign-up"
+                href="/explore"
+                className="border border-white/40 bg-white/10 px-7 py-3 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20"
+              >
+                Book an experience
+              </Link>
+              <Link
+                href="/auth/sign-up/guide"
                 className="bg-brand-blue px-7 py-3 text-sm font-semibold text-white transition hover:bg-brand-accent"
               >
-                Register
+                Go live as a guide
               </Link>
             </div>
           </div>
         </section>
+
+        <LiveNowSection />
 
         <section id="features" className="bg-[var(--gm-canvas)]">
           <div className="mx-auto max-w-6xl px-4 py-24">

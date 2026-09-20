@@ -7,7 +7,9 @@ import {
   requireLiveKit,
   startRecording,
 } from "../livekit.js";
+import { announceStreamToCommunity } from "../streamAnnounce.js";
 import { closeLiveStreamRecord, reconcileStaleLiveStreams, reconcileStreamIfStale } from "../streamLifecycle.js";
+import { bumpPeakViewerCount, getStreamJoinMetrics, recordStreamJoin } from "../streamJoins.js";
 import {
   addStreamComment,
   addStreamReaction,
@@ -27,7 +29,7 @@ import {
   scheduleStream,
   updateStream,
 } from "../streams.js";
-import { recordWalletTransaction } from "../ledger.js";
+import { recordStreamPpvSettlement, recordStreamTipSettlement } from "../streamRevenue.js";
 import { getCompletedPaymentIntent } from "./payments.js";
 import { getUserIdFromAuthHeader, supabaseAdmin } from "../supabase.js";
 
@@ -239,13 +241,12 @@ streamsRouter.post("/:id/join-token", async (req, res) => {
         amountUsdc: stream.priceUsdc,
         txHash: `mpesa-${parsed.data.paymentIntentId}`,
       });
-      await recordWalletTransaction({
-        profileId: stream.guideId,
-        type: "stream_ppv",
-        amountUsdc: stream.priceUsdc,
-        referenceType: "stream",
-        referenceId: stream.id,
+      await recordStreamPpvSettlement({
+        guideId: stream.guideId,
+        streamId: stream.id,
+        grossUsdc: stream.priceUsdc,
         mpesaRef: parsed.data.paymentIntentId,
+        txHash: `mpesa-${parsed.data.paymentIntentId}`,
       });
     }
 
@@ -265,9 +266,21 @@ streamsRouter.post("/:id/join-token", async (req, res) => {
           paymentRef: parsed.data.txHash,
         });
       }
+      await recordStreamPpvSettlement({
+        guideId: stream.guideId,
+        streamId: stream.id,
+        grossUsdc: stream.priceUsdc,
+        txHash: parsed.data.txHash,
+      });
     }
 
     const identity = userId ?? `viewer-${randomUUID()}`;
+    const joinMetrics = await recordStreamJoin({
+      streamId: stream.id,
+      profileId: userId ?? null,
+      viewerIdentity: identity,
+    });
+
     const token = await createLiveKitToken({
       roomName: stream.roomName,
       identity,
@@ -276,7 +289,7 @@ streamsRouter.post("/:id/join-token", async (req, res) => {
       canSubscribe: true,
     });
 
-    res.json({ token, stream, role: isGuide ? "publisher" : "viewer" });
+    res.json({ token, stream, role: isGuide ? "publisher" : "viewer", joinMetrics });
   } catch (err) {
     console.error("[streams] join-token failed", err);
     res.status(500).json({ error: (err as Error).message ?? "failed to mint join token" });
@@ -333,10 +346,17 @@ streamsRouter.post("/:id/notify", async (req, res) => {
   });
   if (!updated) return res.status(500).json({ error: "failed to notify community" });
 
+  let delivery = { emailsTargeted: 0, emailsSent: 0, smsTargeted: 0, smsSent: 0 };
+  try {
+    delivery = await announceStreamToCommunity(updated);
+  } catch (err) {
+    console.warn("[streams] community announce delivery failed", (err as Error).message);
+  }
+
   console.info(
     `[streams] community notified for stream ${stream.id} (${stream.title}) - starts ~${scheduledAt}`
   );
-  res.json({ stream: updated });
+  res.json({ stream: updated, delivery });
 });
 
 streamsRouter.post("/:id/end", async (req, res) => {
@@ -390,6 +410,14 @@ streamsRouter.post("/:id/tip", async (req, res) => {
       amountUsdc: parsed.data.amountUsdc,
       txHash: parsed.data.txHash,
     });
+    if (!parsed.data.txHash.startsWith("mpesa-")) {
+      await recordStreamTipSettlement({
+        guideId: stream.guideId,
+        streamId: stream.id,
+        grossUsdc: parsed.data.amountUsdc,
+        txHash: parsed.data.txHash,
+      });
+    }
     res.status(201).json({ tip });
   } catch (err) {
     console.error("[streams] tip failed", err);
@@ -465,6 +493,9 @@ streamsRouter.get("/:id/stats", async (req, res) => {
     // LiveKit may be unavailable
   }
 
+  const peakViewerCount = await bumpPeakViewerCount(stream.id, viewerCount);
+  const joinMetrics = await getStreamJoinMetrics(stream.id);
+
   const [reactionCount, tips] = await Promise.all([
     countStreamReactions(stream.id),
     listStreamTips(stream.id),
@@ -472,6 +503,9 @@ streamsRouter.get("/:id/stats", async (req, res) => {
 
   res.json({
     viewerCount,
+    peakViewerCount,
+    totalJoins: joinMetrics.totalJoins,
+    uniqueJoins: joinMetrics.uniqueJoins,
     reactionCount,
     tipCount: tips.length,
     tipTotalUsdc: tips.reduce((s, t) => s + t.amountUsdc, 0),

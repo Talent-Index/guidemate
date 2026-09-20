@@ -236,22 +236,37 @@ export default function LiveBrowsePage() {
                   required
                 />
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <input
-                    className="form-input-light"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    aria-label="Price in USDC"
-                  />
-                  <input
-                    className="form-input-light"
-                    type="datetime-local"
-                    value={scheduledAt}
-                    onChange={(e) => setScheduledAt(e.target.value)}
-                    aria-label="Scheduled start time"
-                  />
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wide text-brand-muted">
+                      Ticket price (USDC)
+                    </label>
+                    <input
+                      className="form-input-light mt-1 w-full"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
+                      aria-label="Price in USDC"
+                    />
+                    <p className="mt-1 text-xs text-brand-muted">
+                      Use <strong className="font-semibold text-brand-blueDark">0</strong> for free streams. Paid tickets: you keep{" "}
+                      <strong className="font-semibold text-brand-blueDark">85%</strong>, Guidemate{" "}
+                      <strong className="font-semibold text-brand-blueDark">15%</strong>.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wide text-brand-muted">
+                      Schedule (optional)
+                    </label>
+                    <input
+                      className="form-input-light mt-1 w-full"
+                      type="datetime-local"
+                      value={scheduledAt}
+                      onChange={(e) => setScheduledAt(e.target.value)}
+                      aria-label="Scheduled start time"
+                    />
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button

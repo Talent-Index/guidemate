@@ -22,7 +22,54 @@ export function guideShareFromStreamTip(amountUsdc: number, txHash: string): num
   if (isPlatformTicketTip(txHash)) {
     return splitStreamRevenue(amountUsdc).guideAmount;
   }
-  return amountUsdc;
+  return splitStreamRevenue(amountUsdc).guideAmount;
+}
+
+async function creditPlatformShare(opts: {
+  platformAmount: number;
+  streamId: string;
+  type: "stream_ppv" | "stream_tip";
+  mpesaRef?: string;
+  txHash?: string;
+  metadata: Record<string, unknown>;
+}) {
+  const platformProfileId = process.env.PLATFORM_PROFILE_ID?.trim();
+  if (!platformProfileId || opts.platformAmount <= 0) return;
+  await recordWalletTransaction({
+    profileId: platformProfileId,
+    type: opts.type,
+    amountUsdc: opts.platformAmount,
+    referenceType: "stream",
+    referenceId: opts.streamId,
+    mpesaRef: opts.mpesaRef,
+    txHash: opts.txHash,
+    metadata: { role: "platform", ...opts.metadata },
+  });
+}
+
+export async function recordStreamTipSettlement(input: {
+  guideId: string;
+  streamId: string;
+  grossUsdc: number;
+  txHash: string;
+}): Promise<void> {
+  const { grossUsdc, guideAmount, platformAmount } = splitStreamRevenue(input.grossUsdc);
+  await recordWalletTransaction({
+    profileId: input.guideId,
+    type: "stream_tip",
+    amountUsdc: guideAmount,
+    referenceType: "stream",
+    referenceId: input.streamId,
+    txHash: input.txHash,
+    metadata: { grossUsdc, guideAmount, platformAmount, platformShare: PLATFORM_STREAM_SHARE },
+  });
+  await creditPlatformShare({
+    platformAmount,
+    streamId: input.streamId,
+    type: "stream_tip",
+    txHash: input.txHash,
+    metadata: { grossUsdc, guideAmount, platformAmount, platformShare: PLATFORM_STREAM_SHARE },
+  });
 }
 
 export async function recordStreamPpvSettlement(input: {
@@ -50,24 +97,12 @@ export async function recordStreamPpvSettlement(input: {
     },
   });
 
-  const platformProfileId = process.env.PLATFORM_PROFILE_ID?.trim();
-  if (platformProfileId) {
-    await recordWalletTransaction({
-      profileId: platformProfileId,
-      type: "stream_ppv",
-      amountUsdc: platformAmount,
-      referenceType: "stream",
-      referenceId: input.streamId,
-      mpesaRef: input.mpesaRef,
-      txHash: input.txHash,
-      status: "completed",
-      metadata: {
-        role: "platform",
-        grossUsdc,
-        guideAmount,
-        platformAmount,
-        platformShare: PLATFORM_STREAM_SHARE,
-      },
-    });
-  }
+  await creditPlatformShare({
+    platformAmount,
+    streamId: input.streamId,
+    type: "stream_ppv",
+    mpesaRef: input.mpesaRef,
+    txHash: input.txHash,
+    metadata: { grossUsdc, guideAmount, platformAmount, platformShare: PLATFORM_STREAM_SHARE },
+  });
 }

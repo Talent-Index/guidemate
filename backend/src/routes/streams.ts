@@ -29,7 +29,7 @@ import {
   scheduleStream,
   updateStream,
 } from "../streams.js";
-import { recordStreamPpvSettlement } from "../streamRevenue.js";
+import { recordStreamPpvSettlement, recordStreamTipSettlement } from "../streamRevenue.js";
 import { getCompletedPaymentIntent } from "./payments.js";
 import { getUserIdFromAuthHeader, supabaseAdmin } from "../supabase.js";
 
@@ -410,6 +410,14 @@ streamsRouter.post("/:id/tip", async (req, res) => {
       amountUsdc: parsed.data.amountUsdc,
       txHash: parsed.data.txHash,
     });
+    if (!parsed.data.txHash.startsWith("mpesa-")) {
+      await recordStreamTipSettlement({
+        guideId: stream.guideId,
+        streamId: stream.id,
+        grossUsdc: parsed.data.amountUsdc,
+        txHash: parsed.data.txHash,
+      });
+    }
     res.status(201).json({ tip });
   } catch (err) {
     console.error("[streams] tip failed", err);

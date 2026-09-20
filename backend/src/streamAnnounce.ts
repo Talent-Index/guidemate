@@ -71,9 +71,7 @@ async function sendEmailBatch(opts: {
   if (!apiKey || opts.to.length === 0) return 0;
 
   let sent = 0;
-  const batchSize = 50;
-  for (let i = 0; i < opts.to.length; i += batchSize) {
-    const slice = opts.to.slice(i, i + batchSize);
+  for (const to of opts.to) {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -82,14 +80,14 @@ async function sendEmailBatch(opts: {
       },
       body: JSON.stringify({
         from,
-        to: slice,
+        to: [to],
         subject: opts.subject,
         html: opts.html,
         text: opts.text,
       }),
     });
-    if (res.ok) sent += slice.length;
-    else console.warn("[streams] Resend batch failed", await res.text());
+    if (res.ok) sent += 1;
+    else console.warn("[streams] Resend failed for", to, await res.text());
   }
   return sent;
 }

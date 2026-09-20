@@ -11,6 +11,7 @@ import { SettingsAccountSection } from "@/components/settings/SettingsAccountSec
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isSuperAdmin } from "@/lib/auth/roles";
 import { createStaff, listStaff, revokeStaff, type StaffMember } from "@/lib/api";
+import { PlatformProfileIdCard } from "@/components/admin/PlatformProfileIdCard";
 
 export default function AdminSettingsPage() {
   const { loading: authLoading, session, profile } = useAuth();
@@ -178,6 +179,8 @@ export default function AdminSettingsPage() {
 
         {message && <p className="text-sm text-brand-success">{message}</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
+
+        {superAdmin && <PlatformProfileIdCard />}
 
         <SettingsHelpSection role="admin" />
         <SettingsAccountSection />

@@ -214,7 +214,7 @@ export function NavBar() {
                   Livestream
                 </Link>
                 <Link href="/apply" className={linkClass}>
-                  Guide application
+                  Apply as guide
                 </Link>
               </div>
               <Link
@@ -233,7 +233,7 @@ export function NavBar() {
           {!signedIn && (
             <>
               <Link href="/apply" className={`${linkClass} py-2 text-[10px] tracking-[0.12em]`}>
-                Apply
+                Apply as guide
               </Link>
               <Link
                 href="/auth/sign-in"

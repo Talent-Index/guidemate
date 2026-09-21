@@ -213,6 +213,9 @@ export function NavBar() {
                 <Link href={liveHref} className={linkClass}>
                   Livestream
                 </Link>
+                <Link href="/apply" className={linkClass}>
+                  Guide application
+                </Link>
               </div>
               <Link
                 href="/auth/sign-in"
@@ -227,13 +230,18 @@ export function NavBar() {
 
         <div className="flex items-center gap-2 md:hidden">
           {showNavAccountActions && <ThemeToggle />}
-          {!signedIn && pathname === "/" && (
-            <Link
-              href="/auth/sign-in"
-              className="bg-brand-amber px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[#111111] transition hover:bg-brand-amberDark"
-            >
-              Sign in
-            </Link>
+          {!signedIn && (
+            <>
+              <Link href="/apply" className={`${linkClass} py-2 text-[10px] tracking-[0.12em]`}>
+                Apply
+              </Link>
+              <Link
+                href="/auth/sign-in"
+                className="bg-brand-amber px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[#111111] transition hover:bg-brand-amberDark"
+              >
+                Sign in
+              </Link>
+            </>
           )}
         </div>
       </div>

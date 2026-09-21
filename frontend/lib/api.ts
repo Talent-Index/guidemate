@@ -520,7 +520,7 @@ export function startScheduledStream(streamId: string, accessToken: string) {
 
 export function joinStream(
   streamId: string,
-  accessToken?: string,
+  accessToken: string,
   opts?: { txHash?: string; paymentIntentId?: string }
 ) {
   return request<{ token: string; stream: LiveStreamRecord; role: "publisher" | "viewer" }>(

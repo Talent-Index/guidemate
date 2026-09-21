@@ -98,7 +98,7 @@ export default function GuideSignUpPage() {
     <SignedInRedirect>
       <FormShell
         title="Create a guide account"
-        subtitle="Beta access: list experiences, go live, and test payouts without waiting for TRA vetting. Full licensing apply remains available separately."
+        subtitle="Beta access: list experiences, go live, and test payouts without waiting for vetting. Full licensing apply remains available separately."
         footer={
           <>
             Already have an account?{" "}

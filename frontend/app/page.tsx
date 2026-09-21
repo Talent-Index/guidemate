@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
 import { LiveNowSection } from "@/components/live/LiveNowSection";
+import { HomeHeroActions } from "@/components/marketing/HomeHeroActions";
 
 const OFFERINGS = [
   {
@@ -110,26 +111,7 @@ export default function HomePage() {
               Guidemate connects travelers with independent local guides - vetted over time by an AI
               reputation agent, verified on completion, paid instantly.
             </p>
-            <div className="mt-10 flex flex-wrap items-center gap-3">
-              <Link
-                href="/live"
-                className="bg-brand-amber px-7 py-3 text-sm font-semibold text-brand-blueDark transition hover:bg-brand-amberDark"
-              >
-                Watch live
-              </Link>
-              <Link
-                href="/explore"
-                className="border border-white/40 bg-white/10 px-7 py-3 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20"
-              >
-                Book an experience
-              </Link>
-              <Link
-                href="/auth/sign-up/guide"
-                className="bg-brand-blue px-7 py-3 text-sm font-semibold text-white transition hover:bg-brand-accent"
-              >
-                Go live as a guide
-              </Link>
-            </div>
+            <HomeHeroActions />
           </div>
         </section>
 

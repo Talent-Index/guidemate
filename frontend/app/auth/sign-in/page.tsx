@@ -102,7 +102,7 @@ function SignInForm() {
     <SignedInRedirect>
       <FormShell
         title="Sign in"
-        subtitle="Tourists and guides sign in here. New guides can create a beta account without waiting for TRA vetting."
+        subtitle="Tourists and guides sign in here. New guides can create a beta account without waiting for vetting."
         footer={
           <>
             Don&apos;t have an account?{" "}

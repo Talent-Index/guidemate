@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import { StreamRoom } from "@/components/StreamRoom";
 import { parseUnits } from "viem";
 import { useAccount, useChainId, useSwitchChain, useWriteContract } from "wagmi";
@@ -58,8 +58,9 @@ const LIVEKIT_TOKEN_REFRESH_MS = 45 * 60 * 1000;
 export default function LiveStreamPage() {
   const params = useParams<{ streamId: string }>();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const streamRouteKey = params.streamId;
-  const { session, profile } = useAuth();
+  const { session, profile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const { address } = useAccount();
   const chainId = useChainId();
@@ -97,6 +98,9 @@ export default function LiveStreamPage() {
 
   const isGuide = Boolean(session && stream && session.user.id === stream.guideId);
   const needsPayment = Boolean(stream && stream.status === "live" && stream.priceUsdc > 0 && !isGuide && !token);
+  const mustSignInToWatch = Boolean(stream?.status === "live" && !session && !token);
+  const signInReturnPath = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+  const signInHref = `/auth/sign-in?returnTo=${encodeURIComponent(signInReturnPath)}`;
 
   const refreshTips = useCallback(async () => {
     try {
@@ -146,10 +150,14 @@ export default function LiveStreamPage() {
   }, [stream, mpesaPhone]);
 
   async function handleJoin(opts?: { txHash?: string; paymentIntentId?: string }) {
+    if (!session?.access_token) {
+      setError("Sign in to watch this stream.");
+      return;
+    }
     setJoining(true);
     setError(null);
     try {
-      const result = await joinStream(apiStreamId, session?.access_token, opts);
+      const result = await joinStream(apiStreamId, session.access_token, opts);
       setToken(result.token);
       setRole(result.role);
       setStream(result.stream);
@@ -182,17 +190,17 @@ export default function LiveStreamPage() {
   const autoJoinStarted = useRef(false);
   useEffect(() => {
     if (!stream || stream.status !== "live" || token || joining || !LIVEKIT_URL) return;
+    if (!session) return;
     if (needsPayment) return;
-    if (!isGuide && stream.priceUsdc > 0) return;
     if (autoJoinStarted.current) return;
     autoJoinStarted.current = true;
     void handleJoinStable();
-  }, [stream, token, joining, needsPayment, isGuide, LIVEKIT_URL, handleJoinStable]);
+  }, [stream, token, joining, needsPayment, isGuide, LIVEKIT_URL, handleJoinStable, session]);
 
   useEffect(() => {
-    if (!token || stream?.status !== "live") return;
+    if (!token || stream?.status !== "live" || !session?.access_token) return;
     const refresh = () => {
-      void joinStream(apiStreamId, session?.access_token)
+      void joinStream(apiStreamId, session.access_token, undefined)
         .then((result) => {
           setToken(result.token);
           setRole(result.role);
@@ -661,6 +669,29 @@ export default function LiveStreamPage() {
                 </div>
                 <StreamRoom serverUrl={LIVEKIT_URL} token={token} isPublisher={role === "publisher"} />
               </div>
+            ) : authLoading && stream.status === "live" ? (
+              <Card className="flex items-center justify-center p-10 sm:p-12">
+                <p className="text-sm font-medium text-brand-muted">Loading…</p>
+              </Card>
+            ) : mustSignInToWatch ? (
+              <Card className="p-6 sm:p-8">
+                <h2 className="text-lg font-bold text-brand-blueDark">Sign in to watch</h2>
+                <p className="mt-2 text-sm text-brand-muted">
+                  Live streams require a Guidemate account so we can count viewers and keep the community accountable.
+                </p>
+                <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                  <Link href={signInHref} className="sm:flex-1">
+                    <Button variant="primary" className="w-full">
+                      Sign in
+                    </Button>
+                  </Link>
+                  <Link href={`/auth/sign-up?returnTo=${encodeURIComponent(signInReturnPath)}`} className="sm:flex-1">
+                    <Button variant="secondary" className="w-full">
+                      Create account
+                    </Button>
+                  </Link>
+                </div>
+              </Card>
             ) : needsPayment ? (
               <Card className="p-6 sm:p-8">
                 <h2 className="flex flex-wrap items-baseline gap-2 text-lg font-bold text-brand-blueDark">
@@ -736,9 +767,13 @@ export default function LiveStreamPage() {
             ) : (
               <Card className="flex flex-wrap items-center justify-between gap-3 p-6 sm:p-8">
                 <p className="text-sm text-brand-muted">
-                  {isGuide ? "Ready to publish from this device." : "Join as a viewer - free stream."}
+                  {isGuide ? "Ready to publish from this device." : "You’re signed in — tap below to join the stream."}
                 </p>
-                <Button variant="primary" disabled={joining || !LIVEKIT_URL} onClick={() => handleJoin()}>
+                <Button
+                  variant="primary"
+                  disabled={joining || !LIVEKIT_URL || !session}
+                  onClick={() => handleJoin()}
+                >
                   {joining ? "Joining..." : isGuide ? "Start broadcasting" : "Watch now"}
                 </Button>
               </Card>
@@ -829,15 +864,6 @@ export default function LiveStreamPage() {
               )}
             </Card>
 
-            {profile?.role !== "guide" && !session && (
-              <p className="text-xs text-brand-muted">
-                Watching as a guest.{" "}
-                <Link href="/auth/sign-in" className="font-semibold text-brand-accent">
-                  Sign in
-                </Link>{" "}
-                if you want tips attributed to you.
-              </p>
-            )}
           </aside>
         </div>
       </div>

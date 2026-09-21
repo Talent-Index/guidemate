@@ -211,7 +211,11 @@ streamsRouter.post("/:id/join-token", async (req, res) => {
   }
 
   const userId = await getUserIdFromAuthHeader(req.headers.authorization);
-  const isGuide = Boolean(userId && userId === stream.guideId);
+  if (!userId) {
+    return res.status(401).json({ error: "sign in required to watch live streams" });
+  }
+
+  const isGuide = userId === stream.guideId;
 
   if (!isGuide && stream.priceUsdc > 0) {
     const hasAccess = userId ? await hasStreamAccess(stream.id, userId) : false;
@@ -274,10 +278,10 @@ streamsRouter.post("/:id/join-token", async (req, res) => {
       });
     }
 
-    const identity = userId ?? `viewer-${randomUUID()}`;
+    const identity = userId;
     const joinMetrics = await recordStreamJoin({
       streamId: stream.id,
-      profileId: userId ?? null,
+      profileId: userId,
       viewerIdentity: identity,
     });
 

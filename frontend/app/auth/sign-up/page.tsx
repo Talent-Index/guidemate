@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, type FormEvent } from "react";
+import { Suspense, useState, useEffect, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormField, FormShell } from "@/components/ui/FormShell";
 import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
@@ -15,7 +15,7 @@ import { useToast } from "@/components/ui/Toast";
 
 const ROLE = "tourist" as const;
 
-export default function SignUpPage() {
+function SignUpForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { refreshProfile } = useAuth();
@@ -202,5 +202,13 @@ export default function SignUpPage() {
         </form>
       </FormShell>
     </SignedInRedirect>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={<p className="p-8 text-center text-sm text-brand-muted">Loading…</p>}>
+      <SignUpForm />
+    </Suspense>
   );
 }

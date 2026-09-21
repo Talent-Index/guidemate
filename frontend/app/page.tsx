@@ -1,7 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
-import { LiveNowSection } from "@/components/live/LiveNowSection";
+import { LiveStreamsShowcase } from "@/components/live/LiveStreamsShowcase";
+import { HomeHeroActions } from "@/components/marketing/HomeHeroActions";
 
 const OFFERINGS = [
   {
@@ -29,6 +30,10 @@ const OFFERINGS = [
 
 const FEATURES = [
   {
+    title: "Live streams",
+    body: "Guides go live from their phone — free walks or pay-per-view. Tips and tickets settle fast; recordings stay on Guidemate.",
+  },
+  {
     title: "Book a local guide",
     body: "Browse food, safari and culture experiences and lock a slot in a few taps.",
   },
@@ -38,19 +43,15 @@ const FEATURES = [
   },
   {
     title: "On-chain escrow",
-    body: "Payment locks in GuidemateEscrow on Avalanche until the trip is confirmed complete.",
+    body: "Trip payment locks in escrow until the experience is confirmed complete.",
   },
   {
     title: "End trip PIN or QR",
     body: "The tourist reveals a 6-digit PIN and QR. The guide enters the PIN or scans to get paid.",
   },
   {
-    title: "Live streams",
-    body: "Guides and creators go live from their phone - free or pay-per-view, with recordings after.",
-  },
-  {
     title: "Guide dashboard",
-    body: "Publish listings, set an M-Pesa number, provision a payout wallet, and track past tours.",
+    body: "Go live, publish listings, set M-Pesa, and track earnings in one place.",
   },
 ];
 
@@ -101,47 +102,29 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20" />
           <div className="relative mx-auto flex min-h-[100svh] max-w-6xl flex-col items-start justify-center px-4 pb-20 pt-28">
-            <h1 className="max-w-3xl text-4xl font-bold leading-[1.1] tracking-tight text-white sm:text-6xl">
-              Local experiences,
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/70">Live-first travel</p>
+            <h1 className="mt-3 max-w-3xl text-4xl font-bold leading-[1.1] tracking-tight text-white sm:text-6xl">
+              Watch locals live.
               <br />
-              curated with trust.
+              Book them when you&apos;re ready.
             </h1>
             <p className="mt-6 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg">
-              Guidemate connects travelers with independent local guides - vetted over time by an AI
-              reputation agent, verified on completion, paid instantly.
+              Guidemate is built around live streams — city walks, markets, safari prep, and creator tours in real
+              time. Join free or pay-per-view, then book the same vetted guide for an in-person trip.
             </p>
-            <div className="mt-10 flex flex-wrap items-center gap-3">
-              <Link
-                href="/live"
-                className="bg-brand-amber px-7 py-3 text-sm font-semibold text-brand-blueDark transition hover:bg-brand-amberDark"
-              >
-                Watch live
-              </Link>
-              <Link
-                href="/explore"
-                className="border border-white/40 bg-white/10 px-7 py-3 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20"
-              >
-                Book an experience
-              </Link>
-              <Link
-                href="/auth/sign-up/guide"
-                className="bg-brand-blue px-7 py-3 text-sm font-semibold text-white transition hover:bg-brand-accent"
-              >
-                Go live as a guide
-              </Link>
-            </div>
+            <HomeHeroActions />
           </div>
         </section>
 
-        <LiveNowSection />
+        <LiveStreamsShowcase />
 
         <section id="features" className="bg-[var(--gm-canvas)]">
           <div className="mx-auto max-w-6xl px-4 py-24">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-accent">The platform</p>
             <h2 className="mt-3 max-w-lg text-3xl font-bold tracking-tight sm:text-4xl">What Guidemate actually does</h2>
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-brand-muted">
-              One product for booking a local, locking payment, proving the trip happened, and paying
-              the guide the same day.
+              Live streaming is the front door — booking, escrow, and same-day payouts sit behind the same trusted
+              guides.
             </p>
             <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
               {FEATURES.map((item) => (

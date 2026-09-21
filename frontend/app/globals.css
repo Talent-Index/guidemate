@@ -135,6 +135,32 @@ html.dark .shadow-card {
   display: none !important;
 }
 
+/* Full-screen host video (TikTok / IG Live style) */
+.gm-stream-shell [data-lk-theme="default"] {
+  height: 100%;
+  width: 100%;
+}
+
+.gm-stream-host-video video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center;
+}
+
+.gm-stream-shell .lk-control-bar {
+  background: transparent !important;
+  border: none !important;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.gm-stream-shell .lk-button-group-menu {
+  background: rgba(255, 255, 255, 0.12) !important;
+  backdrop-filter: blur(8px);
+  border-radius: 9999px !important;
+}
+
 .gm-stream-grid .lk-participant-tile {
   border-radius: 0.75rem;
   overflow: hidden;

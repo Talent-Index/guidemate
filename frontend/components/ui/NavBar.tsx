@@ -6,6 +6,7 @@ import { BrandLogo } from "@/components/ui/BrandLogo";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { homeForRole } from "@/lib/auth/home";
+import { destinationIfSignedIn } from "@/lib/auth/gatedPath";
 import { isSuperAdmin } from "@/lib/auth/roles";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import {
@@ -85,6 +86,8 @@ export function NavBar() {
     : "text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-800 transition hover:text-black dark:text-white dark:hover:text-white";
   const dashboardSettings = pathname.startsWith("/guide/dashboard") && searchParams.get("tab") === "settings";
   const showNavAccountActions = !signedIn;
+  const exploreHref = destinationIfSignedIn("/explore", signedIn);
+  const liveHref = destinationIfSignedIn("/live", signedIn);
 
   return (
     <header
@@ -204,11 +207,14 @@ export function NavBar() {
           ) : (
             <div className="flex items-center">
               <div className="flex items-center gap-6 px-4 py-2">
-                <Link href="/explore" className={linkClass}>
+                <Link href={exploreHref} className={linkClass}>
                   Explore
                 </Link>
-                <Link href="/live" className={linkClass}>
+                <Link href={liveHref} className={linkClass}>
                   Livestream
+                </Link>
+                <Link href="/apply" className={linkClass}>
+                  Apply as guide
                 </Link>
               </div>
               <Link
@@ -224,13 +230,18 @@ export function NavBar() {
 
         <div className="flex items-center gap-2 md:hidden">
           {showNavAccountActions && <ThemeToggle />}
-          {!signedIn && pathname === "/" && (
-            <Link
-              href="/auth/sign-in"
-              className="bg-brand-amber px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[#111111] transition hover:bg-brand-amberDark"
-            >
-              Sign in
-            </Link>
+          {!signedIn && (
+            <>
+              <Link href="/apply" className={`${linkClass} py-2 text-[10px] tracking-[0.12em]`}>
+                Apply as guide
+              </Link>
+              <Link
+                href="/auth/sign-in"
+                className="bg-brand-amber px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[#111111] transition hover:bg-brand-amberDark"
+              >
+                Sign in
+              </Link>
+            </>
           )}
         </div>
       </div>

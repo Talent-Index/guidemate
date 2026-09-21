@@ -647,27 +647,32 @@ export default function LiveStreamPage() {
             )}
 
             {token && LIVEKIT_URL ? (
-              <div className="relative overflow-hidden rounded-2xl border border-brand-border shadow-card" data-lk-theme="default">
-                <div className="pointer-events-none absolute left-3 top-3 z-20 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white">
+              <div
+                className="relative -mx-4 w-[calc(100%+2rem)] overflow-hidden border-y border-brand-border bg-black sm:mx-0 sm:w-full sm:rounded-2xl sm:border sm:shadow-card"
+                data-lk-theme="default"
+              >
+                <div className="pointer-events-none absolute left-3 top-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-semibold text-white sm:text-xs">
                     {stats.viewerCount} watching · peak {stats.peakViewerCount}
                   </span>
-                  <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white">
+                  <span className="hidden rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white sm:inline">
                     {stats.uniqueJoins} viewers joined
                   </span>
-                  <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white">
-                    {stats.reactionCount + flowers} flowers
+                  <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                    Live
                   </span>
                   <button
                     type="button"
                     onClick={handleTapFlower}
-                    className="pointer-events-auto rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-black/80"
+                    className="pointer-events-auto rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-semibold text-white transition hover:bg-black/80 sm:text-xs"
                     aria-label="Send a flower"
                   >
                     🌸 Flower
                   </button>
                 </div>
-                <StreamRoom serverUrl={LIVEKIT_URL} token={token} isPublisher={role === "publisher"} />
+                <div className="aspect-[9/16] w-full max-h-[min(85dvh,780px)] sm:aspect-video sm:max-h-[min(70vh,560px)]">
+                  <StreamRoom serverUrl={LIVEKIT_URL} token={token} isPublisher={role === "publisher"} />
+                </div>
               </div>
             ) : authLoading && stream.status === "live" ? (
               <Card className="flex items-center justify-center p-10 sm:p-12">

@@ -7,8 +7,12 @@ import { Chip } from "@/components/ui/Chip";
 import { listLiveStreams, type LiveStreamRecord } from "@/lib/api";
 import { getStreamSharePath } from "@/lib/share";
 import { KesPrice } from "@/lib/fx";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { destinationIfSignedIn } from "@/lib/auth/gatedPath";
 
 export function LiveNowSection() {
+  const { session } = useAuth();
+  const signedIn = Boolean(session);
   const [streams, setStreams] = useState<LiveStreamRecord[]>([]);
 
   useEffect(() => {
@@ -39,7 +43,7 @@ export function LiveNowSection() {
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-accent">Live now</p>
             <h2 className="mt-1 text-2xl font-bold text-brand-blueDark">Watch guides go live</h2>
           </div>
-          <Link href="/live">
+          <Link href={destinationIfSignedIn("/live", signedIn)}>
             <Button variant="secondary">See all live</Button>
           </Link>
         </div>
@@ -47,7 +51,7 @@ export function LiveNowSection() {
           {streams.map((stream) => (
             <li key={stream.id}>
               <Link
-                href={getStreamSharePath(stream.id, stream.slug)}
+                href={destinationIfSignedIn(getStreamSharePath(stream.id, stream.slug), signedIn)}
                 className="flex h-full flex-col rounded-2xl border border-brand-border bg-white p-4 shadow-card transition hover:border-brand-accent/40"
               >
                 <div className="flex items-start justify-between gap-2">

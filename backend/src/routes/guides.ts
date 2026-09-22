@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getGuideInsights, getGuidePublicProfile } from "../guides.js";
+import { countGuideFollowers, followGuide, isFollowingGuide, unfollowGuide } from "../guideFollows.js";
 import { getUserIdFromAuthHeader, supabaseAdmin } from "../supabase.js";
 import { nextAvailableSlug } from "../slug.js";
 import { provisionGuideWallet } from "../wallet.js";
@@ -78,6 +79,42 @@ guidesRouter.get("/me/insights", async (req, res) => {
   if (!insights) return res.status(403).json({ error: "guide account required" });
 
   res.json({ insights });
+});
+
+guidesRouter.get("/:guideId/follow", async (req, res) => {
+  const guide = await getGuidePublicProfile(req.params.guideId);
+  if (!guide) return res.status(404).json({ error: "guide not found" });
+
+  const userId = await getUserIdFromAuthHeader(req.headers.authorization);
+  const followerCount = await countGuideFollowers(guide.id);
+  const following = userId ? await isFollowingGuide(userId, guide.id) : false;
+  res.json({ following, followerCount, guideId: guide.id });
+});
+
+guidesRouter.post("/:guideId/follow", async (req, res) => {
+  const userId = await getUserIdFromAuthHeader(req.headers.authorization);
+  if (!userId) return res.status(401).json({ error: "sign in required" });
+
+  const guide = await getGuidePublicProfile(req.params.guideId);
+  if (!guide) return res.status(404).json({ error: "guide not found" });
+
+  try {
+    const { followerCount } = await followGuide(userId, guide.id);
+    res.json({ following: true, followerCount });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+guidesRouter.delete("/:guideId/follow", async (req, res) => {
+  const userId = await getUserIdFromAuthHeader(req.headers.authorization);
+  if (!userId) return res.status(401).json({ error: "sign in required" });
+
+  const guide = await getGuidePublicProfile(req.params.guideId);
+  if (!guide) return res.status(404).json({ error: "guide not found" });
+
+  const { followerCount } = await unfollowGuide(userId, guide.id);
+  res.json({ following: false, followerCount });
 });
 
 guidesRouter.get("/:guideId", async (req, res) => {

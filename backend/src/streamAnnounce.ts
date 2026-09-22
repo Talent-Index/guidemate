@@ -1,10 +1,7 @@
+import { frontendBaseUrl, sendTransactionalEmailBatch } from "./email.js";
 import { supabaseAdmin } from "./supabase.js";
 import type { LiveStreamRecord } from "./streams.js";
 import { listFollowerEmails } from "./guideFollows.js";
-
-function frontendUrl(): string {
-  return (process.env.FRONTEND_URL ?? "http://localhost:3000").replace(/\/$/, "");
-}
 
 function streamPublicPath(stream: LiveStreamRecord): string {
   return stream.slug ? `/live/${encodeURIComponent(stream.slug)}` : `/live/${stream.id}`;
@@ -64,38 +61,6 @@ async function collectRecipientPhones(guideId: string): Promise<string[]> {
   return [...phones];
 }
 
-async function sendEmailBatch(opts: {
-  to: string[];
-  subject: string;
-  html: string;
-  text: string;
-}): Promise<number> {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  const from = process.env.RESEND_FROM?.trim() ?? "Guidemate <onboarding@resend.dev>";
-  if (!apiKey || opts.to.length === 0) return 0;
-
-  let sent = 0;
-  for (const to of opts.to) {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to: [to],
-        subject: opts.subject,
-        html: opts.html,
-        text: opts.text,
-      }),
-    });
-    if (res.ok) sent += 1;
-    else console.warn("[streams] Resend failed for", to, await res.text());
-  }
-  return sent;
-}
-
 async function sendSmsBatch(phones: string[], message: string): Promise<number> {
   const apiKey = process.env.AFRICAS_TALKING_API_KEY?.trim();
   const username = process.env.AFRICAS_TALKING_USERNAME?.trim();
@@ -127,7 +92,7 @@ export async function announceStreamToCommunity(stream: LiveStreamRecord): Promi
   smsTargeted: number;
   smsSent: number;
 }> {
-  const link = `${frontendUrl()}${streamPublicPath(stream)}`;
+  const link = `${frontendBaseUrl()}${streamPublicPath(stream)}`;
   const when = stream.scheduledAt
     ? new Date(stream.scheduledAt).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Nairobi" })
     : "soon";
@@ -139,7 +104,7 @@ export async function announceStreamToCommunity(stream: LiveStreamRecord): Promi
   const emails = await collectRecipientEmails(stream.guideId);
   const phones = await collectRecipientPhones(stream.guideId);
 
-  const emailsSent = await sendEmailBatch({ to: emails, subject, html, text });
+  const emailsSent = await sendTransactionalEmailBatch({ to: emails, subject, html, text, from: "notifications" });
   const smsMessage = `${stream.guideName} live: ${stream.title}. ${when}. ${link}`;
   const smsSent = await sendSmsBatch(phones, smsMessage.slice(0, 480));
 
@@ -160,12 +125,12 @@ export async function notifyFollowersStreamIsLive(stream: LiveStreamRecord): Pro
   const emails = await listFollowerEmails(stream.guideId);
   if (emails.length === 0) return 0;
 
-  const link = `${frontendUrl()}${streamPublicPath(stream)}`;
+  const link = `${frontendBaseUrl()}${streamPublicPath(stream)}`;
   const subject = `${stream.guideName} is live now · ${stream.title}`;
   const text = `${stream.guideName} just went live on Guidemate.\n\n${stream.title}\nWatch: ${link}`;
   const html = `<p><strong>${stream.guideName}</strong> is <strong>live now</strong> on Guidemate.</p><p>${stream.title}</p><p><a href="${link}">Join the stream</a></p>`;
 
-  const sent = await sendEmailBatch({ to: emails, subject, html, text });
+  const sent = await sendTransactionalEmailBatch({ to: emails, subject, html, text, from: "notifications" });
   console.info(`[streams] live alert ${stream.id}: emails ${sent}/${emails.length}`);
   return sent;
 }

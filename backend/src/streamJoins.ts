@@ -32,6 +32,48 @@ export async function getStreamJoinMetrics(streamId: string): Promise<{ totalJoi
   return countJoinMetrics(streamId);
 }
 
+export interface StreamViewerRow {
+  profileId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  joinedAt: string;
+  joinCount: number;
+}
+
+export async function listStreamViewers(streamId: string, excludeProfileId?: string): Promise<StreamViewerRow[]> {
+  const { data, error } = await supabaseAdmin
+    .from("stream_join_events")
+    .select("profile_id, joined_at, profiles:profile_id ( full_name, avatar_url )")
+    .eq("stream_id", streamId)
+    .not("profile_id", "is", null)
+    .order("joined_at", { ascending: false });
+
+  if (error || !data) return [];
+
+  const byProfile = new Map<string, StreamViewerRow>();
+  for (const row of data) {
+    const profileId = row.profile_id as string;
+    if (excludeProfileId && profileId === excludeProfileId) continue;
+    const joinedAt = row.joined_at as string;
+    const profile = row.profiles as { full_name?: string; avatar_url?: string | null } | null;
+    const existing = byProfile.get(profileId);
+    if (existing) {
+      existing.joinCount += 1;
+      if (joinedAt > existing.joinedAt) existing.joinedAt = joinedAt;
+    } else {
+      byProfile.set(profileId, {
+        profileId,
+        displayName: profile?.full_name?.trim() || "Viewer",
+        avatarUrl: profile?.avatar_url ?? null,
+        joinedAt,
+        joinCount: 1,
+      });
+    }
+  }
+
+  return [...byProfile.values()].sort((a, b) => b.joinedAt.localeCompare(a.joinedAt));
+}
+
 export async function bumpPeakViewerCount(streamId: string, currentViewers: number): Promise<number> {
   const { data: row } = await supabaseAdmin
     .from("live_streams")

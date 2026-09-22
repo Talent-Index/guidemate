@@ -7,9 +7,9 @@ import {
   requireLiveKit,
   startRecording,
 } from "../livekit.js";
-import { announceStreamToCommunity } from "../streamAnnounce.js";
+import { announceStreamToCommunity, notifyFollowersStreamIsLive } from "../streamAnnounce.js";
 import { closeLiveStreamRecord, reconcileStaleLiveStreams, reconcileStreamIfStale } from "../streamLifecycle.js";
-import { bumpPeakViewerCount, getStreamJoinMetrics, recordStreamJoin } from "../streamJoins.js";
+import { bumpPeakViewerCount, getStreamJoinMetrics, listStreamViewers, recordStreamJoin } from "../streamJoins.js";
 import {
   addStreamComment,
   addStreamReaction,
@@ -75,6 +75,10 @@ async function activateStreamRoom(stream: Awaited<ReturnType<typeof getStreamByI
     recordingUrl: recordingStarted ? recordingUrl : undefined,
   });
   if (!updated) throw new Error("failed to mark stream live");
+
+  void notifyFollowersStreamIsLive(updated).catch((err) => {
+    console.warn("[streams] follower live email failed", (err as Error).message);
+  });
 
   const token = await createLiveKitToken({
     roomName: stream.roomName,
@@ -482,6 +486,20 @@ streamsRouter.post("/:id/reactions", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
+});
+
+streamsRouter.get("/:id/viewers", async (req, res) => {
+  const userId = await getUserIdFromAuthHeader(req.headers.authorization);
+  if (!userId) return res.status(401).json({ error: "sign in required" });
+
+  const stream = await getStreamByIdOrSlug(req.params.id);
+  if (!stream) return res.status(404).json({ error: "stream not found" });
+  if (stream.guideId !== userId) {
+    return res.status(403).json({ error: "only the broadcasting guide can view the audience list" });
+  }
+
+  const viewers = await listStreamViewers(stream.id, stream.guideId);
+  res.json({ viewers });
 });
 
 streamsRouter.get("/:id/stats", async (req, res) => {

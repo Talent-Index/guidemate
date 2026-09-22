@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { listLiveStreams, listUpcomingStreams, type LiveStreamRecord } from "@/lib/api";
 import { getStreamSharePath } from "@/lib/share";
@@ -21,6 +22,17 @@ function StreamCard({ stream, href }: { stream: LiveStreamRecord; href: string }
       className="group flex w-[min(72vw,16rem)] shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-[var(--gm-border)] bg-[var(--gm-surface)] transition hover:border-brand-accent/50 sm:w-64"
     >
       <div className="relative aspect-[9/16] bg-gradient-to-br from-brand-blueDark via-brand-blue to-brand-accent/80">
+        {stream.guideAvatarUrl ? (
+          <Image
+            src={stream.guideAvatarUrl}
+            alt=""
+            fill
+            className="object-cover opacity-90 transition group-hover:scale-[1.02]"
+            sizes="256px"
+            unoptimized={stream.guideAvatarUrl.startsWith("http")}
+          />
+        ) : null}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30" />
         <div className="absolute inset-0 flex flex-col justify-between p-3">
           <span
             className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${

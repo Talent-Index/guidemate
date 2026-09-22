@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "./supabase.js";
 import type { LiveStreamRecord } from "./streams.js";
+import { listFollowerEmails } from "./guideFollows.js";
 
 function frontendUrl(): string {
   return (process.env.FRONTEND_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -17,6 +18,9 @@ async function collectRecipientEmails(guideId: string): Promise<string[]> {
     const email = (row.email as string | undefined)?.trim().toLowerCase();
     if (email) emails.add(email);
   }
+
+  const followerEmails = await listFollowerEmails(guideId);
+  for (const email of followerEmails) emails.add(email);
 
   const { data: bookings } = await supabaseAdmin
     .from("bookings")
@@ -149,4 +153,19 @@ export async function announceStreamToCommunity(stream: LiveStreamRecord): Promi
     smsTargeted: phones.length,
     smsSent,
   };
+}
+
+/** Email followers when a stream goes live (instant go-live). */
+export async function notifyFollowersStreamIsLive(stream: LiveStreamRecord): Promise<number> {
+  const emails = await listFollowerEmails(stream.guideId);
+  if (emails.length === 0) return 0;
+
+  const link = `${frontendUrl()}${streamPublicPath(stream)}`;
+  const subject = `${stream.guideName} is live now · ${stream.title}`;
+  const text = `${stream.guideName} just went live on Guidemate.\n\n${stream.title}\nWatch: ${link}`;
+  const html = `<p><strong>${stream.guideName}</strong> is <strong>live now</strong> on Guidemate.</p><p>${stream.title}</p><p><a href="${link}">Join the stream</a></p>`;
+
+  const sent = await sendEmailBatch({ to: emails, subject, html, text });
+  console.info(`[streams] live alert ${stream.id}: emails ${sent}/${emails.length}`);
+  return sent;
 }

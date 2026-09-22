@@ -17,6 +17,7 @@ export interface LiveStreamRecord {
   id: string;
   guideId: string;
   guideName: string;
+  guideAvatarUrl: string | null;
   guideWallet: string | null;
   experienceId: string | null;
   experienceTitle: string | null;
@@ -37,7 +38,7 @@ export interface LiveStreamRecord {
 const SELECT = `
   id, guide_id, experience_id, room_name, title, slug, status, price_usdc,
   scheduled_at, community_notified_at, started_at, ended_at, recording_url, egress_id, created_at,
-  guide:guide_id ( full_name, wallet_address ),
+  guide:guide_id ( full_name, wallet_address, avatar_url ),
   experience:experience_id ( title )
 `;
 
@@ -47,6 +48,7 @@ function toStreamRecord(row: any): LiveStreamRecord {
     id: row.id,
     guideId: row.guide_id,
     guideName: row.guide?.full_name ?? "Guide",
+    guideAvatarUrl: row.guide?.avatar_url ?? null,
     guideWallet: row.guide?.wallet_address ?? null,
     experienceId: row.experience_id,
     experienceTitle: row.experience?.title ?? null,

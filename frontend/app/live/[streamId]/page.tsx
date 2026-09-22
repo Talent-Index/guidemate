@@ -38,6 +38,7 @@ import {
   type StreamTip,
 } from "@/lib/api";
 import { StreamMetricsCard } from "@/components/live/StreamMetricsCard";
+import { FollowGuideButton, StreamViewersPanel } from "@/components/live/GuideFollowAndViewers";
 import { BASE_EXPLORER_TX, BASE_USDC_ADDRESS, splitStreamRevenue } from "@/lib/streamRevenue";
 import { base } from "@/lib/wagmi";
 import { Price } from "@/lib/fx";
@@ -95,6 +96,7 @@ export default function LiveStreamPage() {
     tipTotalUsdc: 0,
   });
   const [flowers, setFlowers] = useState(0);
+  const [mobilePanel, setMobilePanel] = useState<null | "chat" | "tip">(null);
 
   const isGuide = Boolean(session && stream && session.user.id === stream.guideId);
   const needsPayment = Boolean(stream && stream.status === "live" && stream.priceUsdc > 0 && !isGuide && !token);
@@ -455,7 +457,7 @@ export default function LiveStreamPage() {
 
   if (stream.status === "ended") {
     return (
-      <EndedStreamView stream={stream} apiStreamId={apiStreamId} isGuide={isGuide} />
+      <EndedStreamView stream={stream} apiStreamId={apiStreamId} isGuide={isGuide} session={session} />
     );
   }
 
@@ -603,6 +605,7 @@ export default function LiveStreamPage() {
   }
 
   const showEndBar = isGuide && stream.status === "live" && Boolean(token);
+  const immersiveWatch = Boolean(token && stream.status === "live" && !isGuide);
 
   return (
     <div className={`mx-auto w-full max-w-6xl ${showEndBar ? "pb-28" : "pb-8"}`}>
@@ -648,7 +651,11 @@ export default function LiveStreamPage() {
 
             {token && LIVEKIT_URL ? (
               <div
-                className="relative -mx-4 w-[calc(100%+2rem)] overflow-hidden border-y border-brand-border bg-black sm:mx-0 sm:w-full sm:rounded-2xl sm:border sm:shadow-card"
+                className={`relative overflow-hidden border-brand-border bg-black ${
+                  immersiveWatch
+                    ? "fixed inset-x-0 top-14 z-30 max-lg:bottom-16 max-lg:rounded-none max-lg:border-y lg:relative lg:z-auto lg:rounded-2xl lg:border lg:shadow-card"
+                    : "-mx-4 w-[calc(100%+2rem)] border-y sm:mx-0 sm:w-full sm:rounded-2xl sm:border sm:shadow-card"
+                }`}
                 data-lk-theme="default"
               >
                 <div className="pointer-events-none absolute left-3 top-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2">
@@ -670,7 +677,13 @@ export default function LiveStreamPage() {
                     🌸 Flower
                   </button>
                 </div>
-                <div className="aspect-[9/16] w-full max-h-[min(85dvh,780px)] sm:aspect-video sm:max-h-[min(70vh,560px)]">
+                <div
+                  className={`w-full bg-black ${
+                    immersiveWatch
+                      ? "h-[calc(100dvh-7.5rem)] max-lg:h-full lg:aspect-video lg:max-h-[min(70vh,560px)]"
+                      : "aspect-[9/16] max-h-[min(85dvh,780px)] sm:aspect-video sm:max-h-[min(70vh,560px)]"
+                  }`}
+                >
                   <StreamRoom serverUrl={LIVEKIT_URL} token={token} isPublisher={role === "publisher"} />
                 </div>
               </div>
@@ -787,9 +800,15 @@ export default function LiveStreamPage() {
             {error && <p className="text-sm text-red-600">{error}</p>}
           </div>
 
-          <aside className="flex flex-col gap-4 lg:col-span-4 lg:sticky lg:top-24 lg:self-start">
+          <aside className={`flex flex-col gap-4 lg:col-span-4 lg:sticky lg:top-24 lg:self-start ${immersiveWatch ? "max-lg:hidden" : ""}`}>
+            {isGuide && session?.access_token && token && (
+              <StreamViewersPanel streamId={apiStreamId} accessToken={session.access_token} />
+            )}
             {isGuide && (
               <StreamMetricsCard stats={stats} title="Your stream metrics" />
+            )}
+            {!isGuide && stream.status === "live" && (
+              <FollowGuideButton guideId={stream.guideId} variant="secondary" />
             )}
             <Card className="p-5 sm:p-6">
               <h2 className="text-sm font-bold text-brand-blueDark">Live chat</h2>
@@ -873,6 +892,102 @@ export default function LiveStreamPage() {
         </div>
       </div>
 
+      {immersiveWatch && (
+        <>
+          <div className="fixed inset-x-0 bottom-0 z-40 flex border-t border-brand-border bg-[var(--gm-nav)] pb-[env(safe-area-inset-bottom)] lg:hidden">
+            <button
+              type="button"
+              className="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold text-brand-blueDark"
+              onClick={() => setMobilePanel("chat")}
+            >
+              💬 Chat
+            </button>
+            <button
+              type="button"
+              className="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold text-brand-blueDark"
+              onClick={handleTapFlower}
+            >
+              🌸 Flower
+            </button>
+            <button
+              type="button"
+              className="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold text-brand-blueDark"
+              onClick={() => setMobilePanel("tip")}
+            >
+              Tip
+            </button>
+          </div>
+
+          {mobilePanel && (
+            <div className="fixed inset-0 z-50 flex flex-col justify-end lg:hidden">
+              <button
+                type="button"
+                className="absolute inset-0 bg-black/55"
+                aria-label="Close panel"
+                onClick={() => setMobilePanel(null)}
+              />
+              <div className="relative max-h-[78dvh] overflow-y-auto rounded-t-2xl bg-[var(--gm-surface)] px-4 pb-[env(safe-area-inset-bottom)] pt-4 shadow-xl">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-brand-blueDark">
+                    {mobilePanel === "chat" ? "Live chat" : "Tip the guide"}
+                  </h3>
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-brand-muted"
+                    onClick={() => setMobilePanel(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+                {mobilePanel === "chat" ? (
+                  <>
+                    <ul className="max-h-48 space-y-2 overflow-y-auto">
+                      {comments.map((c) => (
+                        <li key={c.id} className="text-sm">
+                          <span className="font-semibold text-brand-blueDark">{c.displayName}</span>{" "}
+                          <span className="text-brand-muted">{c.body}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <form onSubmit={handlePostComment} className="mt-3 flex gap-2 border-t border-brand-border pt-3">
+                      <input
+                        className="form-input-light flex-1 text-sm"
+                        placeholder="Say something…"
+                        value={commentBody}
+                        onChange={(e) => setCommentBody(e.target.value)}
+                      />
+                      <Button type="submit" variant="secondary" disabled={!commentBody.trim()}>
+                        Send
+                      </Button>
+                    </form>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-brand-muted">85% to your guide · 15% Guidemate</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <WalletConnectButton />
+                      <input
+                        className="form-input-light w-24"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={tipAmount}
+                        onChange={(e) => setTipAmount(e.target.value)}
+                        aria-label="Tip amount in USDC"
+                      />
+                      <Button variant="secondary" disabled={!address || writing || !stream.guideWallet} onClick={handleTip}>
+                        {writing ? "Sending..." : "Send tip"}
+                      </Button>
+                    </div>
+                    {payError && <p className="mt-2 text-sm text-red-600">{payError}</p>}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
       {showEndBar && (
         <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-40 px-4 md:bottom-6 md:mx-auto md:max-w-lg">
           <button
@@ -895,10 +1010,12 @@ function EndedStreamView({
   stream,
   apiStreamId,
   isGuide,
+  session,
 }: {
   stream: LiveStreamRecord;
   apiStreamId: string;
   isGuide: boolean;
+  session: import("@supabase/supabase-js").Session | null;
 }) {
   const router = useRouter();
   const [stats, setStats] = useState<StreamStats | null>(null);
@@ -929,7 +1046,23 @@ function EndedStreamView({
 
       {stats && isGuide && <StreamMetricsCard stats={stats} title="Stream recap" compact />}
 
+      {isGuide && session?.access_token && (
+        <StreamViewersPanel streamId={apiStreamId} accessToken={session.access_token} compact />
+      )}
+
+      {!isGuide && <FollowGuideButton guideId={stream.guideId} variant="secondary" />}
+
       <div className="flex flex-col gap-2">
+        {!isGuide && (
+          <Button
+            variant="primary"
+            className="w-full"
+            type="button"
+            onClick={() => router.push(getGuideSharePath(stream.guideId))}
+          >
+            Book this guide
+          </Button>
+        )}
         {isGuide && (
           <Button variant="primary" className="w-full" type="button" onClick={() => router.push("/live")}>
             Host another stream
@@ -949,7 +1082,7 @@ function EndedStreamView({
           type="button"
           onClick={() => router.push(getGuideSharePath(stream.guideId))}
         >
-          View guide profile
+          {isGuide ? "View your public profile" : "View guide profile"}
         </Button>
         {isGuide && (
           <Button variant="secondary" className="w-full" type="button" onClick={() => router.push("/guide/dashboard")}>

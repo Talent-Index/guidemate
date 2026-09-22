@@ -28,8 +28,9 @@ async function fetchStreamMeta(streamIdOrSlug: string) {
   }
 }
 
-export async function generateMetadata({ params }: { params: { streamId: string } }): Promise<Metadata> {
-  const stream = await fetchStreamMeta(params.streamId);
+export async function generateMetadata({ params }: { params: Promise<{ streamId: string }> }): Promise<Metadata> {
+  const { streamId } = await params;
+  const stream = await fetchStreamMeta(streamId);
   const appUrl = appBase();
 
   if (!stream) {

@@ -6,11 +6,8 @@ export async function followGuide(followerId: string, guideId: string): Promise<
   const { data: guide } = await supabaseAdmin.from("profiles").select("id, role").eq("id", guideId).maybeSingle();
   if (!guide || guide.role !== "guide") throw new Error("guide not found");
 
-  const { error } = await supabaseAdmin.from("guide_follows").upsert(
-    { follower_id: followerId, guide_id: guideId },
-    { onConflict: "follower_id,guide_id", ignoreDuplicates: false }
-  );
-  if (error) throw new Error(error.message);
+  const { error } = await supabaseAdmin.from("guide_follows").insert({ follower_id: followerId, guide_id: guideId });
+  if (error && !error.message.includes("duplicate")) throw new Error(error.message);
 
   const count = await countGuideFollowers(guideId);
   return { followerCount: count };

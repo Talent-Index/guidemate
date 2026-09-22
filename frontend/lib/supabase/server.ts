@@ -3,8 +3,8 @@ import { cookies } from "next/headers";
 
 /// Server Component / Route Handler Supabase client. Reads the user's session
 /// from cookies so server-rendered pages can know who's signed in.
-export function createClient() {
-  const cookieStore = cookies();
+export async function createClient() {
+  const cookieStore = await cookies();
 
   return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     cookies: {

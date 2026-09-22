@@ -14,6 +14,7 @@ import { ProfilePageSkeleton } from "@/components/ui/Skeleton";
 import { getGuideProfile, type GuidePublicProfile } from "@/lib/api";
 import { Price } from "@/lib/fx";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
+import { FollowGuideButton } from "@/components/live/GuideFollowAndViewers";
 import { getExperienceSharePath, getGuideSharePath } from "@/lib/share";
 
 export default function GuideProfilePage() {
@@ -121,6 +122,9 @@ export default function GuideProfilePage() {
             value={guide.ratingCount ? guide.ratingAvg.toFixed(1) : "-"}
             className="col-span-2 sm:col-span-1"
           />
+        </div>
+        <div className="mt-5 max-w-sm">
+          <FollowGuideButton guideId={guide.id} variant="primary" />
         </div>
       </Card>
 

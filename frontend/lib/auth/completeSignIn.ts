@@ -4,7 +4,7 @@ import { homeForRole, type AccountRole } from "@/lib/auth/home";
 import { ensureTouristProfile } from "@/lib/auth/ensureProfile";
 import { inferInviteFlowFromProfile, type AuthCallbackFlow } from "@/lib/auth/callbackSession";
 import { consumeAuthReturnTo } from "@/lib/auth/returnTo";
-import { registerOpenGuide } from "@/lib/api";
+import { registerOpenGuide, sendWelcomeEmail } from "@/lib/api";
 import { clearPendingOpenGuideProfile, readPendingOpenGuideProfile } from "@/lib/auth/openGuideSignup";
 
 type SupabaseClient = ReturnType<typeof createClient>;
@@ -21,6 +21,9 @@ export async function destinationAfterAuth(opts: {
   const meta = user.user_metadata as Record<string, unknown> | undefined;
 
   if (flow === "recovery") return "/auth/reset-password";
+
+  // Fire-and-forget welcome email; backend sends it only once per account.
+  void sendWelcomeEmail(session.access_token).catch(() => {});
 
   const needsGuideInviteSetup =
     flow === "invite" || (hadCallbackParams && (await inferInviteFlowFromProfile(supabase, user.id)));

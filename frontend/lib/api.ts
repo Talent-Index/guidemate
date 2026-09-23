@@ -496,6 +496,14 @@ export function registerOpenGuide(accessToken: string) {
   });
 }
 
+/** Fire-and-forget: sends a one-time welcome email. No-ops after the first send. */
+export function sendWelcomeEmail(accessToken: string) {
+  return request<{ ok: true; sent: boolean }>("/api/notifications/welcome", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+  });
+}
+
 export function getStream(streamIdOrSlug: string) {
   return request<{ stream: LiveStreamRecord }>(`/api/streams/${encodeURIComponent(streamIdOrSlug)}`);
 }

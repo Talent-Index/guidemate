@@ -29,7 +29,7 @@ export default function GuideSignUpPage() {
   async function finishGuideSignup(accessToken: string) {
     await registerOpenGuide(accessToken);
     await refreshProfile();
-    toast("Guide account ready — welcome to Guidemate", "success");
+    toast("Guide account ready. Welcome to Guidemate", "success");
     router.replace(homeForRole("guide"));
   }
 

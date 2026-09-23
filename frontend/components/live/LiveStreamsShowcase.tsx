@@ -111,7 +111,7 @@ export function LiveStreamsShowcase() {
           <div className="max-w-md">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-accent">Live</p>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-brand-blueDark sm:text-3xl">On air &amp; coming up</h2>
-            <p className="mt-2 text-sm text-brand-muted">Tap a stream to watch — sign in when you join.</p>
+            <p className="mt-2 text-sm text-brand-muted">Tap a stream to watch. Sign in when you join.</p>
           </div>
           <Link
             href={liveHref}

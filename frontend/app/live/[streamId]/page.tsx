@@ -785,7 +785,7 @@ export default function LiveStreamPage() {
             ) : (
               <Card className="flex flex-wrap items-center justify-between gap-3 p-6 sm:p-8">
                 <p className="text-sm text-brand-muted">
-                  {isGuide ? "Ready to publish from this device." : "You’re signed in — tap below to join the stream."}
+                  {isGuide ? "Ready to publish from this device." : "You’re signed in. Tap below to join the stream."}
                 </p>
                 <Button
                   variant="primary"

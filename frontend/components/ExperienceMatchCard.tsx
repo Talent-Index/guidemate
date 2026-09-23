@@ -54,7 +54,7 @@ export function ExperienceMatchCard({
       <Card className="text-center sm:text-left">
         <h2 className="text-lg font-bold text-brand-blueDark">Describe your ideal experience</h2>
         <p className="mt-1 text-sm text-brand-muted">
-          Sign in with a short description of what you want. We match you to vetted guides — or suggest what&apos;s
+          Sign in with a short description of what you want. We match you to vetted guides, or suggest what&apos;s
           available today.
         </p>
         <div className="mt-4 flex flex-wrap justify-center gap-3 sm:justify-start">
@@ -76,7 +76,7 @@ export function ExperienceMatchCard({
     >
       <h2 className="text-lg font-bold text-brand-blueDark">Describe your experience</h2>
       <p className="mt-1 text-sm text-brand-muted">
-        Tell us what you&apos;re looking for in a sentence or two. We&apos;ll match you with the best guide — or
+        Tell us what you&apos;re looking for in a sentence or two. We&apos;ll match you with the best guide, or
         recommend similar experiences that are bookable now.
       </p>
 
@@ -120,7 +120,7 @@ export function ExperienceMatchCard({
             </p>
             {!match.exactMatch && (
               <p className="mt-1 text-xs text-brand-muted">
-                That exact trip isn&apos;t listed yet — here&apos;s the nearest fit on Guidemate.
+                That exact trip isn&apos;t listed yet. Here&apos;s the nearest fit on Guidemate.
               </p>
             )}
             <MatchedExperience experience={match.experience} reason={match.reason} />

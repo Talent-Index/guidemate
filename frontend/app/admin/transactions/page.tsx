@@ -182,13 +182,13 @@ export default function AdminTransactionsPage() {
                         {tx.amountUsdc.toLocaleString()}
                       </td>
                       <td className="border-t border-brand-border/60 px-3 py-2 text-right text-brand-muted">
-                        {tx.amountKes != null ? tx.amountKes.toLocaleString() : "—"}
+                        {tx.amountKes != null ? tx.amountKes.toLocaleString() : "-"}
                       </td>
                       <td className="border-t border-brand-border/60 px-3 py-2 text-xs text-brand-muted">
                         {tx.referenceId ?? `${tx.id.slice(0, 8)}…`}
                       </td>
                       <td className="border-t border-brand-border/60 px-3 py-2 text-xs text-brand-muted">
-                        {tx.mpesaRef ?? "—"}
+                        {tx.mpesaRef ?? "-"}
                       </td>
                       <td className="border-t border-brand-border/60 px-3 py-2">
                         <span

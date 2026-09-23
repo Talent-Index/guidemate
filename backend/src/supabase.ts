@@ -37,7 +37,7 @@ export async function getAdminUserIdFromAuthHeader(authHeader: string | undefine
   return userId;
 }
 
-/// Admin or staff — used for analytics and read-only platform reports.
+/// Admin or staff: used for analytics and read-only platform reports.
 export async function getAnalyticsUserIdFromAuthHeader(authHeader: string | undefined): Promise<string | undefined> {
   const userId = await getUserIdFromAuthHeader(authHeader);
   if (!userId) return undefined;

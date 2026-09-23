@@ -239,7 +239,7 @@ export function AdminIntakePanel({ onChanged }: { onChanged?: () => void }) {
       { label: "Proof", href: proofUrls[app.id] },
     ];
     const present = chips.filter((c) => c.href);
-    if (present.length === 0) return <span className="text-xs text-brand-muted">—</span>;
+    if (present.length === 0) return <span className="text-xs text-brand-muted">-</span>;
     return (
       <div className="flex flex-wrap gap-1">
         {present.map((c) => (
@@ -331,7 +331,7 @@ export function AdminIntakePanel({ onChanged }: { onChanged?: () => void }) {
                 <tr key={row.id} className={i % 2 ? "bg-white" : "bg-brand-bg/20"}>
                   <td className="border-t border-brand-border/60 px-3 py-2 font-medium text-brand-blueDark">{row.full_name}</td>
                   <td className="border-t border-brand-border/60 px-3 py-2 text-brand-muted">{row.email}</td>
-                  <td className="border-t border-brand-border/60 px-3 py-2 text-brand-blueDark">{row.interest ?? "—"}</td>
+                  <td className="border-t border-brand-border/60 px-3 py-2 text-brand-blueDark">{row.interest ?? "-"}</td>
                   <td className="border-t border-brand-border/60 px-3 py-2 text-brand-muted">{new Date(row.created_at).toLocaleDateString()}</td>
                 </tr>
               ))}
@@ -376,7 +376,7 @@ export function AdminIntakePanel({ onChanged }: { onChanged?: () => void }) {
                     <td className="border-t border-brand-border/60 px-3 py-2 text-xs text-brand-muted">
                       {app.id_number && <div>ID: {app.id_number}</div>}
                       {app.kra_pin && <div>KRA: {app.kra_pin}</div>}
-                      {!app.id_number && !app.kra_pin && "—"}
+                      {!app.id_number && !app.kra_pin && "-"}
                     </td>
                     <td className="border-t border-brand-border/60 px-3 py-2 text-xs text-brand-muted">
                       {app.referee_name ? (
@@ -385,7 +385,7 @@ export function AdminIntakePanel({ onChanged }: { onChanged?: () => void }) {
                           {app.referee_phone && <div>{app.referee_phone}</div>}
                         </>
                       ) : (
-                        "—"
+                        "-"
                       )}
                     </td>
                     <td className="border-t border-brand-border/60 px-3 py-2">{docChips(app)}</td>
@@ -410,7 +410,7 @@ export function AdminIntakePanel({ onChanged }: { onChanged?: () => void }) {
                             {actingId === app.id ? "Sending…" : "Resend sign-in"}
                           </Button>
                         )}
-                        {app.status === "rejected" && <span className="text-xs text-brand-muted">—</span>}
+                        {app.status === "rejected" && <span className="text-xs text-brand-muted">-</span>}
                       </div>
                     </td>
                   </tr>

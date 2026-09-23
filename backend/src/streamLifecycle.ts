@@ -22,7 +22,7 @@ export async function closeLiveStreamRecord(stream: LiveStreamRecord): Promise<L
     }
     await roomService.deleteRoom(stream.roomName).catch(() => {});
   } catch {
-    // LiveKit may be offline — still mark ended in the database.
+    // LiveKit may be offline, still mark ended in the database.
   }
 
   return updateStream(stream.id, { status: "ended", endedAt: new Date().toISOString() });

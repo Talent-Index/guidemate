@@ -7,7 +7,7 @@ const BRAND = "#003B95";
 const MUTED = "#5B6B82";
 
 function fmtDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleString("en-KE", {
     dateStyle: "medium",
     timeStyle: "short",

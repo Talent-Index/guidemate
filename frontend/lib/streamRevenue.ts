@@ -1,4 +1,4 @@
-/** Guide 85% / Guidemate 15% — matches backend streamRevenue.ts */
+/** Guide 85% / Guidemate 15%. Matches backend streamRevenue.ts */
 export const GUIDE_STREAM_SHARE = 0.85;
 
 export function splitStreamRevenue(grossUsdc: number) {

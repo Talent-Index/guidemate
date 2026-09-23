@@ -76,7 +76,7 @@ export async function autoPayoutOnRelease(
 
   const phone = booking.guidePhone?.trim();
   if (!phone) {
-    console.warn(`[payout] guide ${booking.guideId} has no phone — skipping auto M-Pesa payout`);
+    console.warn(`[payout] guide ${booking.guideId} has no phone, skipping auto M-Pesa payout`);
     return null;
   }
 

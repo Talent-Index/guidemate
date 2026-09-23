@@ -18,6 +18,7 @@ import { assertMinisendConfig } from "./ramp/minisend.js";
 import { getRampProviderName } from "./ramp/index.js";
 import { chatRouter } from "./routes/chat.js";
 import { applicationsRouter } from "./routes/applications.js";
+import { notificationsRouter } from "./routes/notifications.js";
 
 const DEFAULT_CORS_ORIGINS = [
   "https://yourguidemate.top",
@@ -79,6 +80,7 @@ app.use("/api/wallet", walletRouter);
 app.use("/api/payments", paymentsRouter);
 app.use("/api/chat", chatRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/notifications", notificationsRouter);
 app.use("/api/fx", fxRouter);
 
 if (getRampProviderName() === "minisend") {

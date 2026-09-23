@@ -1,11 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { AnalyticsGate } from "@/components/auth/AdminGate";
-import { AdminIntakePanel } from "@/components/admin/AdminIntakePanel";
 import { AdminGuidePerformancePanel } from "@/components/admin/AdminGuidePerformancePanel";
 import { BarChart } from "@/components/admin/BarChart";
 import { DonutChart } from "@/components/admin/DonutChart";
@@ -256,9 +256,17 @@ export default function AdminDashboardPage() {
             </Card>
 
             <Card>
-              <h2 className="text-lg font-bold text-brand-blueDark">
-                {filtered ? "Transactions in period" : "Recent transactions"}
-              </h2>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-bold text-brand-blueDark">
+                  {filtered ? "Transactions in period" : "Recent transactions"}
+                </h2>
+                <Link
+                  href="/admin/transactions"
+                  className="text-sm font-semibold text-brand-accent hover:underline"
+                >
+                  View all transactions →
+                </Link>
+              </div>
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
@@ -270,7 +278,7 @@ export default function AdminDashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {transactions.map((tx) => (
+                    {transactions.slice(0, 5).map((tx) => (
                       <tr key={tx.id} className="border-b border-brand-border/50">
                         <td className="py-2 pr-4 text-brand-muted">{new Date(tx.createdAt).toLocaleDateString()}</td>
                         <td className="py-2 pr-4 capitalize">{tx.type.replace(/_/g, " ")}</td>
@@ -293,9 +301,23 @@ export default function AdminDashboardPage() {
         )}
 
         {superAdmin && (
-          <div className="no-print">
-            <AdminIntakePanel onChanged={() => setRefreshKey((k) => k + 1)} />
-          </div>
+          <Card className="no-print">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-brand-blueDark">Guide intake</h2>
+                <p className="mt-1 text-sm text-brand-muted">
+                  Review applications and the waitlist in a full spreadsheet view.
+                  {overview ? ` ${overview.pendingApplications} pending.` : ""}
+                </p>
+              </div>
+              <Link
+                href="/admin/applications"
+                className="rounded-lg bg-brand-blue px-4 py-2 text-sm font-semibold text-white hover:bg-brand-blueDark"
+              >
+                Open applications →
+              </Link>
+            </div>
+          </Card>
         )}
 
         <div className="no-print">

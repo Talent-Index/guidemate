@@ -33,9 +33,9 @@ function rankExperiences(
   const matchedTags = best.tags.filter((tag) => request.toLowerCase().includes(tag.toLowerCase()));
   const reason = exactMatch
     ? matchedTags.length > 0
-      ? `Matched on "${matchedTags.join(", ")}" — "${best.title}" with ${best.guide.fullName}.`
+      ? `Matched on "${matchedTags.join(", ")}": "${best.title}" with ${best.guide.fullName}.`
       : `"${best.title}" with ${best.guide.fullName} fits your request.`
-    : `We don't have that exact experience listed yet. "${best.title}" is the closest match — see other options below.`;
+    : `We don't have that exact experience listed yet. "${best.title}" is the closest match. See other options below.`;
 
   const alternatives = ranked
     .slice(1, 4)

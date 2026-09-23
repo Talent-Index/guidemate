@@ -31,7 +31,7 @@ export async function getSlotById(slotId: string): Promise<ExperienceSlotRow | n
   };
 }
 
-/** Reserve a slot exclusively — one booking party per time slot. */
+/** Reserve a slot exclusively: one booking party per time slot. */
 export async function reserveSlot(slotId: string, experienceId: string, guests = 1): Promise<void> {
   const slot = await getSlotById(slotId);
   if (!slot) throw new Error("This time slot is no longer available");

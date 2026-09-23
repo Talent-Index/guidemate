@@ -31,7 +31,7 @@ const OFFERINGS = [
 const FEATURES = [
   {
     title: "Live streams",
-    body: "Guides go live from their phone — free walks or pay-per-view. Tips and tickets settle fast; recordings stay on Guidemate.",
+    body: "Guides go live from their phone, free walks or pay-per-view. Tips and tickets settle fast; recordings stay on Guidemate.",
   },
   {
     title: "Book a local guide",
@@ -109,7 +109,7 @@ export default function HomePage() {
               Book them when you&apos;re ready.
             </h1>
             <p className="mt-6 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg">
-              Guidemate is built around live streams — city walks, markets, safari prep, and creator tours in real
+              Guidemate is built around live streams: city walks, markets, safari prep, and creator tours in real
               time. Join free or pay-per-view, then book the same vetted guide for an in-person trip.
             </p>
             <HomeHeroActions />
@@ -123,7 +123,7 @@ export default function HomePage() {
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-accent">The platform</p>
             <h2 className="mt-3 max-w-lg text-3xl font-bold tracking-tight sm:text-4xl">What Guidemate actually does</h2>
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-brand-muted">
-              Live streaming is the front door — booking, escrow, and same-day payouts sit behind the same trusted
+              Live streaming is the front door. Booking, escrow, and same-day payouts sit behind the same trusted
               guides.
             </p>
             <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">

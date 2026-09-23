@@ -256,9 +256,17 @@ export default function AdminDashboardPage() {
             </Card>
 
             <Card>
-              <h2 className="text-lg font-bold text-brand-blueDark">
-                {filtered ? "Transactions in period" : "Recent transactions"}
-              </h2>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-bold text-brand-blueDark">
+                  {filtered ? "Transactions in period" : "Recent transactions"}
+                </h2>
+                <Link
+                  href="/admin/transactions"
+                  className="text-sm font-semibold text-brand-accent hover:underline"
+                >
+                  View all transactions →
+                </Link>
+              </div>
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
@@ -270,7 +278,7 @@ export default function AdminDashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {transactions.map((tx) => (
+                    {transactions.slice(0, 5).map((tx) => (
                       <tr key={tx.id} className="border-b border-brand-border/50">
                         <td className="py-2 pr-4 text-brand-muted">{new Date(tx.createdAt).toLocaleDateString()}</td>
                         <td className="py-2 pr-4 capitalize">{tx.type.replace(/_/g, " ")}</td>

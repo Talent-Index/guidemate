@@ -1,11 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { AnalyticsGate } from "@/components/auth/AdminGate";
-import { AdminIntakePanel } from "@/components/admin/AdminIntakePanel";
 import { AdminGuidePerformancePanel } from "@/components/admin/AdminGuidePerformancePanel";
 import { BarChart } from "@/components/admin/BarChart";
 import { DonutChart } from "@/components/admin/DonutChart";
@@ -293,9 +293,23 @@ export default function AdminDashboardPage() {
         )}
 
         {superAdmin && (
-          <div className="no-print">
-            <AdminIntakePanel onChanged={() => setRefreshKey((k) => k + 1)} />
-          </div>
+          <Card className="no-print">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-brand-blueDark">Guide intake</h2>
+                <p className="mt-1 text-sm text-brand-muted">
+                  Review applications and the waitlist in a full spreadsheet view.
+                  {overview ? ` ${overview.pendingApplications} pending.` : ""}
+                </p>
+              </div>
+              <Link
+                href="/admin/applications"
+                className="rounded-lg bg-brand-blue px-4 py-2 text-sm font-semibold text-white hover:bg-brand-blueDark"
+              >
+                Open applications →
+              </Link>
+            </div>
+          </Card>
         )}
 
         <div className="no-print">

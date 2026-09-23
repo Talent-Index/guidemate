@@ -1,4 +1,4 @@
-import { frontendBaseUrl, sendTransactionalEmailBatch } from "./email.js";
+import { emailLayout, escapeHtml, frontendBaseUrl, sendTransactionalEmailBatch } from "./email.js";
 import { supabaseAdmin } from "./supabase.js";
 import type { LiveStreamRecord } from "./streams.js";
 import { listFollowerEmails } from "./guideFollows.js";
@@ -99,7 +99,14 @@ export async function announceStreamToCommunity(stream: LiveStreamRecord): Promi
 
   const subject = `${stream.guideName} is going live: ${stream.title}`;
   const text = `${stream.guideName} invited you to a Guidemate live stream.\n\n${stream.title}\nWhen: ${when}\nWatch: ${link}`;
-  const html = `<p><strong>${stream.guideName}</strong> is going live on Guidemate.</p><p><strong>${stream.title}</strong></p><p>When: ${when}</p><p><a href="${link}">Watch the stream</a></p>`;
+  const html = emailLayout({
+    heading: `${escapeHtml(stream.guideName)} is going live`,
+    intro: escapeHtml(stream.title),
+    bodyHtml: `<p style="margin:0;">When: <strong>${escapeHtml(when)}</strong></p>`,
+    ctaLabel: "Watch the stream",
+    ctaUrl: link,
+    footerNote: "You received this because you joined Guidemate or booked with this guide.",
+  });
 
   const emails = await collectRecipientEmails(stream.guideId);
   const phones = await collectRecipientPhones(stream.guideId);
@@ -128,7 +135,14 @@ export async function notifyFollowersStreamIsLive(stream: LiveStreamRecord): Pro
   const link = `${frontendBaseUrl()}${streamPublicPath(stream)}`;
   const subject = `${stream.guideName} is live now · ${stream.title}`;
   const text = `${stream.guideName} just went live on Guidemate.\n\n${stream.title}\nWatch: ${link}`;
-  const html = `<p><strong>${stream.guideName}</strong> is <strong>live now</strong> on Guidemate.</p><p>${stream.title}</p><p><a href="${link}">Join the stream</a></p>`;
+  const html = emailLayout({
+    heading: `${escapeHtml(stream.guideName)} is live now`,
+    intro: escapeHtml(stream.title),
+    bodyHtml: `<p style="margin:0;">The stream just started. Jump in before you miss it.</p>`,
+    ctaLabel: "Join the stream",
+    ctaUrl: link,
+    footerNote: "You received this because you follow this guide on Guidemate.",
+  });
 
   const sent = await sendTransactionalEmailBatch({ to: emails, subject, html, text, from: "notifications" });
   console.info(`[streams] live alert ${stream.id}: emails ${sent}/${emails.length}`);

@@ -28,7 +28,7 @@ import {
   type ItineraryStep,
 } from "@/lib/itinerary";
 import { uploadExperiencePhoto } from "@/lib/uploads";
-import { getPaymentQuote, type PaymentQuote } from "@/lib/api";
+import { aiExperienceDraft, getPaymentQuote, type PaymentQuote } from "@/lib/api";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { PayoutDestinationPicker } from "@/components/guide/PayoutDestinationPicker";
 import type { ExperiencePayoutChoice, PayoutDestination } from "@/lib/payoutDestination";
@@ -60,7 +60,8 @@ export function ExperienceWizard({
 }) {
   const router = useRouter();
   const { toast } = useToast();
-  const { profile } = useAuth();
+  const { profile, session } = useAuth();
+  const [aiDrafting, setAiDrafting] = useState(false);
 
   const [step, setStep] = useState(() =>
     Math.min(6, Math.max(1, initialStep || draft.wizard_step || 1))
@@ -92,6 +93,33 @@ export function ExperienceWizard({
       ? draft.payout_destination
       : "inherit"
   );
+
+  async function handleAiDraft() {
+    if (!session) {
+      toast("Sign in to use AI drafting.", "error");
+      return;
+    }
+    const notes = [title, description].map((s) => s.trim()).filter(Boolean).join(". ");
+    if (notes.length < 3) {
+      toast("Type a few words in the title or description first, then let AI expand it.", "error");
+      return;
+    }
+    setAiDrafting(true);
+    try {
+      const draftResult = await aiExperienceDraft(
+        { notes, category: category || undefined, location: meetingLabel || undefined },
+        session.access_token
+      );
+      if (draftResult.title) setTitle(draftResult.title);
+      if (draftResult.description) setDescription(draftResult.description);
+      if (draftResult.tags?.length) setTagsInput(draftResult.tags.join(", "));
+      toast("Draft written with AI. Review and tweak it.", "success");
+    } catch (err) {
+      toast((err as Error).message ?? "AI drafting failed.", "error");
+    } finally {
+      setAiDrafting(false);
+    }
+  }
 
   const formRef = useRef({
     title,
@@ -408,6 +436,20 @@ export function ExperienceWizard({
 
           {step === 1 && (
             <div className="grid gap-3 sm:grid-cols-2">
+              <div className="sm:col-span-2 flex items-center justify-between gap-3 rounded-lg border border-brand-accent/30 bg-brand-accent/5 p-3">
+                <p className="text-xs text-brand-muted">
+                  Jot a few words in the title or description, then let AI write the full listing for you.
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={aiDrafting}
+                  onClick={handleAiDraft}
+                  className="shrink-0 whitespace-nowrap"
+                >
+                  {aiDrafting ? "Writing…" : "Write with AI"}
+                </Button>
+              </div>
               <Field label="Title" className="sm:col-span-2">
                 <input
                   className={inputClass}

@@ -10,6 +10,7 @@ import { ExperienceMetaList } from "@/components/experience/ExperienceMetaList";
 import { ExperienceThingsToKnow } from "@/components/experience/ExperienceThingsToKnow";
 import { GuideAboutSection } from "@/components/experience/GuideAboutSection";
 import { ExperienceWhatYoullDo } from "@/components/experience/ExperienceWhatYoullDo";
+import { TranslateText } from "@/components/ai/TranslateText";
 import { normalizeItinerary } from "@/lib/itinerary";
 import { ExperienceRow } from "@/components/experience/ExperienceRow";
 import type { ExperienceCardData } from "@/components/experience/ExperienceCard";
@@ -264,6 +265,11 @@ function ExperienceDetailClient({ idOrSlug }: { idOrSlug: string }) {
             <section>
               <h2 className="text-[22px] font-bold text-[var(--gm-ink)]">About this experience</h2>
               <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-brand-muted">{experience.description}</p>
+              {session && (
+                <div className="mt-2">
+                  <TranslateText text={experience.description} accessToken={session.access_token} />
+                </div>
+              )}
             </section>
           )}
 

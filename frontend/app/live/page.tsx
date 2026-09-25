@@ -10,6 +10,7 @@ import { ExperienceGridSkeleton } from "@/components/ui/Skeleton";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
+  aiStreamTitle,
   listLiveStreams,
   listMyScheduledStreams,
   listRecordedStreams,
@@ -61,6 +62,7 @@ export default function LiveBrowsePage() {
   const [starting, setStarting] = useState(false);
   const [scheduling, setScheduling] = useState(false);
   const [announcing, setAnnouncing] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [guideActionId, setGuideActionId] = useState<string | null>(null);
 
@@ -98,6 +100,25 @@ export default function LiveBrowsePage() {
       clearInterval(interval);
     };
   }, [session?.access_token, profile?.role]);
+
+  async function handleSuggestTitle() {
+    if (!session) return;
+    const topic = title.trim();
+    if (topic.length < 2) {
+      setStartError("Type a word or two about your stream, then tap Suggest.");
+      return;
+    }
+    setSuggesting(true);
+    setStartError(null);
+    try {
+      const { title: suggested } = await aiStreamTitle(topic, session.access_token);
+      if (suggested) setTitle(suggested);
+    } catch (err) {
+      setStartError((err as Error).message);
+    } finally {
+      setSuggesting(false);
+    }
+  }
 
   async function handleGoLive() {
     if (!session) return;
@@ -228,13 +249,24 @@ export default function LiveBrowsePage() {
               </Link>
             ) : (
               <div className="mt-4 flex flex-col gap-4">
-                <input
-                  className="form-input-light"
-                  placeholder="e.g. Umoja market walk, live"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  required
-                />
+                <div className="flex gap-2">
+                  <input
+                    className="form-input-light flex-1"
+                    placeholder="e.g. Umoja market walk, live"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    required
+                  />
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    disabled={suggesting || title.trim().length < 2}
+                    onClick={handleSuggestTitle}
+                    className="shrink-0 whitespace-nowrap"
+                  >
+                    {suggesting ? "…" : "Suggest"}
+                  </Button>
+                </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-wide text-brand-muted">

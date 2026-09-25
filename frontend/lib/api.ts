@@ -46,7 +46,7 @@ export interface Experience {
 export interface MatchResult {
   experience: Experience;
   reason: string;
-  source: "gemini" | "local";
+  source: "qwen" | "gemini" | "local";
   exactMatch: boolean;
   alternatives: Experience[];
 }
@@ -486,6 +486,33 @@ export function listUpcomingStreams() {
 export function listMyScheduledStreams(accessToken: string) {
   return request<{ streams: LiveStreamRecord[] }>("/api/streams/mine/scheduled", {
     headers: authHeaders(accessToken),
+  });
+}
+
+export function aiExperienceDraft(
+  input: { notes: string; category?: string; location?: string },
+  accessToken: string
+) {
+  return request<{ title: string; description: string; tags: string[] }>("/api/ai/experience-draft", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
+}
+
+export function aiStreamTitle(topic: string, accessToken: string) {
+  return request<{ title: string; summary: string }>("/api/ai/stream-title", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ topic }),
+  });
+}
+
+export function aiTranslate(text: string, targetLang: string, accessToken: string) {
+  return request<{ translated: string; targetLang: string }>("/api/ai/translate", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ text, targetLang }),
   });
 }
 

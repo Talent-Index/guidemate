@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "seed": "tsx src/scripts/seedFunds.ts",
+    "test:qwen": "tsx src/scripts/testQwen.ts",
     "close-locked-bookings": "tsx src/scripts/closeLockedBookings.ts"
   },
   "dependencies": {
@@ -18,6 +19,7 @@
     "ethers": "^6.13.4",
     "express": "^4.21.2",
     "livekit-server-sdk": "^2.18.0",
+    "openai": "^7.23.0",
     "pdfkit": "^0.20.2",
     "zod": "^3.23.8"
   },

@@ -1,12 +1,70 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { listActiveExperiences, type Experience } from "./experiences.js";
+import { qwenEnabled, qwenMatchExperience } from "./qwen.js";
 
 export interface MatchResult {
   experience: Experience;
   reason: string;
-  source: "gemini" | "local";
+  source: "qwen" | "gemini" | "local";
   exactMatch: boolean;
   alternatives: Experience[];
+}
+
+interface AiMatchParsed {
+  experienceId?: string;
+  alternativeIds?: string[];
+  exactMatch?: boolean;
+  reason?: string;
+}
+
+/** Turns a raw AI selection into a full MatchResult, topping up alternatives from the local ranker. */
+function buildMatchFromAi(
+  parsed: AiMatchParsed,
+  experiences: Experience[],
+  request: string,
+  source: "qwen" | "gemini"
+): MatchResult | null {
+  const experience = experiences.find((e) => e.id === parsed.experienceId);
+  if (!experience) return null;
+
+  const altIds = (parsed.alternativeIds ?? []).filter((id) => id !== experience.id).slice(0, 3);
+  const alternatives = altIds
+    .map((id) => experiences.find((e) => e.id === id))
+    .filter((e): e is Experience => Boolean(e));
+
+  if (alternatives.length < 2) {
+    const fallback = rankExperiences(request, experiences);
+    const seen = new Set([experience.id, ...alternatives.map((a) => a.id)]);
+    for (const alt of fallback.alternatives) {
+      if (seen.has(alt.id)) continue;
+      alternatives.push(alt);
+      seen.add(alt.id);
+      if (alternatives.length >= 3) break;
+    }
+  }
+
+  return {
+    experience,
+    reason: parsed.reason ?? "Matched by Guidemate AI concierge.",
+    exactMatch: parsed.exactMatch ?? true,
+    alternatives,
+    source,
+  };
+}
+
+function buildCatalogue(experiences: Experience[]) {
+  return experiences.map((e) => ({
+    id: e.id,
+    title: e.title,
+    description: e.description,
+    tags: e.tags,
+    category: e.category,
+    priceUsdc: e.priceUsdc,
+    durationMinutes: e.durationMinutes,
+    location: e.location,
+    guideName: e.guide.fullName,
+    languages: e.guide.languages,
+  }));
 }
 
 function scoreExperience(request: string, exp: Experience): number {
@@ -45,35 +103,19 @@ function rankExperiences(
   return { experience: best, reason, exactMatch, alternatives };
 }
 
-export async function matchExperience(request: string): Promise<MatchResult> {
-  const experiences = await listActiveExperiences();
-  if (experiences.length === 0) {
-    throw new Error("no active experiences available to match against");
-  }
+function localMatch(request: string, experiences: Experience[]): MatchResult {
+  const { experience, reason, exactMatch, alternatives } = rankExperiences(request, experiences);
+  return { experience, reason, exactMatch, alternatives, source: "local" };
+}
 
+async function geminiMatch(request: string, experiences: Experience[]): Promise<MatchResult | null> {
   const apiKey = process.env.GEMINI_API_KEY;
-
-  if (!apiKey) {
-    const { experience, reason, exactMatch, alternatives } = rankExperiences(request, experiences);
-    return { experience, reason, exactMatch, alternatives, source: "local" };
-  }
+  if (!apiKey) return null;
 
   try {
     const ai = new GoogleGenAI({ apiKey });
     const model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
-
-    const catalogue = experiences.map((e) => ({
-      id: e.id,
-      title: e.title,
-      description: e.description,
-      tags: e.tags,
-      category: e.category,
-      priceUsdc: e.priceUsdc,
-      durationMinutes: e.durationMinutes,
-      location: e.location,
-      guideName: e.guide.fullName,
-      languages: e.guide.languages,
-    }));
+    const catalogue = buildCatalogue(experiences);
 
     const response = await ai.models.generateContent({
       model,
@@ -97,44 +139,43 @@ export async function matchExperience(request: string): Promise<MatchResult> {
       },
     });
 
-    const parsed = JSON.parse(response.text ?? "{}") as {
-      experienceId?: string;
-      alternativeIds?: string[];
-      exactMatch?: boolean;
-      reason?: string;
-    };
-    const experience = experiences.find((e) => e.id === parsed.experienceId);
-
-    if (!experience) {
-      throw new Error("Gemini returned an unknown experienceId");
-    }
-
-    const altIds = (parsed.alternativeIds ?? []).filter((id) => id !== experience.id).slice(0, 3);
-    let alternatives = altIds
-      .map((id) => experiences.find((e) => e.id === id))
-      .filter((e): e is Experience => Boolean(e));
-
-    if (alternatives.length < 2) {
-      const fallback = rankExperiences(request, experiences);
-      const seen = new Set([experience.id, ...alternatives.map((a) => a.id)]);
-      for (const alt of fallback.alternatives) {
-        if (seen.has(alt.id)) continue;
-        alternatives.push(alt);
-        seen.add(alt.id);
-        if (alternatives.length >= 3) break;
-      }
-    }
-
-    return {
-      experience,
-      reason: parsed.reason ?? "Matched by Guidemate AI agent.",
-      exactMatch: parsed.exactMatch ?? true,
-      alternatives,
-      source: "gemini",
-    };
+    const parsed = JSON.parse(response.text ?? "{}") as AiMatchParsed;
+    const result = buildMatchFromAi(parsed, experiences, request, "gemini");
+    if (!result) throw new Error("Gemini returned an unknown experienceId");
+    return result;
   } catch (err) {
-    console.warn("[match] Gemini matching failed, falling back to local matcher:", (err as Error).message);
-    const { experience, reason, exactMatch, alternatives } = rankExperiences(request, experiences);
-    return { experience, reason, exactMatch, alternatives, source: "local" };
+    console.warn("[match] Gemini matching failed:", (err as Error).message);
+    return null;
   }
+}
+
+async function qwenMatch(request: string, experiences: Experience[]): Promise<MatchResult | null> {
+  if (!qwenEnabled()) return null;
+  try {
+    const parsed = await qwenMatchExperience(request, buildCatalogue(experiences));
+    if (!parsed) return null;
+    const result = buildMatchFromAi(parsed, experiences, request, "qwen");
+    if (!result) throw new Error("Qwen returned an unknown experienceId");
+    return result;
+  } catch (err) {
+    console.warn("[match] Qwen matching failed:", (err as Error).message);
+    return null;
+  }
+}
+
+/**
+ * Matches a tourist request to an experience. Tries Qwen first (hackathon AI
+ * concierge), then Gemini, then a deterministic local keyword ranker.
+ */
+export async function matchExperience(request: string): Promise<MatchResult> {
+  const experiences = await listActiveExperiences();
+  if (experiences.length === 0) {
+    throw new Error("no active experiences available to match against");
+  }
+
+  return (
+    (await qwenMatch(request, experiences)) ??
+    (await geminiMatch(request, experiences)) ??
+    localMatch(request, experiences)
+  );
 }

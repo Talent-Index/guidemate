@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useEffect, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FormField, FormShell } from "@/components/ui/FormShell";
 import { SignedInRedirect } from "@/components/auth/SignedInRedirect";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
@@ -9,13 +9,15 @@ import { PasswordInput } from "@/components/ui/PasswordInput";
 import { createClient } from "@/lib/supabase/client";
 import { authConfirmUrl } from "@/lib/auth/oauthRedirect";
 import { homeForRole } from "@/lib/auth/home";
+import { consumeAuthReturnTo, storeAuthReturnTo } from "@/lib/auth/returnTo";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useToast } from "@/components/ui/Toast";
 
 const ROLE = "tourist" as const;
 
-export default function SignUpPage() {
+function SignUpForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { refreshProfile } = useAuth();
   const { toast } = useToast();
   const [fullName, setFullName] = useState("");
@@ -25,6 +27,10 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
+
+  useEffect(() => {
+    storeAuthReturnTo(searchParams.get("returnTo"));
+  }, [searchParams]);
 
   async function handleGoogleSignUp() {
     setError(null);
@@ -81,14 +87,14 @@ export default function SignUpPage() {
             .maybeSingle();
           if (existing) {
             await refreshProfile();
-            router.replace(homeForRole(existing.role as "guide" | "tourist" | "admin"));
+            router.replace(consumeAuthReturnTo() ?? homeForRole(existing.role as "guide" | "tourist" | "admin"));
             return;
           }
           throw profileError;
         }
         await refreshProfile();
         toast("Account created. Welcome to Guidemate", "success");
-        router.replace(homeForRole(ROLE));
+        router.replace(consumeAuthReturnTo() ?? homeForRole(ROLE));
       } else {
         localStorage.setItem(
           `guidemate_pending_profile_${email}`,
@@ -196,5 +202,13 @@ export default function SignUpPage() {
         </form>
       </FormShell>
     </SignedInRedirect>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={<p className="p-8 text-center text-sm text-brand-muted">Loading…</p>}>
+      <SignUpForm />
+    </Suspense>
   );
 }

@@ -79,6 +79,9 @@ function guessCurrency(): string {
 }
 
 function formatMoney(amount: number, currency: string): string {
+  if (currency === "KES") {
+    return `KES ${amount.toLocaleString("en-KE", { maximumFractionDigits: 0, minimumFractionDigits: 0 })}`;
+  }
   try {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
@@ -102,8 +105,8 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   const [currency, setCurrencyState] = useState("KES");
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    setCurrencyState(stored && stored.length === 3 ? stored.toUpperCase() : guessCurrency());
+    setCurrencyState("KES");
+    window.localStorage.setItem(STORAGE_KEY, "KES");
   }, []);
 
   const { data: snapshot = fallbackSnapshot() } = useQuery({
@@ -164,6 +167,7 @@ export function Price({
   align = "end",
   showLiveHint = false,
   showUsdc = true,
+  showKes = true,
 }: {
   amountUsdc: number;
   className?: string;
@@ -171,9 +175,11 @@ export function Price({
   align?: "start" | "end";
   showLiveHint?: boolean;
   showUsdc?: boolean;
+  /** When false, only show the USDC line (e.g. admin). */
+  showKes?: boolean;
 }) {
   const { formatFiat, isLive } = useCurrency();
-  const kes = formatFiat(amountUsdc, "KES");
+  const kes = showKes ? formatFiat(amountUsdc, "KES") : null;
   const primaryClass =
     size === "lg"
       ? "text-xl font-bold text-brand-blueDark"
@@ -197,6 +203,27 @@ export function Price({
       ) : (
         <span className={`whitespace-nowrap ${primaryClass}`}>{amountUsdc} USDC</span>
       )}
+    </span>
+  );
+}
+
+/** Single-line KES label for tight UI (cards, live tiles). */
+export function KesPrice({
+  amountUsdc,
+  className = "",
+  suffix,
+}: {
+  amountUsdc: number;
+  className?: string;
+  suffix?: string;
+}) {
+  const { formatFiat } = useCurrency();
+  const kes = formatFiat(amountUsdc, "KES");
+  if (!kes) return null;
+  return (
+    <span className={className}>
+      {kes}
+      {suffix}
     </span>
   );
 }

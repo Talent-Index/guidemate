@@ -55,7 +55,12 @@ jobs:
             exit 0
           fi
           echo "Triggering Render deploy for guidemate-backend..."
-          curl -fsS -X POST "$DEPLOY_HOOK"
+          HTTP=$(curl -sS -w "%{http_code}" -o /tmp/render-deploy-backend.txt -X POST "$DEPLOY_HOOK")
+          cat /tmp/render-deploy-backend.txt || true
+          if [ "$HTTP" != "200" ] && [ "$HTTP" != "201" ] && [ "$HTTP" != "202" ] && [ "$HTTP" != "204" ]; then
+            echo "::error::Render backend deploy hook returned HTTP $HTTP. In Render → guidemate-backend → Settings → Deploy Hook, copy a fresh URL into GitHub secret RENDER_DEPLOY_HOOK_BACKEND."
+            exit 1
+          fi
 
       - name: Deploy frontend (yourguidemate)
         env:
@@ -66,4 +71,9 @@ jobs:
             exit 0
           fi
           echo "Triggering Render deploy for yourguidemate..."
-          curl -fsS -X POST "$DEPLOY_HOOK"
+          HTTP=$(curl -sS -w "%{http_code}" -o /tmp/render-deploy-frontend.txt -X POST "$DEPLOY_HOOK")
+          cat /tmp/render-deploy-frontend.txt || true
+          if [ "$HTTP" != "200" ] && [ "$HTTP" != "201" ] && [ "$HTTP" != "202" ] && [ "$HTTP" != "204" ]; then
+            echo "::error::Render frontend deploy hook returned HTTP $HTTP. In Render → yourguidemate → Settings → Deploy Hook, copy a fresh URL into GitHub secret RENDER_DEPLOY_HOOK_FRONTEND."
+            exit 1
+          fi

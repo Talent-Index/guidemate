@@ -11,6 +11,7 @@ import {
 import { buildReportPdf } from "../reportPdf.js";
 import { getAdminUserIdFromAuthHeader, getAnalyticsUserIdFromAuthHeader, supabaseAdmin } from "../supabase.js";
 import { nextAvailableSlug } from "../slug.js";
+import { sendGuideApplicationApprovedEmail } from "../email.js";
 import { z } from "zod";
 
 export const adminRouter = Router();
@@ -214,11 +215,18 @@ adminRouter.post("/applications/:id/approve", async (req, res) => {
       .eq("id", applicationId);
     if (updateError) throw new Error(updateError.message);
 
+    const approvalNoticeSent = await sendGuideApplicationApprovedEmail(
+      application.email,
+      application.full_name,
+      Boolean(existingUserId)
+    );
+
     res.json({
       ok: true,
       userId,
       walletAddress,
       emailType: typeof loginEmail === "string" ? loginEmail : "invite",
+      approvalNoticeSent,
     });
   } catch (err) {
     console.error("[admin] approve failed", err);

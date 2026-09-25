@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "./supabase.js";
 import { isUuid, nextAvailableSlug } from "./slug.js";
+import { guideShareFromStreamTip } from "./streamRevenue.js";
 
 export type StreamStatus = "scheduled" | "live" | "ended";
 
@@ -16,6 +17,7 @@ export interface LiveStreamRecord {
   id: string;
   guideId: string;
   guideName: string;
+  guideAvatarUrl: string | null;
   guideWallet: string | null;
   experienceId: string | null;
   experienceTitle: string | null;
@@ -36,7 +38,7 @@ export interface LiveStreamRecord {
 const SELECT = `
   id, guide_id, experience_id, room_name, title, slug, status, price_usdc,
   scheduled_at, community_notified_at, started_at, ended_at, recording_url, egress_id, created_at,
-  guide:guide_id ( full_name, wallet_address ),
+  guide:guide_id ( full_name, wallet_address, avatar_url ),
   experience:experience_id ( title )
 `;
 
@@ -46,6 +48,7 @@ function toStreamRecord(row: any): LiveStreamRecord {
     id: row.id,
     guideId: row.guide_id,
     guideName: row.guide?.full_name ?? "Guide",
+    guideAvatarUrl: row.guide?.avatar_url ?? null,
     guideWallet: row.guide?.wallet_address ?? null,
     experienceId: row.experience_id,
     experienceTitle: row.experience?.title ?? null,
@@ -204,6 +207,7 @@ export async function listGuideStreams(guideId: string, limit = 50): Promise<Liv
 export interface StreamAggregateStats {
   tipCount: number;
   tipTotalUsdc: number;
+  guideEarningsUsdc: number;
   reactionCount: number;
   commentCount: number;
 }
@@ -213,11 +217,11 @@ export async function aggregateStreamStats(streamIds: string[]): Promise<Map<str
   if (streamIds.length === 0) return stats;
 
   for (const id of streamIds) {
-    stats.set(id, { tipCount: 0, tipTotalUsdc: 0, reactionCount: 0, commentCount: 0 });
+    stats.set(id, { tipCount: 0, tipTotalUsdc: 0, guideEarningsUsdc: 0, reactionCount: 0, commentCount: 0 });
   }
 
   const [{ data: tips }, { data: reactions }, { data: comments }] = await Promise.all([
-    supabaseAdmin.from("stream_tips").select("stream_id, amount_usdc").in("stream_id", streamIds),
+    supabaseAdmin.from("stream_tips").select("stream_id, amount_usdc, tx_hash").in("stream_id", streamIds),
     supabaseAdmin.from("stream_reactions").select("stream_id").in("stream_id", streamIds),
     supabaseAdmin.from("stream_comments").select("stream_id").in("stream_id", streamIds),
   ]);
@@ -226,7 +230,10 @@ export async function aggregateStreamStats(streamIds: string[]): Promise<Map<str
     const entry = stats.get(row.stream_id);
     if (!entry) continue;
     entry.tipCount += 1;
-    entry.tipTotalUsdc += Number(row.amount_usdc);
+    const amount = Number(row.amount_usdc);
+    const txHash = String(row.tx_hash ?? "");
+    entry.tipTotalUsdc += amount;
+    entry.guideEarningsUsdc += guideShareFromStreamTip(amount, txHash);
   }
   for (const row of reactions ?? []) {
     const entry = stats.get(row.stream_id);

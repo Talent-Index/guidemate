@@ -43,7 +43,7 @@ const REQUIRED_DOCUMENTS = [
   },
   {
     title: "Certificate of Good Conduct",
-    detail: "Issued by the Directorate of Criminal Investigations — required for TRA Class E tour leaders and guides.",
+    detail: "Issued by the Directorate of Criminal Investigations, required for TRA Class E tour leaders and guides.",
   },
   {
     title: "KRA PIN",
@@ -129,7 +129,7 @@ const STEPS = [
   {
     id: "cv",
     title: "Upload your CV (optional)",
-    hint: "PDF or Word document — helps us review your experience.",
+    hint: "PDF or Word document. Helps us review your experience.",
   },
   {
     id: "proof",

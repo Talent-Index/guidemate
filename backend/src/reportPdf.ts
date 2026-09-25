@@ -7,7 +7,7 @@ const BRAND = "#003B95";
 const MUTED = "#5B6B82";
 
 function fmtDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleString("en-KE", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -114,7 +114,7 @@ function drawTable(
 
 function buildPdfDocument(data: AuditReportData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 48, size: "A4" });
+    const doc = new PDFDocument({ margin: 48, size: "A4", bufferPages: true });
     const chunks: Buffer[] = [];
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));

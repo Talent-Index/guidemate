@@ -102,7 +102,7 @@ export function WeeklyAvailabilityEditor({
         durationMinutes: durationMinutesFromHours(hours),
         maxGuests: Number(maxGuests) || 6,
       });
-      toast("Weekly schedule saved — bookable times updated for the next 12 weeks.", "success");
+      toast("Weekly schedule saved. Bookable times updated for the next 12 weeks.", "success");
       await loadAll();
     } catch (err) {
       toast((err as Error).message, "error");

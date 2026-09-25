@@ -98,15 +98,20 @@ function SignInForm() {
     }
   }
 
+  const returnToParam = searchParams.get("returnTo");
+  const signUpHref = returnToParam
+    ? `/auth/sign-up?returnTo=${encodeURIComponent(returnToParam)}`
+    : "/auth/sign-up";
+
   return (
     <SignedInRedirect>
       <FormShell
         title="Sign in"
-        subtitle="Tourists and guides sign in here. New guides can create a beta account without waiting for TRA vetting."
+        subtitle="Tourists and guides sign in here. New guides can create a beta account without waiting for vetting."
         footer={
           <>
             Don&apos;t have an account?{" "}
-            <a href="/auth/sign-up" className="font-semibold text-brand-accent underline">
+            <a href={signUpHref} className="font-semibold text-brand-accent underline">
               Register as a tourist
             </a>
             {" · "}

@@ -341,6 +341,27 @@ export function getGuideProfile(guideId: string) {
   return request<{ guide: GuidePublicProfile }>(`/api/guides/${guideId}`);
 }
 
+export function getGuideFollowStatus(guideId: string, accessToken?: string) {
+  return request<{ following: boolean; followerCount: number; guideId: string }>(
+    `/api/guides/${encodeURIComponent(guideId)}/follow`,
+    accessToken ? { headers: authHeaders(accessToken) } : {}
+  );
+}
+
+export function followGuideApi(guideId: string, accessToken: string) {
+  return request<{ following: boolean; followerCount: number }>(`/api/guides/${encodeURIComponent(guideId)}/follow`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+  });
+}
+
+export function unfollowGuideApi(guideId: string, accessToken: string) {
+  return request<{ following: boolean; followerCount: number }>(`/api/guides/${encodeURIComponent(guideId)}/follow`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+}
+
 export interface GuideInsightsOverview {
   confirmedBookings: number;
   completedTours: number;
@@ -424,6 +445,7 @@ export interface LiveStreamRecord {
   id: string;
   guideId: string;
   guideName: string;
+  guideAvatarUrl?: string | null;
   guideWallet: string | null;
   experienceId: string | null;
   experienceTitle: string | null;
@@ -501,6 +523,14 @@ export function registerOpenGuide(accessToken: string) {
   });
 }
 
+/** Fire-and-forget: sends a one-time welcome email. No-ops after the first send. */
+export function sendWelcomeEmail(accessToken: string) {
+  return request<{ ok: true; sent: boolean }>("/api/notifications/welcome", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+  });
+}
+
 export function getStream(streamIdOrSlug: string) {
   return request<{ stream: LiveStreamRecord }>(`/api/streams/${encodeURIComponent(streamIdOrSlug)}`);
 }
@@ -547,7 +577,7 @@ export function startScheduledStream(streamId: string, accessToken: string) {
 
 export function joinStream(
   streamId: string,
-  accessToken?: string,
+  accessToken: string,
   opts?: { txHash?: string; paymentIntentId?: string }
 ) {
   return request<{ token: string; stream: LiveStreamRecord; role: "publisher" | "viewer" }>(
@@ -752,6 +782,9 @@ export interface StreamComment {
 
 export interface StreamStats {
   viewerCount: number;
+  peakViewerCount: number;
+  totalJoins: number;
+  uniqueJoins: number;
   reactionCount: number;
   tipCount: number;
   tipTotalUsdc: number;
@@ -779,6 +812,20 @@ export function postStreamReaction(streamId: string, type: "like" | "flower", ac
 
 export function getStreamStats(streamId: string) {
   return request<StreamStats>(`/api/streams/${streamId}/stats`);
+}
+
+export interface StreamViewer {
+  profileId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  joinedAt: string;
+  joinCount: number;
+}
+
+export function getStreamViewers(streamId: string, accessToken: string) {
+  return request<{ viewers: StreamViewer[] }>(`/api/streams/${encodeURIComponent(streamId)}/viewers`, {
+    headers: authHeaders(accessToken),
+  });
 }
 
 export interface AnalyticsOverview {

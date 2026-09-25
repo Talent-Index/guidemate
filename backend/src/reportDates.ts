@@ -1,4 +1,4 @@
-/** East Africa Time — matches Guidemate's primary market for daily reports. */
+/** East Africa Time: matches Guidemate's primary market for daily reports. */
 const TZ = "+03:00";
 
 function applyRange<Q extends { gte: (c: string, v: string) => Q; lte: (c: string, v: string) => Q }>(

@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import { StreamRoom } from "@/components/StreamRoom";
 import { parseUnits } from "viem";
-import { useAccount, useWriteContract } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -31,31 +31,41 @@ import {
   postStreamReaction,
   recordStreamTip,
   startScheduledStream,
-  SNOWTRACE_TX_BASE,
   type LiveStreamRecord,
   type PaymentQuote,
+  type StreamStats,
   type StreamComment,
   type StreamTip,
 } from "@/lib/api";
+import { StreamMetricsCard } from "@/components/live/StreamMetricsCard";
+import { FollowGuideButton, StreamViewersPanel } from "@/components/live/GuideFollowAndViewers";
+import { BASE_EXPLORER_TX, BASE_USDC_ADDRESS, splitStreamRevenue } from "@/lib/streamRevenue";
+import { base } from "@/lib/wagmi";
 import { Price } from "@/lib/fx";
 import { PaymentRailGuide } from "@/components/payments/PaymentRailGuide";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
-import { getStreamSharePath } from "@/lib/share";
+import { getStreamSharePath, getGuideSharePath } from "@/lib/share";
+import { consumeLivePublishToken } from "@/lib/livePublishToken";
 import { useToast } from "@/components/ui/Toast";
 import "@livekit/components-styles";
 
 const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? "";
-const USDC_ADDRESS = (process.env.NEXT_PUBLIC_MOCK_USDC_ADDRESS ?? "") as `0x${string}`;
+const USDC_ADDRESS = (process.env.NEXT_PUBLIC_BASE_USDC_ADDRESS ?? BASE_USDC_ADDRESS) as `0x${string}`;
+const PLATFORM_USDC_WALLET = process.env.NEXT_PUBLIC_PLATFORM_USDC_WALLET as `0x${string}` | undefined;
 const LIVE_CHECKOUT_KEY = "guidemate-live-checkout-draft";
+const LIVEKIT_TOKEN_REFRESH_MS = 45 * 60 * 1000;
 
 export default function LiveStreamPage() {
   const params = useParams<{ streamId: string }>();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const streamRouteKey = params.streamId;
-  const { session, profile } = useAuth();
+  const { session, profile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const { address } = useAccount();
+  const chainId = useChainId();
+  const { switchChainAsync } = useSwitchChain();
   const { writeContractAsync, isPending: writing } = useWriteContract();
 
   const [stream, setStream] = useState<LiveStreamRecord | null>(null);
@@ -76,11 +86,23 @@ export default function LiveStreamPage() {
   const [quote, setQuote] = useState<PaymentQuote | null>(null);
   const [comments, setComments] = useState<StreamComment[]>([]);
   const [commentBody, setCommentBody] = useState("");
-  const [stats, setStats] = useState({ viewerCount: 0, reactionCount: 0 });
+  const [stats, setStats] = useState<StreamStats>({
+    viewerCount: 0,
+    peakViewerCount: 0,
+    totalJoins: 0,
+    uniqueJoins: 0,
+    reactionCount: 0,
+    tipCount: 0,
+    tipTotalUsdc: 0,
+  });
   const [flowers, setFlowers] = useState(0);
+  const [mobilePanel, setMobilePanel] = useState<null | "chat" | "tip">(null);
 
   const isGuide = Boolean(session && stream && session.user.id === stream.guideId);
   const needsPayment = Boolean(stream && stream.status === "live" && stream.priceUsdc > 0 && !isGuide && !token);
+  const mustSignInToWatch = Boolean(stream?.status === "live" && !session && !token);
+  const signInReturnPath = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+  const signInHref = `/auth/sign-in?returnTo=${encodeURIComponent(signInReturnPath)}`;
 
   const refreshTips = useCallback(async () => {
     try {
@@ -130,10 +152,14 @@ export default function LiveStreamPage() {
   }, [stream, mpesaPhone]);
 
   async function handleJoin(opts?: { txHash?: string; paymentIntentId?: string }) {
+    if (!session?.access_token) {
+      setError("Sign in to watch this stream.");
+      return;
+    }
     setJoining(true);
     setError(null);
     try {
-      const result = await joinStream(apiStreamId, session?.access_token, opts);
+      const result = await joinStream(apiStreamId, session.access_token, opts);
       setToken(result.token);
       setRole(result.role);
       setStream(result.stream);
@@ -147,6 +173,45 @@ export default function LiveStreamPage() {
       setJoining(false);
     }
   }
+
+  const handleJoinStable = useCallback(
+    (opts?: { txHash?: string; paymentIntentId?: string }) => handleJoin(opts),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [apiStreamId, session?.access_token]
+  );
+
+  useEffect(() => {
+    if (!stream || token) return;
+    const publishToken = consumeLivePublishToken(stream.id);
+    if (publishToken) {
+      setToken(publishToken);
+      setRole("publisher");
+    }
+  }, [stream, token]);
+
+  const autoJoinStarted = useRef(false);
+  useEffect(() => {
+    if (!stream || stream.status !== "live" || token || joining || !LIVEKIT_URL) return;
+    if (!session) return;
+    if (needsPayment) return;
+    if (autoJoinStarted.current) return;
+    autoJoinStarted.current = true;
+    void handleJoinStable();
+  }, [stream, token, joining, needsPayment, isGuide, LIVEKIT_URL, handleJoinStable, session]);
+
+  useEffect(() => {
+    if (!token || stream?.status !== "live" || !session?.access_token) return;
+    const refresh = () => {
+      void joinStream(apiStreamId, session.access_token, undefined)
+        .then((result) => {
+          setToken(result.token);
+          setRole(result.role);
+        })
+        .catch(() => {});
+    };
+    const interval = setInterval(refresh, LIVEKIT_TOKEN_REFRESH_MS);
+    return () => clearInterval(interval);
+  }, [token, stream?.status, apiStreamId, session?.access_token]);
 
   useEffect(() => {
     if (!session || !stream || token) return;
@@ -177,15 +242,19 @@ export default function LiveStreamPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, stream, searchParams, token]);
 
-  async function transferUsdc(to: `0x${string}`, amount: number) {
-    if (!USDC_ADDRESS) throw new Error("NEXT_PUBLIC_MOCK_USDC_ADDRESS is not set");
+  async function transferUsdcOnBase(to: `0x${string}`, amount: number) {
+    if (!USDC_ADDRESS) throw new Error("Base USDC is not configured");
+    if (chainId !== base.id) {
+      await switchChainAsync({ chainId: base.id });
+    }
     const hash = await writeContractAsync({
       address: USDC_ADDRESS,
       abi: mockUsdcAbi,
       functionName: "transfer",
       args: [to, parseUnits(amount.toString(), 6)],
+      chainId: base.id,
     });
-    await waitForTransactionReceipt(wagmiConfig, { hash });
+    await waitForTransactionReceipt(wagmiConfig, { hash, chainId: base.id });
     return hash;
   }
 
@@ -294,7 +363,12 @@ export default function LiveStreamPage() {
     if (!amount || amount <= 0) return;
     setPayError(null);
     try {
-      const hash = await transferUsdc(stream.guideWallet as `0x${string}`, amount);
+      const { guideAmount, platformAmount } = splitStreamRevenue(amount);
+      const guideWallet = stream.guideWallet as `0x${string}`;
+      const hash = await transferUsdcOnBase(guideWallet, guideAmount);
+      if (platformAmount >= 0.01 && PLATFORM_USDC_WALLET) {
+        await transferUsdcOnBase(PLATFORM_USDC_WALLET, platformAmount);
+      }
       await recordStreamTip(
         apiStreamId,
         { amountUsdc: amount, txHash: hash, tipperWallet: address },
@@ -310,10 +384,13 @@ export default function LiveStreamPage() {
   async function handleEnd() {
     if (!session) return;
     setEnding(true);
+    setError(null);
     try {
       const { stream: updated } = await endStream(apiStreamId, session.access_token);
       setStream(updated);
       setToken(null);
+      setRole(null);
+      toast("Stream ended", "success");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -380,30 +457,7 @@ export default function LiveStreamPage() {
 
   if (stream.status === "ended") {
     return (
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <Link href="/live" className="text-sm font-semibold text-brand-accent hover:underline">
-          ← All live streams
-        </Link>
-        <Card>
-          <Chip tone="neutral" label="Ended" />
-          <h1 className="mt-2 text-xl font-bold text-brand-blueDark">{stream.title}</h1>
-          <p className="text-sm text-brand-muted">with {stream.guideName}</p>
-          <ViewGuideProfileButton guideId={stream.guideId} className="mt-3 inline-block" />
-          <div className="mt-4">
-            <ShareLinkButton
-              path={getStreamSharePath(stream.id, stream.slug)}
-              label="Share stream link"
-              shareTitle={stream.title}
-              shareText={`Watch ${stream.title} on Guidemate`}
-            />
-          </div>
-          {stream.recordingUrl ? (
-            <video className="mt-4 w-full rounded-lg bg-black" src={stream.recordingUrl} controls playsInline />
-          ) : (
-            <p className="mt-4 text-sm text-brand-muted">This stream has ended and no recording was saved.</p>
-          )}
-        </Card>
-      </div>
+      <EndedStreamView stream={stream} apiStreamId={apiStreamId} isGuide={isGuide} session={session} />
     );
   }
 
@@ -551,6 +605,7 @@ export default function LiveStreamPage() {
   }
 
   const showEndBar = isGuide && stream.status === "live" && Boolean(token);
+  const immersiveWatch = Boolean(token && stream.status === "live" && !isGuide);
 
   return (
     <div className={`mx-auto w-full max-w-6xl ${showEndBar ? "pb-28" : "pb-8"}`}>
@@ -595,32 +650,75 @@ export default function LiveStreamPage() {
             )}
 
             {token && LIVEKIT_URL ? (
-              <div className="relative overflow-hidden rounded-2xl border border-brand-border shadow-card" data-lk-theme="default">
-                <div className="pointer-events-none absolute left-3 top-3 z-20 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white">
-                    {stats.viewerCount} watching
+              <div
+                className={`relative overflow-hidden border-brand-border bg-black ${
+                  immersiveWatch
+                    ? "fixed inset-x-0 top-14 z-30 max-lg:bottom-16 max-lg:rounded-none max-lg:border-y lg:relative lg:z-auto lg:rounded-2xl lg:border lg:shadow-card"
+                    : "-mx-4 w-[calc(100%+2rem)] border-y sm:mx-0 sm:w-full sm:rounded-2xl sm:border sm:shadow-card"
+                }`}
+                data-lk-theme="default"
+              >
+                <div className="pointer-events-none absolute left-3 top-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-semibold text-white sm:text-xs">
+                    {stats.viewerCount} watching · peak {stats.peakViewerCount}
                   </span>
-                  <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white">
-                    {stats.reactionCount + flowers} flowers
+                  <span className="hidden rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white sm:inline">
+                    {stats.uniqueJoins} viewers joined
+                  </span>
+                  <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                    Live
                   </span>
                   <button
                     type="button"
                     onClick={handleTapFlower}
-                    className="pointer-events-auto rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-black/80"
+                    className="pointer-events-auto rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-semibold text-white transition hover:bg-black/80 sm:text-xs"
                     aria-label="Send a flower"
                   >
                     🌸 Flower
                   </button>
                 </div>
-                <StreamRoom serverUrl={LIVEKIT_URL} token={token} isPublisher={role === "publisher"} />
+                <div
+                  className={`w-full bg-black ${
+                    immersiveWatch
+                      ? "h-[calc(100dvh-7.5rem)] max-lg:h-full lg:aspect-video lg:max-h-[min(70vh,560px)]"
+                      : "aspect-[9/16] max-h-[min(85dvh,780px)] sm:aspect-video sm:max-h-[min(70vh,560px)]"
+                  }`}
+                >
+                  <StreamRoom serverUrl={LIVEKIT_URL} token={token} isPublisher={role === "publisher"} />
+                </div>
               </div>
+            ) : authLoading && stream.status === "live" ? (
+              <Card className="flex items-center justify-center p-10 sm:p-12">
+                <p className="text-sm font-medium text-brand-muted">Loading…</p>
+              </Card>
+            ) : mustSignInToWatch ? (
+              <Card className="p-6 sm:p-8">
+                <h2 className="text-lg font-bold text-brand-blueDark">Sign in to watch</h2>
+                <p className="mt-2 text-sm text-brand-muted">
+                  Live streams require a Guidemate account so we can count viewers and keep the community accountable.
+                </p>
+                <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                  <Link href={signInHref} className="sm:flex-1">
+                    <Button variant="primary" className="w-full">
+                      Sign in
+                    </Button>
+                  </Link>
+                  <Link href={`/auth/sign-up?returnTo=${encodeURIComponent(signInReturnPath)}`} className="sm:flex-1">
+                    <Button variant="secondary" className="w-full">
+                      Create account
+                    </Button>
+                  </Link>
+                </div>
+              </Card>
             ) : needsPayment ? (
               <Card className="p-6 sm:p-8">
                 <h2 className="flex flex-wrap items-baseline gap-2 text-lg font-bold text-brand-blueDark">
                   Pay-per-view
                   <Price amountUsdc={stream.priceUsdc} size="sm" align="start" />
                 </h2>
-                <p className="mt-1 text-sm text-brand-muted">Kenya: pay with M-Pesa. Visiting: pay with USDC or USDT.</p>
+                <p className="mt-1 text-sm text-brand-muted">
+                  Kenya: pay with M-Pesa. Visiting: pay with USDC or USDT. Ticket revenue split: guide 85%, Guidemate 15%.
+                </p>
                 <div className="mt-4 grid gap-2 sm:grid-cols-2">
                   <button
                     type="button"
@@ -680,12 +778,20 @@ export default function LiveStreamPage() {
                 </div>
                 {payError && <p className="mt-2 text-sm text-red-600">{payError}</p>}
               </Card>
+            ) : joining && !token ? (
+              <Card className="flex items-center justify-center p-10 sm:p-12">
+                <p className="text-sm font-medium text-brand-muted">Connecting to the live stream…</p>
+              </Card>
             ) : (
               <Card className="flex flex-wrap items-center justify-between gap-3 p-6 sm:p-8">
                 <p className="text-sm text-brand-muted">
-                  {isGuide ? "Ready to publish from this device." : "Join as a viewer - free stream."}
+                  {isGuide ? "Ready to publish from this device." : "You’re signed in. Tap below to join the stream."}
                 </p>
-                <Button variant="primary" disabled={joining || !LIVEKIT_URL} onClick={() => handleJoin()}>
+                <Button
+                  variant="primary"
+                  disabled={joining || !LIVEKIT_URL || !session}
+                  onClick={() => handleJoin()}
+                >
                   {joining ? "Joining..." : isGuide ? "Start broadcasting" : "Watch now"}
                 </Button>
               </Card>
@@ -694,7 +800,16 @@ export default function LiveStreamPage() {
             {error && <p className="text-sm text-red-600">{error}</p>}
           </div>
 
-          <aside className="flex flex-col gap-4 lg:col-span-4 lg:sticky lg:top-24 lg:self-start">
+          <aside className={`flex flex-col gap-4 lg:col-span-4 lg:sticky lg:top-24 lg:self-start ${immersiveWatch ? "max-lg:hidden" : ""}`}>
+            {isGuide && session?.access_token && token && (
+              <StreamViewersPanel streamId={apiStreamId} accessToken={session.access_token} />
+            )}
+            {isGuide && (
+              <StreamMetricsCard stats={stats} title="Your stream metrics" />
+            )}
+            {!isGuide && stream.status === "live" && (
+              <FollowGuideButton guideId={stream.guideId} variant="secondary" />
+            )}
             <Card className="p-5 sm:p-6">
               <h2 className="text-sm font-bold text-brand-blueDark">Live chat</h2>
               <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto lg:max-h-72">
@@ -725,7 +840,7 @@ export default function LiveStreamPage() {
             <Card className="p-5 sm:p-6">
               <h2 className="text-sm font-bold text-brand-blueDark">Tip the guide</h2>
               <p className="mt-1 text-xs text-brand-muted">
-                Wallet-to-wallet tips still use test mUSDC on Fuji. Paid streams use M-Pesa or Minisend USDC checkout.
+                Tips use USDC on Base (same rail as payouts). Guidemate keeps 15%; your guide receives 85%.
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <WalletConnectButton />
@@ -757,47 +872,224 @@ export default function LiveStreamPage() {
                         {tip.amountUsdc} USDC
                         {tip.tipperWallet ? ` · ${tip.tipperWallet.slice(0, 6)}…${tip.tipperWallet.slice(-4)}` : ""}
                       </span>
-                      <a
-                        href={`${SNOWTRACE_TX_BASE}/${tip.txHash}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs font-semibold text-brand-accent underline"
-                      >
-                        tx
-                      </a>
+                      {!tip.txHash.startsWith("mpesa-") && (
+                        <a
+                          href={`${BASE_EXPLORER_TX}/${tip.txHash}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs font-semibold text-brand-accent underline"
+                        >
+                          tx
+                        </a>
+                      )}
                     </li>
                   ))}
                 </ul>
               )}
             </Card>
 
-            {profile?.role !== "guide" && !session && (
-              <p className="text-xs text-brand-muted">
-                Watching as a guest.{" "}
-                <Link href="/auth/sign-in" className="font-semibold text-brand-accent">
-                  Sign in
-                </Link>{" "}
-                if you want tips attributed to you.
-              </p>
-            )}
           </aside>
         </div>
       </div>
 
+      {immersiveWatch && (
+        <>
+          <div className="fixed inset-x-0 bottom-0 z-40 flex border-t border-brand-border bg-[var(--gm-nav)] pb-[env(safe-area-inset-bottom)] lg:hidden">
+            <button
+              type="button"
+              className="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold text-brand-blueDark"
+              onClick={() => setMobilePanel("chat")}
+            >
+              💬 Chat
+            </button>
+            <button
+              type="button"
+              className="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold text-brand-blueDark"
+              onClick={handleTapFlower}
+            >
+              🌸 Flower
+            </button>
+            <button
+              type="button"
+              className="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold text-brand-blueDark"
+              onClick={() => setMobilePanel("tip")}
+            >
+              Tip
+            </button>
+          </div>
+
+          {mobilePanel && (
+            <div className="fixed inset-0 z-50 flex flex-col justify-end lg:hidden">
+              <button
+                type="button"
+                className="absolute inset-0 bg-black/55"
+                aria-label="Close panel"
+                onClick={() => setMobilePanel(null)}
+              />
+              <div className="relative max-h-[78dvh] overflow-y-auto rounded-t-2xl bg-[var(--gm-surface)] px-4 pb-[env(safe-area-inset-bottom)] pt-4 shadow-xl">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-brand-blueDark">
+                    {mobilePanel === "chat" ? "Live chat" : "Tip the guide"}
+                  </h3>
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-brand-muted"
+                    onClick={() => setMobilePanel(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+                {mobilePanel === "chat" ? (
+                  <>
+                    <ul className="max-h-48 space-y-2 overflow-y-auto">
+                      {comments.map((c) => (
+                        <li key={c.id} className="text-sm">
+                          <span className="font-semibold text-brand-blueDark">{c.displayName}</span>{" "}
+                          <span className="text-brand-muted">{c.body}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <form onSubmit={handlePostComment} className="mt-3 flex gap-2 border-t border-brand-border pt-3">
+                      <input
+                        className="form-input-light flex-1 text-sm"
+                        placeholder="Say something…"
+                        value={commentBody}
+                        onChange={(e) => setCommentBody(e.target.value)}
+                      />
+                      <Button type="submit" variant="secondary" disabled={!commentBody.trim()}>
+                        Send
+                      </Button>
+                    </form>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-brand-muted">85% to your guide · 15% Guidemate</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <WalletConnectButton />
+                      <input
+                        className="form-input-light w-24"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={tipAmount}
+                        onChange={(e) => setTipAmount(e.target.value)}
+                        aria-label="Tip amount in USDC"
+                      />
+                      <Button variant="secondary" disabled={!address || writing || !stream.guideWallet} onClick={handleTip}>
+                        {writing ? "Sending..." : "Send tip"}
+                      </Button>
+                    </div>
+                    {payError && <p className="mt-2 text-sm text-red-600">{payError}</p>}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
       {showEndBar && (
-        <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-40 border-t border-brand-border bg-[var(--gm-nav)]/95 px-4 py-3 backdrop-blur-md md:bottom-6 md:mx-auto md:max-w-lg md:rounded-full md:border md:shadow-lg">
+        <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-40 px-4 md:bottom-6 md:mx-auto md:max-w-lg">
           <button
             type="button"
             disabled={ending}
             onClick={handleEnd}
-            className="mx-auto flex w-full max-w-md items-center justify-center gap-2 rounded-full bg-red-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-60 md:w-full"
+            className="flex w-full items-center justify-center gap-2 rounded-full border border-red-200 bg-white px-5 py-3.5 text-sm font-bold text-red-700 shadow-lg transition hover:bg-red-50 disabled:opacity-60 dark:border-red-900/40 dark:bg-[var(--gm-nav)] dark:text-red-300 dark:hover:bg-red-950/40"
             aria-label="End live stream"
           >
             <EndStreamIcon />
-            {ending ? "Ending stream..." : "End stream"}
+            {ending ? "Ending stream…" : "End stream"}
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function EndedStreamView({
+  stream,
+  apiStreamId,
+  isGuide,
+  session,
+}: {
+  stream: LiveStreamRecord;
+  apiStreamId: string;
+  isGuide: boolean;
+  session: import("@supabase/supabase-js").Session | null;
+}) {
+  const router = useRouter();
+  const [stats, setStats] = useState<StreamStats | null>(null);
+
+  useEffect(() => {
+    getStreamStats(apiStreamId).then(setStats).catch(() => {});
+  }, [apiStreamId]);
+
+  return (
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 pb-28">
+      <Link href="/live" className="text-sm font-semibold text-brand-accent hover:underline">
+        ← All live streams
+      </Link>
+
+      <Card className="overflow-hidden p-0">
+        <div className="border-b border-brand-border bg-brand-bg/50 px-6 py-5">
+          <Chip tone="neutral" label="Ended" />
+          <h1 className="mt-3 text-2xl font-bold text-brand-blueDark">{stream.title}</h1>
+          <p className="mt-1 text-sm text-brand-muted">with {stream.guideName}</p>
+        </div>
+
+        {stream.recordingUrl ? (
+          <video className="w-full bg-black" src={stream.recordingUrl} controls playsInline />
+        ) : (
+          <p className="px-6 py-4 text-sm text-brand-muted">No recording was saved for this stream.</p>
+        )}
+      </Card>
+
+      {stats && isGuide && <StreamMetricsCard stats={stats} title="Stream recap" compact />}
+
+      {isGuide && session?.access_token && (
+        <StreamViewersPanel streamId={apiStreamId} accessToken={session.access_token} compact />
+      )}
+
+      {!isGuide && <FollowGuideButton guideId={stream.guideId} variant="secondary" />}
+
+      <div className="flex flex-col gap-2">
+        {!isGuide && (
+          <Button
+            variant="primary"
+            className="w-full"
+            type="button"
+            onClick={() => router.push(getGuideSharePath(stream.guideId))}
+          >
+            Book this guide
+          </Button>
+        )}
+        {isGuide && (
+          <Button variant="primary" className="w-full" type="button" onClick={() => router.push("/live")}>
+            Host another stream
+          </Button>
+        )}
+        <ShareLinkButton
+          path={getStreamSharePath(stream.id, stream.slug)}
+          label="Share stream link"
+          shareTitle={stream.title}
+          shareText={`Watch ${stream.title} on Guidemate`}
+          variant="secondary"
+          className="w-full"
+        />
+        <Button
+          variant="secondary"
+          className="w-full"
+          type="button"
+          onClick={() => router.push(getGuideSharePath(stream.guideId))}
+        >
+          {isGuide ? "View your public profile" : "View guide profile"}
+        </Button>
+        {isGuide && (
+          <Button variant="secondary" className="w-full" type="button" onClick={() => router.push("/guide/dashboard")}>
+            Open guide dashboard
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

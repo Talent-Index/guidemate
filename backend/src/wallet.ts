@@ -263,7 +263,7 @@ export async function withdrawToMpesa(
         const treasuryUsdc = await getTreasuryUsdcBalance();
         if (treasuryUsdc + 1e-6 < depositAmount) {
           throw new Error(
-            "Payout treasury is low on USDC. Minisend settlements may still be processing — try again later."
+            "Payout treasury is low on USDC. Minisend settlements may still be processing. Try again later."
           );
         }
         // Tourist M-Pesa settles USDC on Base; pay Minisend off-ramp from treasury (no Fuji AVAX gas).

@@ -46,7 +46,7 @@ export interface Experience {
 export interface MatchResult {
   experience: Experience;
   reason: string;
-  source: "gemini" | "local";
+  source: "qwen" | "gemini" | "local";
   exactMatch: boolean;
   alternatives: Experience[];
 }

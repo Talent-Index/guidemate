@@ -467,6 +467,33 @@ export function listMyScheduledStreams(accessToken: string) {
   });
 }
 
+export function aiExperienceDraft(
+  input: { notes: string; category?: string; location?: string },
+  accessToken: string
+) {
+  return request<{ title: string; description: string; tags: string[] }>("/api/ai/experience-draft", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
+}
+
+export function aiStreamTitle(topic: string, accessToken: string) {
+  return request<{ title: string; summary: string }>("/api/ai/stream-title", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ topic }),
+  });
+}
+
+export function aiTranslate(text: string, targetLang: string, accessToken: string) {
+  return request<{ translated: string; targetLang: string }>("/api/ai/translate", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ text, targetLang }),
+  });
+}
+
 export function registerOpenGuide(accessToken: string) {
   return request<{ ok: true; walletAddress: string; slug: string }>("/api/guides/open-signup", {
     method: "POST",

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { TranslateText } from "@/components/ai/TranslateText";
 import { getChat, sendChatMessage, type ChatMessage } from "@/lib/api";
 
 export function ChatPanel({
@@ -129,7 +130,16 @@ export function ChatPanel({
                   : "bg-white text-brand-blueDark shadow-sm"
               }`}
             >
-              {msg.body}
+              <span className="whitespace-pre-wrap">{msg.body}</span>
+              {msg.senderId !== currentUserId && (
+                <span className="mt-1 block">
+                  <TranslateText
+                    text={msg.body}
+                    accessToken={accessToken}
+                    linkClassName="text-[11px] font-semibold text-brand-accent hover:underline"
+                  />
+                </span>
+              )}
             </div>
           </div>
         ))}

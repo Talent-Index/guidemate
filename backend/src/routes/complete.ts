@@ -108,7 +108,7 @@ async function releaseAndCredit(booking: BookingRecord): Promise<BookingRecord> 
       if (parsedLog?.name === "BookingReleased") {
         splits = {
           guideAmount: Number(formatUnits(parsedLog.args.guideAmount, decimals)),
-          hotelAmount: Number(formatUnits(parsedLog.args.hotelAmount, decimals)),
+          hotelAmount: 0,
           protocolAmount: Number(formatUnits(parsedLog.args.protocolAmount, decimals)),
         };
       }

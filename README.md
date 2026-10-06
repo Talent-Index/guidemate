@@ -22,7 +22,7 @@ These are live in the repo today - not a roadmap.
 - Tourist booking list with live escrow status (`/tourist/bookings`)
 - Guide dashboard: list experiences, photos, categories, history (`/guide/dashboard`)
 - Star ratings after a completed tour
-- Direct bookings: tourist pays the listed price; on release 85% guide / 15% Guidemate (the 10% hotel slot routes to the protocol treasury when there is no hotel)
+- Direct bookings: tourist pays the listed price; on release 85% guide / 15% Guidemate
 
 ### Escrow and payouts (Avalanche Fuji)
 
@@ -30,13 +30,13 @@ Live contracts on Avalanche Fuji (chain id `43113`). Explorer: [Snowtrace testne
 
 | Contract | Address | Deploy tx |
 |---|---|---|
-| `GuidemateEscrow` | [`0x4837EfB8422143fdaa4f60805fC05a21cc9966C0`](https://testnet.snowtrace.io/address/0x4837EfB8422143fdaa4f60805fC05a21cc9966C0) | [`0x148ad6f3…779faa`](https://testnet.snowtrace.io/tx/0x148ad6f395cdfcad5e927a9a197de00d062deb1889f4c00a8ba68d33d6779faa) |
+| `GuidemateEscrow` | [`0x589CF4084cc183Ea564B608cf22128E0e7B70982`](https://testnet.snowtrace.io/address/0x589CF4084cc183Ea564B608cf22128E0e7B70982) | [`0x25bea686…08bb26`](https://testnet.snowtrace.io/tx/0x25bea686879b21c985ccdf3c18ab7d9dbc81cdb633cf8698f059ed0e7d08bb26) |
 | `MockUSDC` | [`0x76EC76a347115afa9a3490a256bA13447cfBd8c5`](https://testnet.snowtrace.io/address/0x76EC76a347115afa9a3490a256bA13447cfBd8c5) | [`0x8c904142…cc0804`](https://testnet.snowtrace.io/tx/0x8c904142c9bccc56e117fde003278f904776adfec634d7d614d4f8e80ccc0804) |
 
 - Protocol treasury (15% platform cut + 20% no-show fee): [`0x99D12f1b05AE5AaD16cd230760786B3c972C11c0`](https://testnet.snowtrace.io/address/0x99D12f1b05AE5AaD16cd230760786B3c972C11c0). Set on-chain in [`0x08944ddf…74b378`](https://testnet.snowtrace.io/tx/0x08944ddfe85526dc9d7e981fe60eb38b59b07f862442f340fafab58fa874b378).
 - Deployer / backend signer: `0x15EaaED3067c06df39CA2062360900b249aF7963`
 - Pay → funds sit in the **escrow contract**, not the guide's wallet
-- On release: 85% guide custodial wallet / 10% hotel or protocol / 5% protocol
+- On release: 85% guide / 15% Guidemate protocol treasury
 - **End trip** on the tourist phone: 6-digit PIN + QR (`/tourist/bookings`)
 - Guide enters the PIN on Active tour (`/guide`) or scans the QR at `/verify`
 - Tourist no-show: guide can refund 80% / keep 20% as a fee after a 30-minute grace period
@@ -196,7 +196,7 @@ npm run dev                   # http://localhost:3000
 - **Live.** Sign in as a guide → `/live` → **Start stream**. Everyone else sees it under Happening now.
 - **No-show.** On `/guide`, 30 minutes after booking, **Tourist didn't show up** refunds 80%.
 - **Currency.** Use the nav picker to show a live local equivalent next to USDC prices.
-- **Concierge.** `/concierge` books on a guest's behalf so the 10% hotel share is distinct.
+- **Concierge.** `/concierge` books on a guest's behalf (hotel name is metadata only; payout split is still 85/15 on-chain).
 
 ## Local smoke test (no Fuji wallet needed)
 
@@ -239,7 +239,7 @@ to the viewport bottom. Tokens live in `frontend/tailwind.config.ts`; shared pri
 - The backend wallet signs lock/release. Tourist wallets are for identity, balance, and the
   testnet mUSDC faucet - they do not sign the escrow transactions.
 - `MockUSDC` is testnet-only; anyone can call its public `faucet()`.
-- Direct tourist bookings send the 10% "hotel" share to the protocol treasury.
+- On-chain release splits 85% to the guide and 15% to the protocol treasury (no separate hotel payout).
 - M-Pesa is simulated in `backend/src/payout.ts`. Live FX is `GET /api/fx`.
 - Bookings have no client-facing write policies - every booking write goes through the backend
   service-role key so escrow state and DB state cannot drift apart.

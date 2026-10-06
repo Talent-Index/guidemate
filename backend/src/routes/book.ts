@@ -82,19 +82,12 @@ bookRouter.post("/", async (req, res) => {
     const decimals = await usdc.decimals();
     const totalUsdc = Math.round(experience.priceUsdc * guests * 100) / 100;
     const amountUnits = parseUnits(totalUsdc.toString(), decimals);
-    const resolvedHotelWallet = hotelWallet ?? (await escrow.protocolTreasury());
-
     if (paymentMethod === "demo" || paymentMethod === "mpesa" || paymentMethod === "custodial" || paymentMethod === "checkout") {
       const mintTx = await usdc.mint(await signer.getAddress(), amountUnits);
       await mintTx.wait();
     }
 
-    const lockTx = await escrow.createBooking(
-      bytes32Id,
-      experience.guide.walletAddress,
-      resolvedHotelWallet,
-      amountUnits
-    );
+    const lockTx = await escrow.createBooking(bytes32Id, experience.guide.walletAddress, amountUnits);
     const receipt = await lockTx.wait();
 
     const record = await saveBooking({

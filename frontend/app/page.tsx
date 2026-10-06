@@ -203,7 +203,7 @@ export default function HomePage() {
             </p>
             <div className="mt-10 flex flex-wrap justify-center gap-3">
               <Link
-                href="/apply"
+                href="/become-a-guide"
                 className="bg-brand-amber px-7 py-3 text-sm font-semibold text-brand-blueDark transition hover:bg-brand-amberDark"
               >
                 Apply to be a guide

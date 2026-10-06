@@ -24,11 +24,8 @@ const EXAMPLE_REQUESTS = [
   "They want a half-day safari at Nairobi National Park.",
 ];
 
-// Demo-only hotel identity for this secondary B2B flow, so the escrow split
-// still shows a distinct hotel share (10%) alongside the guide (85%) and
-// protocol (5%). Direct tourist bookings via /explore skip this entirely.
+// Demo hotel label for concierge metadata only (B2B). On-chain split is 85% guide / 15% Guidemate.
 const DEMO_HOTEL_NAME = "Villa Rosa Kempinski (demo)";
-const DEMO_HOTEL_WALLET = "0x0900000000000000000000000000000000000009";
 
 export default function ConciergePage() {
   const [requestText, setRequestText] = useState("");
@@ -73,7 +70,6 @@ export default function ConciergePage() {
         experienceId: match.experience.id,
         matchReason: match.reason,
         hotelName: DEMO_HOTEL_NAME,
-        hotelWallet: DEMO_HOTEL_WALLET,
       });
       setBooking(created);
       startPolling(created.bookingId);
@@ -234,10 +230,9 @@ export default function ConciergePage() {
             </dl>
 
             {booking.splits && (
-              <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+              <div className="mt-4 grid grid-cols-2 gap-2 text-center">
                 <SplitBox label="Guide (85%)" value={booking.splits.guideAmount} />
-                <SplitBox label="Hotel (10%)" value={booking.splits.hotelAmount} />
-                <SplitBox label="Protocol (5%)" value={booking.splits.protocolAmount} />
+                <SplitBox label="Guidemate (15%)" value={booking.splits.protocolAmount} />
               </div>
             )}
 

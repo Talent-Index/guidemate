@@ -4,7 +4,10 @@ import { parseUnits } from "ethers";
 import { z } from "zod";
 import { getExperienceById } from "../experiences.js";
 import { bookingIdToBytes32, requireChain } from "../chain.js";
+import { fundEscrowLock } from "../bookFunding.js";
 import { saveBooking } from "../bookings.js";
+import { resolvePayoutDestination } from "../payout.js";
+import { isSimulatedRamp } from "../ramp/index.js";
 import { reserveSlot, releaseSlot } from "../slots.js";
 import { ensureConversation } from "../chat.js";
 import { recordWalletTransaction } from "../ledger.js";
@@ -55,7 +58,7 @@ bookRouter.post("/", async (req, res) => {
 
   let slotReserved = false;
   try {
-    const { signer, escrow, usdc } = requireChain();
+    const { escrow, usdc } = requireChain();
     const touristId = await getUserIdFromAuthHeader(req.headers.authorization);
     if (!touristId && paymentMethod !== "demo") {
       return res.status(401).json({ error: "sign in required for this payment method" });
@@ -71,6 +74,16 @@ bookRouter.post("/", async (req, res) => {
       }
     }
 
+    const payoutDestination = await resolvePayoutDestination(experience.guide.id, experience.id);
+    if (payoutDestination === "mpesa" && !isSimulatedRamp()) {
+      const phone = experience.guide.phone?.trim();
+      if (!phone) {
+        return res.status(422).json({
+          error: "This guide has not set an M-Pesa phone number. Payout cannot be sent after the trip.",
+        });
+      }
+    }
+
     if (!slotId) {
       return res.status(400).json({ error: "slotId required: choose an available time before booking" });
     }
@@ -82,10 +95,7 @@ bookRouter.post("/", async (req, res) => {
     const decimals = await usdc.decimals();
     const totalUsdc = Math.round(experience.priceUsdc * guests * 100) / 100;
     const amountUnits = parseUnits(totalUsdc.toString(), decimals);
-    if (paymentMethod === "demo" || paymentMethod === "mpesa" || paymentMethod === "custodial" || paymentMethod === "checkout") {
-      const mintTx = await usdc.mint(await signer.getAddress(), amountUnits);
-      await mintTx.wait();
-    }
+    await fundEscrowLock(paymentMethod, amountUnits, escrow);
 
     const lockTx = await escrow.createBooking(bytes32Id, experience.guide.walletAddress, amountUnits);
     const receipt = await lockTx.wait();

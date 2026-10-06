@@ -1,6 +1,28 @@
-import { Contract, JsonRpcProvider, Wallet, id as keccakId } from "ethers";
+import { Contract, JsonRpcProvider, Wallet, id as keccakId, type InterfaceAbi } from "ethers";
 import escrowAbi from "./abi/GuidemateEscrow.json" with { type: "json" };
+import escrowAbiV1 from "./abi/GuidemateEscrow.v1.json" with { type: "json" };
 import mockUsdcAbi from "./abi/MockUSDC.json" with { type: "json" };
+
+/** Escrow deployments that used the 85/10/5 + hotel parameter ABI. */
+const DEFAULT_LEGACY_ESCROW = "0x4837efb8422143fdaa4f60805fc05a21cc9966c0";
+
+function legacyEscrowAddresses(): Set<string> {
+  const raw = process.env.LEGACY_ESCROW_ADDRESSES ?? DEFAULT_LEGACY_ESCROW;
+  return new Set(
+    raw
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+export function isLegacyEscrowAddress(address: string): boolean {
+  return legacyEscrowAddresses().has(address.toLowerCase());
+}
+
+export function escrowAbiForAddress(address: string): InterfaceAbi {
+  return isLegacyEscrowAddress(address) ? (escrowAbiV1 as InterfaceAbi) : (escrowAbi as InterfaceAbi);
+}
 
 const {
   FUJI_RPC_URL = "https://api.avax-test.network/ext/bc/C/rpc",
@@ -51,7 +73,12 @@ export async function escrowForLockTx(lockTxHash: string | null | undefined) {
   const configured = String(escrow.target).toLowerCase();
   if (lockedOn === configured) return escrow;
 
-  return new Contract(receipt.to, escrowAbi, signer);
+  return new Contract(receipt.to, escrowAbiForAddress(lockedOn), signer);
+}
+
+export function escrowContractAt(address: string) {
+  const { signer } = requireChain();
+  return new Contract(address, escrowAbiForAddress(address), signer);
 }
 
 /// Deterministic bytes32 booking id derived from a UUID-ish string, so the

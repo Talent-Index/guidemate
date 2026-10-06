@@ -5,7 +5,8 @@ import { bookingIdToBytes32, escrowForLockTx, requireChain } from "../chain.js";
 import { getBooking, updateBooking, type BookingRecord } from "../bookings.js";
 import { verifyBookingToken, verifyCompletionPin } from "../qr.js";
 import { recordWalletTransaction } from "../ledger.js";
-import { autoPayoutOnRelease } from "../payout.js";
+import { autoPayoutOnRelease, resolvePayoutDestination } from "../payout.js";
+import { alertIfLegacyEscrowLock, alertOnBookingReleased, alertOnPayoutFailure } from "../escrowMonitoring.js";
 import { getUserIdFromAuthHeader } from "../supabase.js";
 
 export const completeRouter = Router();
@@ -87,6 +88,9 @@ function friendlyChainError(err: unknown): string {
 async function releaseAndCredit(booking: BookingRecord): Promise<BookingRecord> {
   const { usdc } = requireChain();
   const escrow = await escrowForLockTx(booking.lockTxHash);
+  if (booking.lockTxHash) {
+    await alertIfLegacyEscrowLock(booking.lockTxHash, booking.bookingId);
+  }
   const bytes32Id = bookingIdToBytes32(booking.bookingId);
   const decimals = await usdc.decimals();
 
@@ -106,16 +110,32 @@ async function releaseAndCredit(booking: BookingRecord): Promise<BookingRecord> 
     try {
       const parsedLog = escrow.interface.parseLog(log);
       if (parsedLog?.name === "BookingReleased") {
-        splits = {
-          guideAmount: Number(formatUnits(parsedLog.args.guideAmount, decimals)),
-          hotelAmount: 0,
-          protocolAmount: Number(formatUnits(parsedLog.args.protocolAmount, decimals)),
-        };
+        const guideAmount = Number(formatUnits(parsedLog.args.guideAmount, decimals));
+        if (parsedLog.args.hotelAmount != null) {
+          splits = {
+            guideAmount,
+            hotelAmount: Number(formatUnits(parsedLog.args.hotelAmount, decimals)),
+            protocolAmount: Number(formatUnits(parsedLog.args.protocolAmount, decimals)),
+          };
+        } else {
+          splits = {
+            guideAmount,
+            hotelAmount: 0,
+            protocolAmount: Number(formatUnits(parsedLog.args.protocolAmount, decimals)),
+          };
+        }
       }
     } catch {
       // not our event
     }
   }
+
+  await alertOnBookingReleased({
+    bookingId: booking.bookingId,
+    guideAmountUsdc: splits.guideAmount,
+    protocolAmountUsdc: splits.protocolAmount + splits.hotelAmount,
+    releaseTxHash: receipt?.hash ?? tx.hash,
+  });
 
   await updateBooking(booking.bookingId, {
     status: "released",
@@ -139,6 +159,9 @@ async function releaseAndCredit(booking: BookingRecord): Promise<BookingRecord> 
   }
 
   const payout = await autoPayoutOnRelease(updated, splits.guideAmount);
+  if (!payout && (await resolvePayoutDestination(updated.guideId, updated.experienceId)) === "mpesa") {
+    await alertOnPayoutFailure(updated.bookingId, new Error("auto payout returned null"));
+  }
   if (payout) {
     updated = (await getBooking(booking.bookingId)) ?? updated;
   }

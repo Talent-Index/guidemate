@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { provisionGuideWallet } from "../wallet.js";
 import { closeLockedBookingsAsPaid } from "../bookings.js";
+import { getEscrowHealthSnapshot } from "../escrowMonitoring.js";
+import { retryAutoPayoutForBooking } from "../payout.js";
 import {
   buildReportCsv,
   getAdminTransactions,
@@ -354,6 +356,30 @@ adminRouter.post("/staff", async (req, res) => {
   } catch (err) {
     console.error("[admin] create staff failed", err);
     res.status(500).json({ error: (err as Error).message ?? "staff creation failed" });
+  }
+});
+
+adminRouter.get("/escrow/health", async (req, res) => {
+  const adminId = await getAdminUserIdFromAuthHeader(req.headers.authorization);
+  if (!adminId) return res.status(403).json({ error: "admin only" });
+
+  try {
+    const snapshot = await getEscrowHealthSnapshot();
+    res.json(snapshot);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+adminRouter.post("/bookings/:id/retry-payout", async (req, res) => {
+  const adminId = await getAdminUserIdFromAuthHeader(req.headers.authorization);
+  if (!adminId) return res.status(403).json({ error: "admin only" });
+
+  try {
+    const payout = await retryAutoPayoutForBooking(req.params.id);
+    res.json({ ok: true, payout });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
   }
 });
 

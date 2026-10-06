@@ -34,7 +34,7 @@ export function pageMetadata(opts: {
 
 export function rootSiteMetadata(): Metadata {
   const description =
-    "Watch local guides live, book vetted experiences in Kenya, and pay through escrow with same-day M-Pesa payouts.";
+    "A new world of local experiences you can trust. Watch guides live, book vetted trips in Kenya, and pay through escrow with same-day M-Pesa payouts.";
   return {
     metadataBase: new URL(siteUrl()),
     title: {

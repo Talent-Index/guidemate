@@ -3,6 +3,7 @@ import "./globals.css";
 import { Providers } from "@/lib/providers";
 import { SiteChrome } from "@/components/ui/SiteChrome";
 import { PwaRegister } from "@/components/pwa/PwaRegister";
+import { rootSiteMetadata } from "@/lib/marketingMetadata";
 
 const SPLASHES = [
   { file: "640x1136", dw: 320, dh: 568, dpr: 2 },
@@ -28,9 +29,7 @@ function splashMedia(s: (typeof SPLASHES)[number], dark: boolean) {
 }
 
 export const metadata: Metadata = {
-  title: "Guidemate",
-  description: "Find a local guide, book instantly, pay same-day - secured on Avalanche.",
-  applicationName: "Guidemate",
+  ...rootSiteMetadata(),
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

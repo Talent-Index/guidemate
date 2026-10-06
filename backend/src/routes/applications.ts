@@ -31,6 +31,9 @@ const applicationSchema = z.object({
   professionalCertificates: z.array(filePayloadSchema).min(1).max(5),
   cv: filePayloadSchema.optional().nullable(),
   proof: filePayloadSchema.optional().nullable(),
+  utmSource: z.string().max(200).optional(),
+  utmMedium: z.string().max(200).optional(),
+  utmCampaign: z.string().max(200).optional(),
 });
 
 const ALLOWED_CONTENT_TYPES = new Set([
@@ -118,6 +121,9 @@ applicationsRouter.post("/", async (req, res) => {
       referee_name: input.refereeName.trim(),
       referee_phone: input.refereePhone.trim(),
       referee_email: input.refereeEmail?.trim().toLowerCase() || null,
+      utm_source: input.utmSource?.trim() || null,
+      utm_medium: input.utmMedium?.trim() || null,
+      utm_campaign: input.utmCampaign?.trim() || null,
     });
 
     if (insertError) throw new Error(insertError.message);

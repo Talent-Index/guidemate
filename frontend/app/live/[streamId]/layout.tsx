@@ -1,18 +1,11 @@
 import type { Metadata } from "next";
-
-const DEFAULT_OG_IMAGE = "/hero-beach.jpg";
+import { absoluteUrl, DEFAULT_OG_IMAGE_PATH, siteUrl } from "@/lib/site";
 
 function apiBase(): string {
   return (process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.API_BASE_URL ?? "http://localhost:4000").replace(
     /\/$/,
     ""
   );
-}
-
-function appBase(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
-  if (fromEnv && !/localhost|127\.0\.0\.1/.test(fromEnv)) return fromEnv;
-  return "https://guidemate.onrender.com";
 }
 
 async function fetchStreamMeta(streamIdOrSlug: string) {
@@ -31,12 +24,12 @@ async function fetchStreamMeta(streamIdOrSlug: string) {
 export async function generateMetadata({ params }: { params: Promise<{ streamId: string }> }): Promise<Metadata> {
   const { streamId } = await params;
   const stream = await fetchStreamMeta(streamId);
-  const appUrl = appBase();
+  const appUrl = siteUrl();
 
   if (!stream) {
     return {
       title: "Live on Guidemate",
-      openGraph: { images: [{ url: `${appUrl}${DEFAULT_OG_IMAGE}` }] },
+      openGraph: { images: [{ url: absoluteUrl(DEFAULT_OG_IMAGE_PATH) }] },
     };
   }
 
@@ -61,7 +54,7 @@ export async function generateMetadata({ params }: { params: Promise<{ streamId:
       locale: "en_KE",
       images: [
         {
-          url: `${appUrl}${DEFAULT_OG_IMAGE}`,
+          url: absoluteUrl(DEFAULT_OG_IMAGE_PATH),
           width: 1200,
           height: 630,
           alt: stream.title,
@@ -72,7 +65,7 @@ export async function generateMetadata({ params }: { params: Promise<{ streamId:
       card: "summary_large_image",
       title: stream.title,
       description,
-      images: [`${appUrl}${DEFAULT_OG_IMAGE}`],
+      images: [absoluteUrl(DEFAULT_OG_IMAGE_PATH)],
     },
   };
 }

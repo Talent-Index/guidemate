@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { submitGuideApplication, type GuideApplicationFilePayload } from "@/lib/api";
+import { captureUtmFromSearch, readStoredUtm } from "@/lib/utm";
 
 async function fileToPayload(file: File): Promise<GuideApplicationFilePayload> {
   const base64 = await new Promise<string>((resolve, reject) => {
@@ -176,6 +177,10 @@ export function GuideApplyWizard() {
   const [submitted, setSubmitted] = useState(false);
   const [notReadyYet, setNotReadyYet] = useState(false);
 
+  useEffect(() => {
+    captureUtmFromSearch(window.location.search);
+  }, []);
+
   const current = STEPS[step];
   const progress = ((step + 1) / STEPS.length) * 100;
   const isLast = step === STEPS.length - 1;
@@ -268,6 +273,8 @@ export function GuideApplyWizard() {
         ...professionalCertFiles.map((file) => fileToPayload(file)),
       ]);
 
+      const utm = readStoredUtm();
+
       await submitGuideApplication({
         fullName: fullName.trim(),
         email: email.trim(),
@@ -289,6 +296,9 @@ export function GuideApplyWizard() {
         professionalCertificates,
         cv,
         proof,
+        utmSource: utm.utm_source,
+        utmMedium: utm.utm_medium,
+        utmCampaign: utm.utm_campaign,
       });
 
       setSubmitted(true);

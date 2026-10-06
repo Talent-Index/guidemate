@@ -847,6 +847,7 @@ export interface AnalyticsOverview {
   applicationsApproved: number;
   applicationsRejected: number;
   applicationsTotal: number;
+  totalProfiles: number;
 }
 
 export function getAdminOverview(accessToken: string, from?: string, to?: string) {
@@ -992,6 +993,9 @@ export interface GuideApplicationInput {
   professionalCertificates: GuideApplicationFilePayload[];
   cv?: GuideApplicationFilePayload | null;
   proof?: GuideApplicationFilePayload | null;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
 }
 
 export function submitGuideApplication(input: GuideApplicationInput) {

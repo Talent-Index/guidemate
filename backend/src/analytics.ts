@@ -43,6 +43,8 @@ export interface AnalyticsOverview {
   applicationsApproved: number;
   applicationsRejected: number;
   applicationsTotal: number;
+  /** All profiles (guides + tourists + admins) in range or all-time */
+  totalProfiles: number;
 }
 
 export async function getAnalyticsOverview(from?: string, to?: string): Promise<AnalyticsOverview> {
@@ -137,6 +139,7 @@ export async function getAnalyticsOverview(from?: string, to?: string): Promise<
     applicationsApproved: applicationsApproved ?? 0,
     applicationsRejected: applicationsRejected ?? 0,
     applicationsTotal: applicationsTotal ?? 0,
+    totalProfiles: (guides ?? 0) + (tourists ?? 0) + (admins ?? 0),
   };
 }
 

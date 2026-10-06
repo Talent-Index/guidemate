@@ -15,6 +15,24 @@ export function SiteFooter() {
           </p>
         </div>
         <div className="flex flex-col gap-3 text-sm">
+          <Link href="/destinations" className="text-[var(--gm-muted)] transition hover:text-[var(--gm-ink)]">
+            Kenya destinations
+          </Link>
+          <Link href="/for-travelers" className="text-[var(--gm-muted)] transition hover:text-[var(--gm-ink)]">
+            For travelers
+          </Link>
+          <Link href="/become-a-guide" className="text-[var(--gm-muted)] transition hover:text-[var(--gm-ink)]">
+            Become a guide
+          </Link>
+          <Link href="/for-agencies" className="text-[var(--gm-muted)] transition hover:text-[var(--gm-ink)]">
+            For agencies
+          </Link>
+          <Link href="/how-escrow-works" className="text-[var(--gm-muted)] transition hover:text-[var(--gm-ink)]">
+            How escrow works
+          </Link>
+          <Link href="/faq" className="text-[var(--gm-muted)] transition hover:text-[var(--gm-ink)]">
+            FAQ
+          </Link>
           <Link href="/terms" className="text-[var(--gm-muted)] transition hover:text-[var(--gm-ink)]">
             Terms and conditions
           </Link>

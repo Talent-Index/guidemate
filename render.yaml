@@ -90,6 +90,8 @@ services:
       # in the dashboard and redeploy.
       - key: NEXT_PUBLIC_API_BASE_URL
         value: https://guidemate-backend.onrender.com
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://yourguidemate.top
       - key: NEXT_PUBLIC_SUPABASE_URL
         value: https://oeyynnedpmuhfqxkecyt.supabase.co
       - key: NEXT_PUBLIC_SUPABASE_ANON_KEY

@@ -19,7 +19,7 @@ services:
       - key: BACKEND_PRIVATE_KEY
         sync: false # paste from backend/.env in the Render dashboard - never commit this
       - key: ESCROW_ADDRESS
-        value: "0x4837EfB8422143fdaa4f60805fC05a21cc9966C0"
+        value: "0x589CF4084cc183Ea564B608cf22128E0e7B70982"
       - key: MOCK_USDC_ADDRESS
         value: "0x76EC76a347115afa9a3490a256bA13447cfBd8c5"
       - key: SUPABASE_URL

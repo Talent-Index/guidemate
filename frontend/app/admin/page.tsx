@@ -215,6 +215,10 @@ export default function AdminDashboardPage() {
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <StatCard label={filtered ? "New guides" : "Guides"} value={overview.guides} />
                   <StatCard label={filtered ? "New tourists" : "Tourists"} value={overview.tourists} />
+                  <StatCard
+                    label={filtered ? "Profiles in period" : "Total accounts"}
+                    value={overview.totalProfiles ?? overview.guides + overview.tourists + overview.admins}
+                  />
                   <StatCard label="Waitlist" value={overview.waitlistCount} accent="amber" />
                   <StatCard label="Pending apps" value={overview.pendingApplications} accent="amber" />
                   <StatCard label={filtered ? "Streams started" : "Live now"} value={filtered ? overview.streamsTotal : overview.streamsLive} />
@@ -238,6 +242,7 @@ export default function AdminDashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
+                    <MetricRow label="Total platform accounts" value={overview.totalProfiles ?? overview.guides + overview.tourists + overview.admins} category="Users" tone="blue" />
                     <MetricRow label="Guides onboarded" value={overview.guides} category="Users" tone="blue" />
                     <MetricRow label="Tourists registered" value={overview.tourists} category="Users" tone="blue" />
                     <MetricRow label="Waitlist signups" value={overview.waitlistCount} category="Intake" tone="amber" />

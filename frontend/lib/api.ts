@@ -145,6 +145,9 @@ export function friendlyPaymentError(message: string): string {
   ) {
     return "M-Pesa is not enabled on our payment account yet. Pay with USDC / USDT instead.";
   }
+  if (lower.includes("rate limit")) {
+    return "Payments are busy right now. Wait about a minute, then try again or switch to USDC / USDT checkout.";
+  }
   return message;
 }
 
@@ -728,7 +731,7 @@ export async function pollMpesaPayment(
   opts?: { timeoutMs?: number; intervalMs?: number }
 ): Promise<{ status: string; mpesaReceipt: string | null; amountKes: number; amountUsdc: number }> {
   const timeoutMs = opts?.timeoutMs ?? 120_000;
-  const intervalMs = opts?.intervalMs ?? 2500;
+  const intervalMs = opts?.intervalMs ?? 6000;
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
     const status = await getMpesaPaymentStatus(intentId, accessToken);
@@ -996,12 +999,102 @@ export interface GuideApplicationInput {
   utmSource?: string;
   utmMedium?: string;
   utmCampaign?: string;
+  referralCode?: string;
 }
 
 export function submitGuideApplication(input: GuideApplicationInput) {
   return request<{ ok: true }>("/api/applications", {
     method: "POST",
     body: JSON.stringify(input),
+  });
+}
+
+export interface ReferralSummary {
+  referralCode: string;
+  referralXp: number;
+  xpPerQualifiedGuide: number;
+  xpToClaimExperience: number;
+  canClaimExperience: boolean;
+  referrals: Array<{
+    id: string;
+    status: string;
+    referredGuideName: string | null;
+    xpAwarded: number;
+    qualifiedAt: string | null;
+    createdAt: string;
+  }>;
+  claims: Array<{
+    id: string;
+    experienceId: string;
+    experienceTitle: string | null;
+    xpSpent: number;
+    status: string;
+    createdAt: string;
+  }>;
+}
+
+export interface ReferralProgramResponse {
+  summary: ReferralSummary;
+  links: { apply: string; short: string; campaign: string };
+}
+
+export function getReferralProgram(accessToken: string) {
+  return request<ReferralProgramResponse>("/api/referrals/me", {
+    headers: authHeaders(accessToken),
+  });
+}
+
+export function claimReferralExperience(experienceId: string, accessToken: string) {
+  return request<{ ok: true; claimId: string; summary: ReferralSummary }>("/api/referrals/claim", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ experienceId }),
+  });
+}
+
+export function syncReferralQualification(accessToken: string) {
+  return request<{ qualified: number }>("/api/referrals/qualify", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+  });
+}
+
+export function updateVanityReferralCode(vanityCode: string, accessToken: string) {
+  return request<ReferralProgramResponse>("/api/referrals/me/code", {
+    method: "PATCH",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ vanityCode }),
+  });
+}
+
+export interface AdminReferralClaim {
+  id: string;
+  status: string;
+  xpSpent: number;
+  createdAt: string;
+  notes: string | null;
+  experienceId: string;
+  experienceTitle: string | null;
+  profileId: string;
+  profileName: string | null;
+}
+
+export function listAdminReferralClaims(accessToken: string, status = "pending") {
+  return request<{ claims: AdminReferralClaim[] }>(
+    `/api/admin/referrals/claims?status=${encodeURIComponent(status)}`,
+    { headers: authHeaders(accessToken) }
+  );
+}
+
+export function updateAdminReferralClaim(
+  claimId: string,
+  status: "approved" | "redeemed" | "cancelled",
+  accessToken: string
+) {
+  return request<{ ok: true }>(`/api/admin/referrals/claims/${claimId}`, {
+    method: "PATCH",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ status }),
   });
 }
 

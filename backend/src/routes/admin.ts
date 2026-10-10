@@ -1,6 +1,11 @@
 import { Router } from "express";
 import { provisionGuideWallet } from "../wallet.js";
-import { recordReferralOnApproval, tryQualifyGuideReferrals } from "../referrals.js";
+import {
+  listReferralClaimsForAdmin,
+  recordReferralOnApproval,
+  tryQualifyGuideReferrals,
+  updateReferralClaimStatus,
+} from "../referrals.js";
 import { closeLockedBookingsAsPaid } from "../bookings.js";
 import { getEscrowHealthSnapshot } from "../escrowMonitoring.js";
 import { retryAutoPayoutForBooking } from "../payout.js";
@@ -362,6 +367,36 @@ adminRouter.post("/staff", async (req, res) => {
   } catch (err) {
     console.error("[admin] create staff failed", err);
     res.status(500).json({ error: (err as Error).message ?? "staff creation failed" });
+  }
+});
+
+adminRouter.get("/referrals/claims", async (req, res) => {
+  const adminId = await getAdminUserIdFromAuthHeader(req.headers.authorization);
+  if (!adminId) return res.status(403).json({ error: "admin only" });
+
+  try {
+    const status = typeof req.query.status === "string" ? req.query.status : "pending";
+    const claims = await listReferralClaimsForAdmin(status);
+    res.json({ claims });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+adminRouter.patch("/referrals/claims/:id", async (req, res) => {
+  const adminId = await getAdminUserIdFromAuthHeader(req.headers.authorization);
+  if (!adminId) return res.status(403).json({ error: "admin only" });
+
+  const status = (req.body as { status?: string })?.status;
+  if (status !== "approved" && status !== "redeemed" && status !== "cancelled") {
+    return res.status(400).json({ error: "status must be approved, redeemed, or cancelled" });
+  }
+
+  try {
+    await updateReferralClaimStatus(req.params.id, status);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
   }
 });
 

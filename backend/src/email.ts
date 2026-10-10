@@ -218,3 +218,37 @@ export async function sendWelcomeEmail(
 
   return sendTransactionalEmail({ to: email.trim(), subject, html, text, from: "notifications" });
 }
+
+export async function sendReferralXpAwardedEmail(opts: {
+  email: string;
+  fullName: string | null;
+  xpAwarded: number;
+  totalXp: number;
+  referredGuideName: string | null;
+}): Promise<boolean> {
+  const base = frontendBaseUrl();
+  const firstName = (opts.fullName ?? "").split(" ")[0] || "there";
+  const guideLabel = opts.referredGuideName?.trim() || "A guide you referred";
+  const subject = `+${opts.xpAwarded} referral XP on Guidemate`;
+
+  const text = [
+    `Hi ${firstName},`,
+    "",
+    `${guideLabel} is now listed on Guidemate with a published experience.`,
+    `You earned ${opts.xpAwarded} referral XP. Your balance is ${opts.totalXp} XP.`,
+    "",
+    `View your link and rewards: ${base}/refer-a-guide`,
+    "",
+    "The Guidemate team",
+  ].join("\n");
+
+  const html = emailLayout({
+    heading: `You earned ${opts.xpAwarded} referral XP`,
+    intro: `${guideLabel} is live on Guidemate.`,
+    bodyHtml: `<p style="margin:0;">Your referral XP balance is now <strong>${opts.totalXp}</strong>. Keep sharing your link to earn more, or claim a complimentary experience when you have enough XP.</p>`,
+    ctaLabel: "Refer a guide",
+    ctaUrl: `${base}/refer-a-guide`,
+  });
+
+  return sendTransactionalEmail({ to: opts.email.trim(), subject, html, text, from: "notifications" });
+}

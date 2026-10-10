@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { provisionGuideWallet } from "../wallet.js";
+import { recordReferralOnApproval, tryQualifyGuideReferrals } from "../referrals.js";
 import { closeLockedBookingsAsPaid } from "../bookings.js";
 import { getEscrowHealthSnapshot } from "../escrowMonitoring.js";
 import { retryAutoPayoutForBooking } from "../payout.js";
@@ -216,6 +217,11 @@ adminRouter.post("/applications/:id/approve", async (req, res) => {
       })
       .eq("id", applicationId);
     if (updateError) throw new Error(updateError.message);
+
+    await recordReferralOnApproval(applicationId, userId);
+    await tryQualifyGuideReferrals(userId).catch((err) => {
+      console.warn("[admin] referral qualify after approve skipped", err);
+    });
 
     const approvalNoticeSent = await sendGuideApplicationApprovedEmail(
       application.email,

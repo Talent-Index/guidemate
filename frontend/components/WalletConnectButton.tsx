@@ -9,6 +9,7 @@ import { avalancheFuji } from "@/lib/wagmi";
 import { ensureFujiNetwork, friendlyWalletError } from "@/lib/fujiNetwork";
 
 const MOCK_USDC_ADDRESS = process.env.NEXT_PUBLIC_MOCK_USDC_ADDRESS as `0x${string}` | undefined;
+const ENABLE_TEST_FAUCET = process.env.NEXT_PUBLIC_ENABLE_TEST_FAUCET === "true";
 const FAUCET_AMOUNT = BigInt(1_000) * BigInt(10) ** BigInt(6); // 1,000 mUSDC (6 decimals)
 
 export function WalletConnectButton() {
@@ -118,7 +119,7 @@ export function WalletConnectButton() {
           {switching ? "Switching..." : "Switch Core to Fuji testnet"}
         </button>
       )}
-      {MOCK_USDC_ADDRESS && onFuji && (
+      {MOCK_USDC_ADDRESS && onFuji && ENABLE_TEST_FAUCET && (
         <button
           type="button"
           onClick={() => void handleFaucet()}

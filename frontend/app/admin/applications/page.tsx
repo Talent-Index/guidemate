@@ -4,6 +4,7 @@ import Link from "next/link";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { AnalyticsGate } from "@/components/auth/AdminGate";
 import { AdminIntakePanel } from "@/components/admin/AdminIntakePanel";
+import { AdminReferralClaimsPanel } from "@/components/admin/AdminReferralClaimsPanel";
 
 export default function AdminApplicationsPage() {
   return (
@@ -28,6 +29,7 @@ export default function AdminApplicationsPage() {
         </div>
 
         <AdminIntakePanel />
+        <AdminReferralClaimsPanel />
       </div>
     </AnalyticsGate>
   );

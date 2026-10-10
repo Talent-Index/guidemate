@@ -31,6 +31,15 @@ export default function TermsPage() {
         or scans your QR. Guidemate does not release payment without that confirmation.
       </p>
 
+      <h2 className="mt-8 text-lg font-bold">Escrow release and fees</h2>
+      <p className="mt-2 text-sm leading-relaxed text-brand-muted">
+        When a trip is confirmed complete, escrow releases{" "}
+        <span className="font-semibold text-[var(--gm-ink)]">85%</span> of the booking amount to the
+        guide and <span className="font-semibold text-[var(--gm-ink)]">15%</span> to Guidemate as the
+        platform fee. Those percentages are enforced by the GuidemateEscrow smart contract on Avalanche,
+        not adjusted manually after payment.
+      </p>
+
       <h2 className="mt-8 text-lg font-bold">Cancellations</h2>
       <p className="mt-2 text-sm leading-relaxed text-brand-muted">
         If you cancel after paying, Guidemate charges an inconvenience fee of{" "}

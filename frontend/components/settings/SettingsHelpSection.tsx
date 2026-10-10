@@ -32,6 +32,9 @@ export function SettingsHelpSection({ role }: { role: "tourist" | "guide" | "adm
             Guide terms
           </Link>
         )}
+        <Link href="/refer-a-guide" className="font-semibold text-brand-accent hover:underline">
+          Refer a guide (earn XP)
+        </Link>
         <Link href="/privacy" className="font-semibold text-brand-accent hover:underline">
           Privacy policy
         </Link>

@@ -1,5 +1,5 @@
 import type { BookingRecord, PayoutInfo } from "./bookings.js";
-import { updateBooking } from "./bookings.js";
+import { getBooking, updateBooking } from "./bookings.js";
 import { usdcToKes } from "./fx.js";
 import { isSimulatedRamp } from "./ramp/index.js";
 import { supabaseAdmin } from "./supabase.js";
@@ -109,4 +109,19 @@ export async function autoPayoutOnRelease(
     console.error("[payout] auto M-Pesa off-ramp failed", err);
     return null;
   }
+}
+
+/** Re-run M-Pesa payout for a booking that already released escrow (status paid/released, no payout yet). */
+export async function retryAutoPayoutForBooking(bookingId: string): Promise<PayoutInfo | null> {
+  const booking = await getBooking(bookingId);
+  if (!booking) throw new Error("booking not found");
+  if (!booking.splits?.guideAmount) {
+    throw new Error("booking has no guide split recorded — complete the trip on-chain first");
+  }
+  const guideAmount = booking.splits.guideAmount;
+  if (booking.payout) throw new Error("payout already recorded");
+  if (booking.status !== "paid" && booking.status !== "released") {
+    throw new Error(`booking status is ${booking.status}, expected paid or released`);
+  }
+  return autoPayoutOnRelease(booking, guideAmount);
 }

@@ -1,5 +1,12 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Monorepo (guidemate root + frontend). Stops Next from walking up to unrelated lockfiles (e.g. ~/package-lock.json).
+  outputFileTracingRoot: path.join(__dirname, ".."),
   reactStrictMode: true,
   async rewrites() {
     return [

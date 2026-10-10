@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { submitGuideApplication, type GuideApplicationFilePayload } from "@/lib/api";
+import { captureReferralFromSearch, readStoredReferralCode } from "@/lib/referral";
 import { captureUtmFromSearch, readStoredUtm } from "@/lib/utm";
 
 async function fileToPayload(file: File): Promise<GuideApplicationFilePayload> {
@@ -179,6 +180,7 @@ export function GuideApplyWizard() {
 
   useEffect(() => {
     captureUtmFromSearch(window.location.search);
+    captureReferralFromSearch(window.location.search);
   }, []);
 
   const current = STEPS[step];
@@ -274,6 +276,7 @@ export function GuideApplyWizard() {
       ]);
 
       const utm = readStoredUtm();
+      const referralCode = readStoredReferralCode();
 
       await submitGuideApplication({
         fullName: fullName.trim(),
@@ -299,6 +302,7 @@ export function GuideApplyWizard() {
         utmSource: utm.utm_source,
         utmMedium: utm.utm_medium,
         utmCampaign: utm.utm_campaign,
+        referralCode,
       });
 
       setSubmitted(true);

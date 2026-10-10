@@ -7,6 +7,8 @@ import { getRampProvider, isMinisendRamp, isSimulatedRamp } from "../ramp/index.
 import { handleMinisendWebhook } from "../ramp/minisendWebhook.js";
 import { handleKotaniWebhook } from "../ramp/webhook.js";
 import { usdcToKes } from "../fx.js";
+import { shouldPollMinisend } from "../minisendPollThrottle.js";
+import { getCachedQuote, setCachedQuote } from "../paymentQuoteCache.js";
 import { getUserIdFromAuthHeader, supabaseAdmin } from "../supabase.js";
 
 export const paymentsRouter = Router();
@@ -143,7 +145,7 @@ paymentsRouter.get("/mpesa/:intentId", async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
   if (!data) return res.status(404).json({ error: "payment intent not found" });
 
-  if (data.status === "processing" && isMinisendRamp() && data.checkout_request_id) {
+  if (data.status === "processing" && isMinisendRamp() && data.checkout_request_id && shouldPollMinisend(data.id)) {
     try {
       const checkoutId = data.checkout_request_id as string;
       if (checkoutId.startsWith("cs_")) {
@@ -352,16 +354,21 @@ paymentsRouter.get("/quote", async (req, res) => {
   if (!Number.isFinite(amountUsdc) || amountUsdc <= 0) {
     return res.status(400).json({ error: "amountUsdc must be positive" });
   }
-  const phone = typeof req.query.phone === "string" ? req.query.phone : undefined;
+  const phoneRaw = typeof req.query.phone === "string" ? req.query.phone.trim() : "";
+  const phone = phoneRaw.length >= 9 ? phoneRaw : undefined;
+  const cacheKey = `${amountUsdc}:${phone ?? ""}`;
+  const cached = getCachedQuote(cacheKey);
+  if (cached) {
+    return res.json(cached);
+  }
+
   const ramp = getRampProvider();
   const guideShareUsdc = Math.round(amountUsdc * GUIDE_SHARE * 100) / 100;
-  const [onQuote, offQuote, guideQuote] = await Promise.all([
-    ramp.getQuote(amountUsdc, "on"),
-    ramp.getQuote(amountUsdc, "off", phone ? { phone } : undefined),
-    ramp.getQuote(guideShareUsdc, "off", phone ? { phone } : undefined),
-  ]);
+  const onQuote = await ramp.getQuote(amountUsdc, "on");
+  const offQuote = await ramp.getQuote(amountUsdc, "off", phone ? { phone } : undefined);
+  const guideQuote = await ramp.getQuote(guideShareUsdc, "off", phone ? { phone } : undefined);
   const kesDirect = await usdcToKes(amountUsdc);
-  res.json({
+  const payload = {
     amountUsdc,
     kesDirect,
     onRamp: onQuote,
@@ -371,7 +378,9 @@ paymentsRouter.get("/quote", async (req, res) => {
     guideShareUsdc,
     guideNetKes: guideQuote.kes,
     guideFeeKes: guideQuote.fee,
-  });
+  };
+  setCachedQuote(cacheKey, payload);
+  res.json(payload);
 });
 
 export async function getCompletedPaymentIntent(intentId: string, payerId: string) {

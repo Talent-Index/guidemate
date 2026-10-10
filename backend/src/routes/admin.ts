@@ -1,6 +1,14 @@
 import { Router } from "express";
 import { provisionGuideWallet } from "../wallet.js";
+import {
+  listReferralClaimsForAdmin,
+  recordReferralOnApproval,
+  tryQualifyGuideReferrals,
+  updateReferralClaimStatus,
+} from "../referrals.js";
 import { closeLockedBookingsAsPaid } from "../bookings.js";
+import { getEscrowHealthSnapshot } from "../escrowMonitoring.js";
+import { retryAutoPayoutForBooking } from "../payout.js";
 import {
   buildReportCsv,
   getAdminTransactions,
@@ -215,6 +223,11 @@ adminRouter.post("/applications/:id/approve", async (req, res) => {
       .eq("id", applicationId);
     if (updateError) throw new Error(updateError.message);
 
+    await recordReferralOnApproval(applicationId, userId);
+    await tryQualifyGuideReferrals(userId).catch((err) => {
+      console.warn("[admin] referral qualify after approve skipped", err);
+    });
+
     const approvalNoticeSent = await sendGuideApplicationApprovedEmail(
       application.email,
       application.full_name,
@@ -354,6 +367,60 @@ adminRouter.post("/staff", async (req, res) => {
   } catch (err) {
     console.error("[admin] create staff failed", err);
     res.status(500).json({ error: (err as Error).message ?? "staff creation failed" });
+  }
+});
+
+adminRouter.get("/referrals/claims", async (req, res) => {
+  const adminId = await getAdminUserIdFromAuthHeader(req.headers.authorization);
+  if (!adminId) return res.status(403).json({ error: "admin only" });
+
+  try {
+    const status = typeof req.query.status === "string" ? req.query.status : "pending";
+    const claims = await listReferralClaimsForAdmin(status);
+    res.json({ claims });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+adminRouter.patch("/referrals/claims/:id", async (req, res) => {
+  const adminId = await getAdminUserIdFromAuthHeader(req.headers.authorization);
+  if (!adminId) return res.status(403).json({ error: "admin only" });
+
+  const status = (req.body as { status?: string })?.status;
+  if (status !== "approved" && status !== "redeemed" && status !== "cancelled") {
+    return res.status(400).json({ error: "status must be approved, redeemed, or cancelled" });
+  }
+
+  try {
+    await updateReferralClaimStatus(req.params.id, status);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+adminRouter.get("/escrow/health", async (req, res) => {
+  const adminId = await getAdminUserIdFromAuthHeader(req.headers.authorization);
+  if (!adminId) return res.status(403).json({ error: "admin only" });
+
+  try {
+    const snapshot = await getEscrowHealthSnapshot();
+    res.json(snapshot);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+adminRouter.post("/bookings/:id/retry-payout", async (req, res) => {
+  const adminId = await getAdminUserIdFromAuthHeader(req.headers.authorization);
+  if (!adminId) return res.status(403).json({ error: "admin only" });
+
+  try {
+    const payout = await retryAutoPayoutForBooking(req.params.id);
+    res.json({ ok: true, payout });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
   }
 });
 

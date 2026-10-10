@@ -139,15 +139,20 @@ export default function BookExperiencePage() {
     const amount = experience.price_usdc * guests;
     if (amount <= 0) return;
     let cancelled = false;
-    getPaymentQuote(amount, mpesaPhone.trim() || undefined)
-      .then((next) => {
-        if (!cancelled) setQuote(next);
-      })
-      .catch(() => {
-        if (!cancelled) setQuote(null);
-      });
+    const phone = mpesaPhone.trim();
+    const phoneForQuote = phone.length >= 9 ? phone : undefined;
+    const timer = window.setTimeout(() => {
+      getPaymentQuote(amount, phoneForQuote)
+        .then((next) => {
+          if (!cancelled) setQuote(next);
+        })
+        .catch(() => {
+          if (!cancelled) setQuote(null);
+        });
+    }, 500);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [experience, guests, mpesaPhone]);
 

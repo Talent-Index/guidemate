@@ -102,15 +102,12 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20" />
           <div className="relative mx-auto flex min-h-[100svh] max-w-6xl flex-col items-start justify-center px-4 pb-20 pt-28">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/70">Live-first travel</p>
             <h1 className="mt-3 max-w-3xl text-4xl font-bold leading-[1.1] tracking-tight text-white sm:text-6xl">
-              Watch locals live.
-              <br />
-              Book them when you&apos;re ready.
+              A new world of local experiences you can trust.
             </h1>
             <p className="mt-6 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg">
-              Guidemate is built around live streams: city walks, markets, safari prep, and creator tours in real
-              time. Join free or pay-per-view, then book the same vetted guide for an in-person trip.
+              Watch locals live, then book the same vetted guide for an in-person trip. Escrow, end-trip verification,
+              and fast M-Pesa payouts built in.
             </p>
             <HomeHeroActions />
           </div>

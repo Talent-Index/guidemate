@@ -30,6 +30,7 @@ import {
 import { uploadExperiencePhoto } from "@/lib/uploads";
 import { aiExperienceDraft, getPaymentQuote, syncReferralQualification, type PaymentQuote } from "@/lib/api";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { useKesPricing } from "@/lib/fx";
 import { PayoutDestinationPicker } from "@/components/guide/PayoutDestinationPicker";
 import type { ExperiencePayoutChoice, PayoutDestination } from "@/lib/payoutDestination";
 
@@ -61,7 +62,9 @@ export function ExperienceWizard({
   const router = useRouter();
   const { toast } = useToast();
   const { profile, session } = useAuth();
+  const { usdcFromKes, kesFromUsdc } = useKesPricing();
   const [aiDrafting, setAiDrafting] = useState(false);
+  const priceKesInitialized = useRef(false);
 
   const [step, setStep] = useState(() =>
     Math.min(6, Math.max(1, initialStep || draft.wizard_step || 1))
@@ -70,9 +73,16 @@ export function ExperienceWizard({
   const [description, setDescription] = useState(draft.description);
   const [category, setCategory] = useState(draft.category ?? "");
   const [tagsInput, setTagsInput] = useState(draft.tags.join(", "));
-  const [priceUsdc, setPriceUsdc] = useState(
-    draft.price_usdc > 0 ? String(draft.price_usdc) : ""
-  );
+  const [priceKes, setPriceKes] = useState("");
+  const priceUsdcNum = usdcFromKes(Number(priceKes) || 0);
+  const priceUsdc = priceKes === "" ? "" : String(priceUsdcNum);
+
+  useEffect(() => {
+    if (!priceKesInitialized.current && draft.price_usdc > 0) {
+      setPriceKes(String(kesFromUsdc(draft.price_usdc)));
+      priceKesInitialized.current = true;
+    }
+  }, [draft.price_usdc, kesFromUsdc]);
   const [imageUrls, setImageUrls] = useState<string[]>(
     draft.image_urls?.length ? draft.image_urls : draft.image_url ? [draft.image_url] : []
   );
@@ -152,7 +162,7 @@ export function ExperienceWizard({
   };
 
   useEffect(() => {
-    const amount = Number(priceUsdc);
+    const amount = priceUsdcNum;
     if (!Number.isFinite(amount) || amount <= 0) {
       setPayoutQuote(null);
       return;
@@ -168,7 +178,7 @@ export function ExperienceWizard({
     return () => {
       cancelled = true;
     };
-  }, [priceUsdc]);
+  }, [priceUsdcNum]);
 
   const buildPatch = useCallback(
     (wizardStep = formRef.current.step): Partial<ExperienceDraftRow> => {
@@ -543,15 +553,15 @@ export function ExperienceWizard({
 
           {step === 3 && (
             <>
-              <Field label="Price (USDC)">
+              <Field label="Price (KES)">
                 <input
                   className={inputClass}
                   type="number"
                   min="0"
-                  step="0.01"
-                  value={priceUsdc}
-                  onChange={(e) => setPriceUsdc(e.target.value)}
-                  placeholder="e.g. 25"
+                  step="50"
+                  value={priceKes}
+                  onChange={(e) => setPriceKes(e.target.value)}
+                  placeholder="e.g. 5000"
                 />
               </Field>
               {payoutQuote && (

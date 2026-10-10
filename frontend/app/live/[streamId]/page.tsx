@@ -41,7 +41,7 @@ import { StreamMetricsCard } from "@/components/live/StreamMetricsCard";
 import { FollowGuideButton, StreamViewersPanel } from "@/components/live/GuideFollowAndViewers";
 import { BASE_EXPLORER_TX, BASE_USDC_ADDRESS, splitStreamRevenue } from "@/lib/streamRevenue";
 import { base } from "@/lib/wagmi";
-import { Price } from "@/lib/fx";
+import { KesPrice, Price, useCurrency, useKesPricing } from "@/lib/fx";
 import { PaymentRailGuide } from "@/components/payments/PaymentRailGuide";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
@@ -63,6 +63,8 @@ export default function LiveStreamPage() {
   const streamRouteKey = params.streamId;
   const { session, profile, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const { formatFiat } = useCurrency();
+  const { usdcFromKes } = useKesPricing();
   const { address } = useAccount();
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
@@ -79,7 +81,7 @@ export default function LiveStreamPage() {
   const [ending, setEnding] = useState(false);
   const [starting, setStarting] = useState(false);
   const [notifying, setNotifying] = useState(false);
-  const [tipAmount, setTipAmount] = useState("1");
+  const [tipAmountKes, setTipAmountKes] = useState("500");
   const [payError, setPayError] = useState<string | null>(null);
   const [mpesaPhone, setMpesaPhone] = useState("");
   const [liveRail, setLiveRail] = useState<"mpesa" | "checkout">("mpesa");
@@ -359,8 +361,11 @@ export default function LiveStreamPage() {
       setPayError("This guide has not set a payout wallet yet.");
       return;
     }
-    const amount = Number(tipAmount);
-    if (!amount || amount <= 0) return;
+    const amount = usdcFromKes(Number(tipAmountKes));
+    if (!amount || amount <= 0) {
+      setPayError("Enter a tip of at least about KES 50.");
+      return;
+    }
     setPayError(null);
     try {
       const { guideAmount, platformAmount } = splitStreamRevenue(amount);
@@ -375,7 +380,7 @@ export default function LiveStreamPage() {
         session?.access_token
       );
       await refreshTips();
-      toast(`Tip sent, ${amount} USDC`, "success");
+      toast(`Tip sent, ${formatFiat(amount, "KES") ?? ""}`, "success");
     } catch (err) {
       showPayError((err as Error).message);
     }
@@ -840,19 +845,22 @@ export default function LiveStreamPage() {
             <Card className="p-5 sm:p-6">
               <h2 className="text-sm font-bold text-brand-blueDark">Tip the guide</h2>
               <p className="mt-1 text-xs text-brand-muted">
-                Tips use USDC on Base (same rail as payouts). Guidemate keeps 15%; your guide receives 85%.
+                Tips are sent on-chain in USDC; enter an amount in KES. Guidemate keeps 15%; your guide receives 85%.
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <WalletConnectButton />
+                <label className="sr-only" htmlFor="tip-kes">Tip in KES</label>
                 <input
-                  className="form-input-light w-24"
+                  id="tip-kes"
+                  className="form-input-light w-28"
                   type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={tipAmount}
-                  onChange={(e) => setTipAmount(e.target.value)}
-                  aria-label="Tip amount in USDC"
+                  min="50"
+                  step="50"
+                  value={tipAmountKes}
+                  onChange={(e) => setTipAmountKes(e.target.value)}
+                  aria-label="Tip amount in Kenyan shillings"
                 />
+                <span className="text-xs font-semibold text-brand-muted">KES</span>
                 <Button variant="secondary" disabled={!address || writing || !stream.guideWallet} onClick={handleTip}>
                   {writing ? "Sending..." : "Send tip"}
                 </Button>
@@ -869,7 +877,7 @@ export default function LiveStreamPage() {
                   {tips.map((tip) => (
                     <li key={tip.id} className="flex items-center justify-between text-sm">
                       <span className="text-brand-muted">
-                        {tip.amountUsdc} USDC
+                        <KesPrice amountUsdc={tip.amountUsdc} className="inline" />
                         {tip.tipperWallet ? ` · ${tip.tipperWallet.slice(0, 6)}…${tip.tipperWallet.slice(-4)}` : ""}
                       </span>
                       {!tip.txHash.startsWith("mpesa-") && (
@@ -967,14 +975,15 @@ export default function LiveStreamPage() {
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <WalletConnectButton />
                       <input
-                        className="form-input-light w-24"
+                        className="form-input-light w-28"
                         type="number"
-                        min="0.01"
-                        step="0.01"
-                        value={tipAmount}
-                        onChange={(e) => setTipAmount(e.target.value)}
-                        aria-label="Tip amount in USDC"
+                        min="50"
+                        step="50"
+                        value={tipAmountKes}
+                        onChange={(e) => setTipAmountKes(e.target.value)}
+                        aria-label="Tip amount in Kenyan shillings"
                       />
+                      <span className="text-xs font-semibold text-brand-muted">KES</span>
                       <Button variant="secondary" disabled={!address || writing || !stream.guideWallet} onClick={handleTip}>
                         {writing ? "Sending..." : "Send tip"}
                       </Button>

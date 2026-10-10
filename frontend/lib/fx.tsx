@@ -13,7 +13,25 @@ import { getFxRates, type FxSnapshot } from "@/lib/api";
 
 const STORAGE_KEY = "guidemate-display-currency";
 const FX_POLL_MS = 60_000;
-const FALLBACK_KES = Number(process.env.NEXT_PUBLIC_USDC_TO_KES_RATE ?? 145);
+export const FALLBACK_KES = Number(process.env.NEXT_PUBLIC_USDC_TO_KES_RATE ?? 145);
+
+export function kesPerUsdcFromRates(rates: Record<string, number>): number {
+  const k = rates.KES;
+  return k && k > 0 ? k : FALLBACK_KES;
+}
+
+export function roundKes(amount: number): number {
+  return Math.round(amount);
+}
+
+export function kesFromUsdcAmount(amountUsdc: number, kesPerUsdc: number): number {
+  return roundKes(amountUsdc * kesPerUsdc);
+}
+
+export function usdcFromKesAmount(amountKes: number, kesPerUsdc: number): number {
+  if (amountKes <= 0 || kesPerUsdc <= 0) return 0;
+  return Math.round((amountKes / kesPerUsdc) * 100) / 100;
+}
 
 export const FEATURED_CURRENCIES = [
   "KES",
@@ -160,13 +178,27 @@ export function useCurrency(): CurrencyContextValue {
   return ctx;
 }
 
+/** Convert between stored USDC amounts and KES labels shown across the product. */
+export function useKesPricing() {
+  const { rates } = useCurrency();
+  const kesPerUsdc = kesPerUsdcFromRates(rates);
+  return useMemo(
+    () => ({
+      kesPerUsdc,
+      kesFromUsdc: (amountUsdc: number) => kesFromUsdcAmount(amountUsdc, kesPerUsdc),
+      usdcFromKes: (amountKes: number) => usdcFromKesAmount(amountKes, kesPerUsdc),
+    }),
+    [kesPerUsdc]
+  );
+}
+
 export function Price({
   amountUsdc,
   className = "",
   size = "md",
   align = "end",
   showLiveHint = false,
-  showUsdc = true,
+  showUsdc = false,
   showKes = true,
 }: {
   amountUsdc: number;
@@ -174,8 +206,8 @@ export function Price({
   size?: "sm" | "md" | "lg";
   align?: "start" | "end";
   showLiveHint?: boolean;
+  /** Secondary USDC line (admin / crypto checkout). Default off — prices show in KES. */
   showUsdc?: boolean;
-  /** When false, only show the USDC line (e.g. admin). */
   showKes?: boolean;
 }) {
   const { formatFiat, isLive } = useCurrency();

@@ -27,8 +27,7 @@ export function PaymentRailGuide({
 
   return (
     <p className="mt-3 text-sm text-brand-muted">
-      {kesLine ? `${kesLine} · ` : ""}
-      {quote ? `${quote.amountUsdc.toFixed(2)} USDC · ` : ""}Pay on Minisend, then return here.
+      {kesLine ? `${kesLine} · ` : ""}Pay on Minisend with USDC or USDT, then return here.
     </p>
   );
 }

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { randomUUID } from "crypto";
 import { z } from "zod";
+import { resolveReferrerProfileId } from "../referrals.js";
 import { supabaseAdmin } from "../supabase.js";
 
 export const applicationsRouter = Router();
@@ -34,6 +35,7 @@ const applicationSchema = z.object({
   utmSource: z.string().max(200).optional(),
   utmMedium: z.string().max(200).optional(),
   utmCampaign: z.string().max(200).optional(),
+  referralCode: z.string().max(32).optional(),
 });
 
 const ALLOWED_CONTENT_TYPES = new Set([
@@ -103,6 +105,9 @@ applicationsRouter.post("/", async (req, res) => {
         ),
       ]);
 
+    const referralCode = input.referralCode?.trim() || null;
+    const referrerProfileId = referralCode ? await resolveReferrerProfileId(referralCode) : null;
+
     const { error: insertError } = await supabaseAdmin.from("guide_applications").insert({
       full_name: input.fullName.trim(),
       email: input.email.trim().toLowerCase(),
@@ -124,6 +129,8 @@ applicationsRouter.post("/", async (req, res) => {
       utm_source: input.utmSource?.trim() || null,
       utm_medium: input.utmMedium?.trim() || null,
       utm_campaign: input.utmCampaign?.trim() || null,
+      referral_code: referralCode,
+      referrer_profile_id: referrerProfileId,
     });
 
     if (insertError) throw new Error(insertError.message);

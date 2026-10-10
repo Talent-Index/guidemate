@@ -544,7 +544,7 @@ export default function BookExperiencePage() {
                 <p className="font-semibold text-brand-blueDark">Price details</p>
                 <div className="mt-2 flex justify-between text-brand-muted">
                   <span>
-                    {perGuestKes ?? `${experience.price_usdc} USDC`} x {guests} guest{guests !== 1 ? "s" : ""}
+                    {perGuestKes ?? "—"} x {guests} guest{guests !== 1 ? "s" : ""}
                   </span>
                   <span className="font-semibold text-brand-blueDark">
                     {totalKesDisplay ?? `${totalUsdc.toFixed(2)} USDC`}

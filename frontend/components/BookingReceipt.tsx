@@ -7,6 +7,7 @@ import {
   printBookingReceipt,
 } from "@/lib/bookingReceipt";
 import { SNOWTRACE_TX_BASE } from "@/lib/api";
+import { useCurrency } from "@/lib/fx";
 
 const INK = "#00265E";
 const PAPER = "#F4EFE4";
@@ -30,7 +31,11 @@ function DotRow() {
 }
 
 export function BookingReceipt({ data }: { data: BookingReceiptData }) {
+  const { formatFiat } = useCurrency();
   const ref = receiptShortId(data.bookingId);
+  const experienceKes =
+    formatFiat(data.payment?.amountUsdc ?? 0, "KES") ??
+    `KES ${(data.payment?.amountUsdc ?? 0).toLocaleString("en-KE")}`;
   const paidAt = data.payment?.paidAt ?? data.createdAt;
   const d = new Date(paidAt);
   const dateStr = d.toLocaleDateString("en-KE", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -77,10 +82,9 @@ export function BookingReceipt({ data }: { data: BookingReceiptData }) {
           </div>
           <span className="text-center tabular-nums">{data.guestCount}</span>
           <div className="text-right">
-            <p className="font-bold tabular-nums">{data.payment?.amountUsdc.toFixed(2) ?? "0.00"} USDC</p>
-            {mpesaPaid != null && (
-              <p className="text-[11px] tabular-nums">KES {mpesaPaid.toLocaleString("en-KE")}</p>
-            )}
+            <p className="font-bold tabular-nums">
+              {mpesaPaid != null ? `KES ${mpesaPaid.toLocaleString("en-KE")}` : experienceKes}
+            </p>
           </div>
         </div>
 
@@ -107,11 +111,9 @@ export function BookingReceipt({ data }: { data: BookingReceiptData }) {
         <p className="text-center text-sm font-extrabold tracking-wide">
           {mpesaPaid != null
             ? `TOTAL PAID: KES ${mpesaPaid.toLocaleString("en-KE")}`
-            : `TOTAL: ${data.payment?.amountUsdc.toFixed(2) ?? "0"} USDC`}
+            : `TOTAL: ${experienceKes}`}
         </p>
-        <p className="mt-2 text-center text-[11px] opacity-90">
-          {data.payment?.amountUsdc.toFixed(2)} USDC experience · escrow until your trip ends
-        </p>
+        <p className="mt-2 text-center text-[11px] opacity-90">Held in escrow until your trip ends</p>
 
         <DotRow />
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { GuideApplyWizard } from "@/components/apply/GuideApplyWizard";
+import { ReferralApplyBanner } from "@/components/apply/ReferralApplyBanner";
 import { pageMetadata } from "@/lib/marketingMetadata";
 import { MarketingSection } from "@/components/marketing/MarketingArticle";
 
@@ -24,6 +25,7 @@ export default function BecomeAGuidePage() {
       </header>
 
       <div className="mx-auto max-w-3xl px-4 pb-6">
+        <ReferralApplyBanner />
         <GuideApplyWizard />
       </div>
 

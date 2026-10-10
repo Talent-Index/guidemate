@@ -17,7 +17,7 @@ import { EXPERIENCE_CATEGORIES } from "@/lib/categories";
 import { RatePanel } from "@/components/RatePanel";
 import { ViewTouristProfileButton } from "@/components/ViewTouristProfileButton";
 import { getWallet, listMyBookings, getGuideInsights, submitTouristRating, type BookingRecord, type GuideInsights } from "@/lib/api";
-import { Price } from "@/lib/fx";
+import { Price, useCurrency } from "@/lib/fx";
 import { MobilePageBanner } from "@/components/ui/MobilePageBanner";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
 import { uploadExperiencePhoto } from "@/lib/uploads";
@@ -62,6 +62,7 @@ async function uploadExperiencePhotos(files: File[], guideId: string): Promise<s
 export default function GuideDashboardPage() {
   const router = useRouter();
   const { loading: authLoading, session, profile } = useAuth();
+  const { formatFiat } = useCurrency();
 
   const [activeTab, setActiveTab] = useState<DashboardTab>("experiences");
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
@@ -548,8 +549,14 @@ export default function GuideDashboardPage() {
               <InsightStat label="Confirmed bookings" value={insights.overview.confirmedBookings} />
               <InsightStat label="Completed tours" value={insights.overview.completedTours} />
               <InsightStat label="Past live streams" value={insights.overview.pastStreams} />
-              <InsightStat label="Tour earnings" value={`${insights.overview.tourEarningsUsdc} USDC`} />
-              <InsightStat label="Stream tips" value={`${insights.overview.streamEarningsUsdc} USDC`} />
+              <InsightStat
+                label="Tour earnings"
+                value={formatFiat(insights.overview.tourEarningsUsdc, "KES") ?? "—"}
+              />
+              <InsightStat
+                label="Stream tips"
+                value={formatFiat(insights.overview.streamEarningsUsdc, "KES") ?? "—"}
+              />
               <InsightStat
                 label="Rating"
                 value={
@@ -642,7 +649,7 @@ export default function GuideDashboardPage() {
                     <p className="text-xs text-brand-muted">
                       {s.endedAt ? new Date(s.endedAt).toLocaleDateString() : new Date(s.createdAt).toLocaleDateString()}
                       {" · "}
-                      {s.tipCount} tips ({s.tipTotalUsdc} USDC)
+                      {s.tipCount} tips ({formatFiat(s.tipTotalUsdc, "KES") ?? "—"})
                       {" · "}
                       {s.reactionCount} flowers
                       {s.commentCount > 0 ? ` · ${s.commentCount} comments` : ""}

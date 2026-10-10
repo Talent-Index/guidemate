@@ -8,6 +8,7 @@ import { SettingsPageShell } from "@/components/settings/SettingsPageShell";
 import { SettingsSection } from "@/components/settings/SettingsSection";
 import { SettingsHelpSection } from "@/components/settings/SettingsHelpSection";
 import { SettingsAccountSection } from "@/components/settings/SettingsAccountSection";
+import { ReferralRewardsSection } from "@/components/settings/ReferralRewardsSection";
 import { RoleGate } from "@/components/auth/RoleGate";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
@@ -31,6 +32,7 @@ export default function TouristSettingsPage() {
   return (
     <SettingsPageShell subtitle={`Signed in as ${profile.fullName ?? session.user.email}`}>
       <TouristProfileCard />
+      <ReferralRewardsSection />
 
       <SettingsSection title="Wallet" description="See your balance and withdraw to M-Pesa.">
         <Link href="/wallet">

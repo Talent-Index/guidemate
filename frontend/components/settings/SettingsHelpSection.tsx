@@ -2,7 +2,7 @@ import Link from "next/link";
 import { SettingsSection } from "@/components/settings/SettingsSection";
 
 const FAQ_TIPS = [
-  "Browse experiences on Explore, or describe what you want and let AI find a match.",
+  "Browse and search experiences on Explore, then book with escrow-protected checkout.",
   "Book with M-Pesa or crypto. Your wallet balance is in Settings under Wallet.",
   "Message your guide from the Bookings page once a trip is confirmed.",
 ];

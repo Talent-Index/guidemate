@@ -7,6 +7,7 @@ import { GuideProfileCard } from "@/components/GuideProfileCard";
 import { SettingsPageShell } from "@/components/settings/SettingsPageShell";
 import { SettingsHelpSection } from "@/components/settings/SettingsHelpSection";
 import { SettingsAccountSection } from "@/components/settings/SettingsAccountSection";
+import { ReferralRewardsSection } from "@/components/settings/ReferralRewardsSection";
 import { RoleGate } from "@/components/auth/RoleGate";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
@@ -30,6 +31,7 @@ export default function GuideSettingsPage() {
   return (
     <SettingsPageShell subtitle={`Signed in as ${profile.fullName ?? session.user.email}`}>
       <GuideProfileCard />
+      <ReferralRewardsSection />
       <SettingsHelpSection role="guide" />
       <SettingsAccountSection />
     </SettingsPageShell>

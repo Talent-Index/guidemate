@@ -235,47 +235,44 @@ export default function LiveBrowsePage() {
       </div>
 
       {profile?.role === "guide" ? (
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-4 lg:items-start lg:gap-10">
-          <aside className="lg:col-span-1 lg:sticky lg:top-24 lg:max-w-[min(100%,20rem)]">
-            <Card className="p-4 sm:p-5">
+        <div className="flex flex-col gap-8">
+          <Card className="p-4 sm:p-5">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="text-base font-bold text-brand-blueDark">Host & schedule</h2>
-              <p className="mt-1 text-xs leading-relaxed text-brand-muted">
-                Set up on the left. Browse live and upcoming streams on the right.
-              </p>
-              {!session ? (
-                <Link href="/auth/sign-in">
-                  <Button variant="primary" className="mt-4 w-full">
-                    Sign in to go live
-                  </Button>
-                </Link>
-              ) : (
-                <div className="mt-5 flex flex-col gap-5">
-                  <div className="space-y-2">
+              <p className="text-xs text-brand-muted">Set title and price, then go live or pick a time.</p>
+            </div>
+            {!session ? (
+              <Link href="/auth/sign-in">
+                <Button variant="primary" className="mt-4">
+                  Sign in to go live
+                </Button>
+              </Link>
+            ) : (
+              <div className="mt-4 flex flex-col gap-4">
+                <div className="grid gap-3 md:grid-cols-[1fr_auto_7rem] md:items-end">
+                  <div className="min-w-0">
                     <label className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Title</label>
                     <input
-                      className="form-input-light w-full"
+                      className="form-input-light mt-1 w-full"
                       placeholder="e.g. Umoja market walk"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       required
                     />
-                    <Button
-                      variant="secondary"
-                      type="button"
-                      className="w-full"
-                      disabled={suggesting || title.trim().length < 2}
-                      onClick={handleSuggestTitle}
-                    >
-                      {suggesting ? "Suggesting…" : "Suggest title with AI"}
-                    </Button>
                   </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-wide text-brand-muted">
-                      Ticket (USDC)
-                    </label>
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    className="md:mb-0.5 md:self-end"
+                    disabled={suggesting || title.trim().length < 2}
+                    onClick={handleSuggestTitle}
+                  >
+                    {suggesting ? "…" : "Suggest title"}
+                  </Button>
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wide text-brand-muted">USDC</label>
                     <input
-                      className="form-input-light w-full"
+                      className="form-input-light mt-1 w-full"
                       type="number"
                       min="0"
                       step="0.01"
@@ -283,120 +280,120 @@ export default function LiveBrowsePage() {
                       onChange={(e) => setPrice(e.target.value)}
                       aria-label="Price in USDC"
                     />
-                    <p className="text-[11px] leading-snug text-brand-muted">
-                      0 = free. Paid: you keep 85%, Guidemate 15%.
-                    </p>
                   </div>
+                </div>
+                <p className="text-[11px] text-brand-muted md:-mt-1">
+                  0 = free stream. Paid tickets: you keep 85%, Guidemate 15%.
+                </p>
 
-                  <div className="space-y-2 rounded-lg bg-[var(--gm-canvas)] p-3">
-                    <p className="text-xs font-semibold text-brand-blueDark">Go live now</p>
-                    <Button
-                      variant="primary"
-                      type="button"
-                      className="w-full"
-                      disabled={starting || title.trim().length < 2}
-                      onClick={handleGoLive}
-                    >
-                      {starting ? "Starting…" : "Start broadcast"}
-                    </Button>
-                  </div>
+                <div className="flex flex-col gap-3 border-t border-brand-border pt-4 lg:flex-row lg:flex-wrap lg:items-center">
+                  <Button
+                    variant="primary"
+                    type="button"
+                    className="shrink-0 lg:min-w-[10rem]"
+                    disabled={starting || title.trim().length < 2}
+                    onClick={handleGoLive}
+                  >
+                    {starting ? "Starting…" : "Start broadcast"}
+                  </Button>
 
-                  <div className="space-y-2 border-t border-brand-border pt-5">
-                    <p className="text-xs font-semibold text-brand-blueDark">Schedule for later</p>
-                    <label className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Start time</label>
+                  <div className="hidden h-8 w-px shrink-0 bg-brand-border lg:block" aria-hidden />
+
+                  <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                    <label className="sr-only" htmlFor="stream-schedule-at">Scheduled start</label>
                     <input
-                      className="form-input-light w-full"
+                      id="stream-schedule-at"
+                      className="form-input-light min-w-[12rem] flex-1 sm:max-w-xs"
                       type="datetime-local"
                       value={scheduledAt}
                       onChange={(e) => setScheduledAt(e.target.value)}
                       aria-label="Scheduled start time"
                     />
-                    <Button
-                      variant="secondary"
-                      type="button"
-                      className="w-full"
-                      disabled={scheduling || title.trim().length < 2}
-                      onClick={handleSchedule}
-                    >
-                      {scheduling ? "Saving…" : "Save to calendar"}
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      type="button"
-                      className="w-full text-xs"
-                      disabled={announcing || title.trim().length < 2}
-                      onClick={handleAnnounceInHour}
-                    >
-                      {announcing ? "Sending…" : "Announce: live in 1 hour"}
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="secondary"
+                        type="button"
+                        disabled={scheduling || title.trim().length < 2}
+                        onClick={handleSchedule}
+                      >
+                        {scheduling ? "Saving…" : "Save to calendar"}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        type="button"
+                        disabled={announcing || title.trim().length < 2}
+                        onClick={handleAnnounceInHour}
+                      >
+                        {announcing ? "Sending…" : "Live in 1 hour"}
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              )}
-              {startError && <p className="mt-3 text-xs text-red-600">{startError}</p>}
+              </div>
+            )}
+            {startError && <p className="mt-3 text-sm text-red-600">{startError}</p>}
+          </Card>
 
-              {myScheduled.length > 0 && (
-                <div className="mt-6 border-t border-brand-border pt-4">
-                  <h3 className="text-xs font-bold uppercase tracking-wide text-brand-muted">Your schedule</h3>
-                  <ul className="mt-3 flex flex-col gap-3">
-                    {myScheduled.map((stream) => (
-                      <li key={stream.id} className="rounded-lg border border-brand-border bg-[var(--gm-canvas)] p-3">
-                        <p className="text-sm font-semibold leading-snug text-brand-blueDark">{stream.title}</p>
-                        <p className="mt-1 text-[11px] text-brand-muted">
-                          {stream.scheduledAt ? formatWhen(stream.scheduledAt) : "Time TBD"}
-                          {stream.communityNotifiedAt ? " · Announced" : ""}
-                        </p>
-                        <div className="mt-2 flex flex-col gap-1.5">
-                          <Button
-                            variant="primary"
-                            type="button"
-                            className="w-full text-xs"
-                            disabled={guideActionId === stream.id}
-                            onClick={() => handleStartEarly(stream.id)}
-                          >
-                            Start early
-                          </Button>
-                          {!stream.communityNotifiedAt && (
-                            <Button
-                              variant="secondary"
-                              type="button"
-                              className="w-full text-xs"
-                              disabled={guideActionId === stream.id}
-                              onClick={() => handleNotify(stream.id)}
-                            >
-                              Notify community
-                            </Button>
-                          )}
-                          <ShareLinkButton
-                            path={getStreamSharePath(stream.id, stream.slug)}
-                            label="Share"
-                            shareTitle={stream.title}
-                            shareText={`Join my live stream: ${stream.title}`}
-                            className="w-full justify-center px-3 py-2 text-xs"
-                          />
-                          <Link href={getStreamSharePath(stream.id, stream.slug)} className="block">
-                            <Button variant="secondary" type="button" className="w-full text-xs">
-                              View page
-                            </Button>
-                          </Link>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </Card>
-          </aside>
+          {myScheduled.length > 0 && (
+            <section>
+              <h3 className="text-sm font-bold text-brand-blueDark">Your scheduled streams</h3>
+              <ul className="mt-3 flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory">
+                {myScheduled.map((stream) => (
+                  <li
+                    key={stream.id}
+                    className="min-w-[min(100%,18rem)] shrink-0 snap-start rounded-xl border border-brand-border bg-[var(--gm-canvas)] p-4 sm:min-w-[16rem]"
+                  >
+                    <p className="font-semibold leading-snug text-brand-blueDark">{stream.title}</p>
+                    <p className="mt-1 text-xs text-brand-muted">
+                      {stream.scheduledAt ? formatWhen(stream.scheduledAt) : "Time TBD"}
+                      {stream.communityNotifiedAt ? " · Announced" : ""}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        variant="primary"
+                        type="button"
+                        className="text-xs"
+                        disabled={guideActionId === stream.id}
+                        onClick={() => handleStartEarly(stream.id)}
+                      >
+                        Start early
+                      </Button>
+                      {!stream.communityNotifiedAt && (
+                        <Button
+                          variant="secondary"
+                          type="button"
+                          className="text-xs"
+                          disabled={guideActionId === stream.id}
+                          onClick={() => handleNotify(stream.id)}
+                        >
+                          Notify
+                        </Button>
+                      )}
+                      <ShareLinkButton
+                        path={getStreamSharePath(stream.id, stream.slug)}
+                        label="Share"
+                        shareTitle={stream.title}
+                        shareText={`Join my live stream: ${stream.title}`}
+                        className="px-3 py-2 text-xs"
+                      />
+                      <Link href={getStreamSharePath(stream.id, stream.slug)}>
+                        <Button variant="secondary" type="button" className="text-xs">View</Button>
+                      </Link>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
-          <div className="min-w-0 lg:col-span-3">
-            <LiveBrowseMain
-              live={live}
-              upcoming={upcoming}
-              recorded={recorded}
-              loading={loading}
-              error={error}
-              gridCols="md:grid-cols-2 xl:grid-cols-3"
-            />
-          </div>
+          <LiveBrowseMain
+            live={live}
+            upcoming={upcoming}
+            recorded={recorded}
+            loading={loading}
+            error={error}
+            gridCols="md:grid-cols-2 xl:grid-cols-3"
+          />
         </div>
       ) : (
         <LiveBrowseMain

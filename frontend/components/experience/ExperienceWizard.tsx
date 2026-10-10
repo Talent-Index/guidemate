@@ -28,7 +28,7 @@ import {
   type ItineraryStep,
 } from "@/lib/itinerary";
 import { uploadExperiencePhoto } from "@/lib/uploads";
-import { aiExperienceDraft, getPaymentQuote, type PaymentQuote } from "@/lib/api";
+import { aiExperienceDraft, getPaymentQuote, syncReferralQualification, type PaymentQuote } from "@/lib/api";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { PayoutDestinationPicker } from "@/components/guide/PayoutDestinationPicker";
 import type { ExperiencePayoutChoice, PayoutDestination } from "@/lib/payoutDestination";
@@ -329,6 +329,9 @@ export function ExperienceWizard({
         );
       }
       await saveDraft(extra);
+      if (session?.access_token) {
+        await syncReferralQualification(session.access_token).catch(() => undefined);
+      }
       toast("Experience published", "success");
       router.push("/guide/dashboard");
     } catch {

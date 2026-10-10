@@ -2,6 +2,7 @@
 
 import { Card } from "@/components/ui/Card";
 import type { StreamStats } from "@/lib/api";
+import { KesPrice } from "@/lib/fx";
 
 export function StreamMetricsCard({
   stats,
@@ -21,8 +22,8 @@ export function StreamMetricsCard({
     { label: "Total joins", value: stats.totalJoins.toLocaleString() },
     { label: "Unique viewers", value: stats.uniqueJoins.toLocaleString() },
     { label: "Flowers", value: stats.reactionCount.toLocaleString() },
-    { label: "Tips", value: `${stats.tipCount} · ${stats.tipTotalUsdc.toFixed(2)} USDC` },
-  ];
+    { label: "Tips", value: stats.tipCount, tipTotalUsdc: stats.tipTotalUsdc },
+  ] as const;
 
   return (
     <Card className={compact ? "p-4" : "p-5 sm:p-6"}>
@@ -31,7 +32,21 @@ export function StreamMetricsCard({
         {items.map((item) => (
           <div key={item.label} className="rounded-xl border border-brand-border bg-brand-bg/30 px-3 py-2">
             <dt className="text-[10px] font-semibold uppercase tracking-wide text-brand-muted">{item.label}</dt>
-            <dd className="mt-0.5 text-lg font-bold tabular-nums text-brand-blueDark">{item.value}</dd>
+            <dd className="mt-0.5 text-lg font-bold tabular-nums text-brand-blueDark">
+              {"tipTotalUsdc" in item ? (
+                <>
+                  {item.value}
+                  {item.tipTotalUsdc > 0 && (
+                    <>
+                      {" · "}
+                      <KesPrice amountUsdc={item.tipTotalUsdc} className="inline" />
+                    </>
+                  )}
+                </>
+              ) : (
+                item.value
+              )}
+            </dd>
           </div>
         ))}
       </dl>

@@ -71,6 +71,11 @@ async function minisendRequest<T>(method: string, path: string, body?: unknown, 
   const json = (await res.json().catch(() => ({}))) as T & { message?: string; error?: string };
   if (!res.ok) {
     const msg = json.message ?? json.error ?? `Minisend API error ${res.status} on ${path}`;
+    if (res.status === 429 || /rate limit/i.test(msg)) {
+      throw new Error(
+        "Payment provider rate limit reached. Wait a minute and try again, or pay with USDC / USDT checkout."
+      );
+    }
     throw new Error(msg);
   }
   return json;

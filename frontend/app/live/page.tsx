@@ -21,7 +21,7 @@ import {
   startStream,
   type LiveStreamRecord,
 } from "@/lib/api";
-import { Price } from "@/lib/fx";
+import { Price, useKesPricing } from "@/lib/fx";
 import { ViewGuideProfileButton } from "@/components/ViewGuideProfileButton";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
 import { getStreamSharePath } from "@/lib/share";
@@ -54,8 +54,9 @@ export default function LiveBrowsePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { usdcFromKes } = useKesPricing();
   const [title, setTitle] = useState("");
-  const [price, setPrice] = useState("0");
+  const [priceKes, setPriceKes] = useState("0");
   const [scheduledAt, setScheduledAt] = useState(() =>
     toDatetimeLocalValue(new Date(Date.now() + 2 * 60 * 60 * 1000))
   );
@@ -126,7 +127,7 @@ export default function LiveBrowsePage() {
     setStartError(null);
     try {
       const { stream, token } = await startStream(
-        { title: title.trim(), priceUsdc: Number(price) || 0 },
+        { title: title.trim(), priceUsdc: usdcFromKes(Number(priceKes) || 0) },
         session.access_token
       );
       storeLivePublishToken(stream.id, token);
@@ -146,7 +147,7 @@ export default function LiveBrowsePage() {
       await scheduleStream(
         {
           title: title.trim(),
-          priceUsdc: Number(price) || 0,
+          priceUsdc: usdcFromKes(Number(priceKes) || 0),
           scheduledAt: new Date(scheduledAt).toISOString(),
         },
         session.access_token
@@ -171,7 +172,7 @@ export default function LiveBrowsePage() {
     try {
       const when = new Date(Date.now() + 60 * 60 * 1000).toISOString();
       const { stream } = await scheduleStream(
-        { title: title.trim(), priceUsdc: Number(price) || 0, scheduledAt: when },
+        { title: title.trim(), priceUsdc: usdcFromKes(Number(priceKes) || 0), scheduledAt: when },
         session.access_token
       );
       await notifyStreamCommunity(stream.id, session.access_token);
@@ -270,20 +271,20 @@ export default function LiveBrowsePage() {
                     {suggesting ? "…" : "Suggest title"}
                   </Button>
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-wide text-brand-muted">USDC</label>
+                    <label className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Ticket (KES)</label>
                     <input
                       className="form-input-light mt-1 w-full"
                       type="number"
                       min="0"
-                      step="0.01"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      aria-label="Price in USDC"
+                      step="50"
+                      value={priceKes}
+                      onChange={(e) => setPriceKes(e.target.value)}
+                      aria-label="Ticket price in Kenyan shillings"
                     />
                   </div>
                 </div>
                 <p className="text-[11px] text-brand-muted md:-mt-1">
-                  0 = free stream. Paid tickets: you keep 85%, Guidemate 15%.
+                  0 = free stream. Paid tickets: you keep 85%, Guidemate 15%. Shown to viewers in KES.
                 </p>
 
                 <div className="flex flex-col gap-3 border-t border-brand-border pt-4 lg:flex-row lg:flex-wrap lg:items-center">

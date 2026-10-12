@@ -148,8 +148,18 @@ export function friendlyPaymentError(message: string): string {
   if (lower.includes("rate limit")) {
     return "Payments are busy right now. Wait about a minute, then try again or switch to USDC / USDT checkout.";
   }
+  if (lower.includes("payment was not completed")) {
+    return "M-Pesa did not complete (declined, cancelled, or expired at Safaricom). If the prompt arrived late, try again on a stable connection and keep this page open until we confirm.";
+  }
+  if (lower.includes("timed out waiting for payment")) {
+    return "We have not received M-Pesa confirmation yet. If you already entered your PIN, use Check payment status below. Otherwise try again and wait for the phone prompt (it can take 1–2 minutes).";
+  }
   return message;
 }
+
+/** Default client wait for M-Pesa STK (late prompts on busy networks). */
+export const MPESA_POLL_TIMEOUT_MS = 240_000;
+export const MPESA_POLL_INTERVAL_MS = 4_000;
 
 export function friendlyWalletError(message: string): string {
   const lower = message.toLowerCase();
@@ -730,8 +740,8 @@ export async function pollMpesaPayment(
   accessToken: string,
   opts?: { timeoutMs?: number; intervalMs?: number }
 ): Promise<{ status: string; mpesaReceipt: string | null; amountKes: number; amountUsdc: number }> {
-  const timeoutMs = opts?.timeoutMs ?? 120_000;
-  const intervalMs = opts?.intervalMs ?? 6000;
+  const timeoutMs = opts?.timeoutMs ?? MPESA_POLL_TIMEOUT_MS;
+  const intervalMs = opts?.intervalMs ?? MPESA_POLL_INTERVAL_MS;
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
     const status = await getMpesaPaymentStatus(intentId, accessToken);

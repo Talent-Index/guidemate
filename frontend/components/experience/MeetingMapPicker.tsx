@@ -8,7 +8,7 @@ const MeetingMapCanvas = dynamic(
   { ssr: false }
 );
 
-type GeocodeResult = { lat: number; lng: number; label: string };
+type GeocodeResult = { lat: number; lng: number; label: string; county?: string };
 
 export function MeetingMapPicker({
   lat,
@@ -90,14 +90,14 @@ export function MeetingMapPicker({
           Meeting point
         </label>
         <p className="text-xs text-brand-muted">
-          Search for a place or drop a pin on the map.
+          Search for a place in Kenya (e.g. Nation Centre, Westlands) or drop a pin on the map.
         </p>
         <input
           id="meeting-search"
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search for a location..."
+          placeholder="Search places in Kenya…"
           className="mt-2 w-full rounded-lg border border-brand-border bg-white px-3 py-2 text-sm text-brand-blueDark placeholder:text-brand-muted focus:border-brand-accent focus:outline-none focus:ring-1 focus:ring-brand-accent"
         />
         {searching && <p className="mt-1 text-xs text-brand-muted">Searching...</p>}
@@ -108,9 +108,12 @@ export function MeetingMapPicker({
                 <button
                   type="button"
                   onClick={() => selectResult(result)}
-                  className="w-full px-3 py-2 text-left text-sm text-brand-blueDark hover:bg-brand-surface"
+                  className="w-full px-3 py-2 text-left hover:bg-brand-surface"
                 >
-                  {result.label}
+                  <span className="block text-sm text-brand-blueDark">{result.label}</span>
+                  {result.county && (
+                    <span className="mt-0.5 block text-xs font-medium text-brand-muted">{result.county}</span>
+                  )}
                 </button>
               </li>
             ))}

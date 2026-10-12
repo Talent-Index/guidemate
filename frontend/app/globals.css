@@ -11,6 +11,8 @@
   --gm-nav: #ffffff;
   --gm-nav-fg: #111111;
   --gm-tabs: #ffffff;
+  /* Mobile tab bar + optional sticky footers (experience book CTA). */
+  --gm-mobile-tab-height: 5.25rem;
 }
 
 html.dark {
@@ -71,6 +73,14 @@ html.dark .shadow-card {
 
 * {
   box-sizing: border-box;
+}
+
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 /* Underline fields used on dark form panels (apply / auth / landing inquiry). */

@@ -60,7 +60,10 @@ export function ExperienceCard({
   const ratingCount = experience.guide?.rating_count ?? 0;
 
   return (
-    <Link href={getExperienceSharePath(experience.id, experience.slug)} className="group block w-[280px] shrink-0 sm:w-[300px]">
+    <Link
+      href={getExperienceSharePath(experience.id, experience.slug)}
+      className="group block w-[min(280px,78vw)] shrink-0 sm:w-[300px]"
+    >
       <div className="relative overflow-hidden rounded-2xl">
         <ExperiencePhoto
           src={experience.image_url}

@@ -1,6 +1,6 @@
 /** Avoid hammering Minisend order/status APIs while the client polls M-Pesa payment status. */
 const lastPollByIntent = new Map<string, number>();
-export const MINISEND_STATUS_POLL_MS = 8_000;
+export const MINISEND_STATUS_POLL_MS = 5_000;
 
 export function shouldPollMinisend(intentId: string): boolean {
   const now = Date.now();

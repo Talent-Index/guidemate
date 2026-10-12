@@ -13,6 +13,9 @@ L.Icon.Default.mergeOptions({ iconUrl, iconRetinaUrl, shadowUrl });
 export const NAIROBI_CENTER = { lat: -1.286389, lng: 36.817223 };
 export const DEFAULT_ZOOM = 12;
 
+/** Keep meeting pins inside Kenya. */
+export const KENYA_MAP_BOUNDS = L.latLngBounds([-4.75, 33.85], [5.05, 41.95]);
+
 function MapClickHandler({ onPin }: { onPin: (coords: { lat: number; lng: number }) => void }) {
   useMapEvents({
     click(e) {
@@ -49,6 +52,9 @@ export function MeetingMapCanvas({
       zoom={DEFAULT_ZOOM}
       className="h-full w-full"
       scrollWheelZoom
+      maxBounds={KENYA_MAP_BOUNDS}
+      maxBoundsViscosity={0.85}
+      minZoom={6}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

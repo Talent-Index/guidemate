@@ -145,6 +145,12 @@ paymentsRouter.get("/mpesa/:intentId", async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
   if (!data) return res.status(404).json({ error: "payment intent not found" });
 
+  const intentAgeMs = data.created_at
+    ? Date.now() - new Date(data.created_at as string).getTime()
+    : 120_000;
+  /** Avoid marking failed while Safaricom STK may still be in flight (late prompts on slow networks). */
+  const allowFailFromPoll = intentAgeMs >= 90_000;
+
   if (data.status === "processing" && isMinisendRamp() && data.checkout_request_id && shouldPollMinisend(data.id)) {
     try {
       const checkoutId = data.checkout_request_id as string;
@@ -172,7 +178,7 @@ paymentsRouter.get("/mpesa/:intentId", async (req, res) => {
           });
           data.status = "completed";
           data.mpesa_receipt = receipt;
-        } else if (session.status === "failed" || session.status === "expired") {
+        } else if ((session.status === "failed" || session.status === "expired") && allowFailFromPoll) {
           await supabaseAdmin.from("payment_intents").update({ status: "failed" }).eq("id", data.id);
           data.status = "failed";
         }
@@ -208,7 +214,7 @@ paymentsRouter.get("/mpesa/:intentId", async (req, res) => {
 
             data.status = "completed";
             data.mpesa_receipt = mpesaRef;
-          } else if (order.status === "failed" || order.status === "expired") {
+          } else if ((order.status === "failed" || order.status === "expired") && allowFailFromPoll) {
             await supabaseAdmin.from("payment_intents").update({ status: "failed" }).eq("id", data.id);
             data.status = "failed";
           }

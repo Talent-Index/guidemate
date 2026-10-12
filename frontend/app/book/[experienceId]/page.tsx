@@ -97,6 +97,7 @@ export default function BookExperiencePage() {
   const [mpesaPhone, setMpesaPhone] = useState("");
   const [quote, setQuote] = useState<PaymentQuote | null>(null);
   const [finishingCheckout, setFinishingCheckout] = useState(false);
+  const [pendingMpesaIntentId, setPendingMpesaIntentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile?.phone) setMpesaPhone(profile.phone);
@@ -257,6 +258,32 @@ export default function BookExperiencePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, experience, searchParams]);
 
+  async function completeBookingAfterMpesa(intentId: string) {
+    if (!experience || !session || !selectedSlot) return;
+    await finishPaidBooking({
+      method: "mpesa",
+      paymentIntentId: intentId,
+      slot: selectedSlot,
+      guestAdults: adults,
+      guestChildren: children,
+    });
+    setPendingMpesaIntentId(null);
+  }
+
+  async function handleRecheckMpesa() {
+    if (!session || !pendingMpesaIntentId || !experience || !selectedSlot) return;
+    setBookingError(null);
+    setBookingLoading(true);
+    try {
+      await pollMpesaPayment(pendingMpesaIntentId, session.access_token, { timeoutMs: 120_000 });
+      await completeBookingAfterMpesa(pendingMpesaIntentId);
+    } catch (err) {
+      setBookingError(friendlyPaymentError((err as Error).message));
+    } finally {
+      setBookingLoading(false);
+    }
+  }
+
   async function handleConfirm() {
     if (!experience || !session || !selectedSlot) return;
     setBookingError(null);
@@ -274,6 +301,7 @@ export default function BookExperiencePage() {
           },
           session.access_token
         );
+        setPendingMpesaIntentId(payment.intentId);
         if (payment.status === "processing") {
           await pollMpesaPayment(payment.intentId, session.access_token);
         }
@@ -316,6 +344,7 @@ export default function BookExperiencePage() {
         guestAdults: adults,
         guestChildren: children,
       });
+      if (paymentMethod === "mpesa") setPendingMpesaIntentId(null);
     } catch (err) {
       const message = friendlyPaymentError((err as Error).message);
       setBookingError(message);
@@ -372,7 +401,7 @@ export default function BookExperiencePage() {
   const totalKesDisplay = formatFiat(totalUsdc, "KES");
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto w-full min-w-0 max-w-5xl">
       <Link
         href={getExperienceSharePath(experience.id, experience.slug)}
         className="mb-6 inline-block text-sm font-semibold text-brand-accent hover:underline"
@@ -380,11 +409,11 @@ export default function BookExperiencePage() {
         Back to experience
       </Link>
 
-      <h1 className="text-2xl font-bold text-brand-blueDark">Confirm and pay</h1>
+      <h1 className="text-xl font-bold text-brand-blueDark sm:text-2xl">Confirm and pay</h1>
 
-      <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="mt-6 grid min-w-0 gap-8 sm:mt-8 sm:gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="flex flex-col gap-8">
-          <section className="rounded-2xl border border-brand-border p-6">
+          <section className="rounded-2xl border border-brand-border p-4 sm:p-6">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-brand-muted">Step 1</p>
@@ -406,7 +435,7 @@ export default function BookExperiencePage() {
             </div>
           </section>
 
-          <section className={`rounded-2xl border border-brand-border p-6 ${!selectedSlot ? "opacity-50" : ""}`}>
+          <section className={`rounded-2xl border border-brand-border p-4 sm:p-6 ${!selectedSlot ? "opacity-50" : ""}`}>
             <p className="text-xs font-bold uppercase tracking-wide text-brand-muted">Step 2</p>
             <h2 className="mt-1 text-lg font-bold text-brand-blueDark">Payment</h2>
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -456,7 +485,7 @@ export default function BookExperiencePage() {
             )}
           </section>
 
-          <section className={`rounded-2xl border border-brand-border p-6 ${!selectedSlot ? "opacity-50" : ""}`}>
+          <section className={`rounded-2xl border border-brand-border p-4 sm:p-6 ${!selectedSlot ? "opacity-50" : ""}`}>
             <p className="text-xs font-bold uppercase tracking-wide text-brand-muted">Step 3</p>
             <h2 className="mt-1 text-lg font-bold text-brand-blueDark">Pay</h2>
             {bookingError && (
@@ -476,14 +505,26 @@ export default function BookExperiencePage() {
                 )}
               </div>
             )}
-            <Button
-              variant="accent"
-              className="mt-5 w-full rounded-xl py-3.5 text-sm font-bold sm:w-auto sm:px-10"
-              disabled={bookingLoading || !selectedSlot}
-              onClick={handleConfirm}
-            >
-              {bookingLoading ? (paymentMethod === "mpesa" ? "Waiting for M-Pesa…" : "Processing...") : `Confirm and pay`}
-            </Button>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <Button
+                variant="accent"
+                className="w-full rounded-xl py-3.5 text-sm font-bold sm:w-auto sm:px-10"
+                disabled={bookingLoading || !selectedSlot}
+                onClick={() => void handleConfirm()}
+              >
+                {bookingLoading ? (paymentMethod === "mpesa" ? "Waiting for M-Pesa…" : "Processing...") : `Confirm and pay`}
+              </Button>
+              {paymentMethod === "mpesa" && pendingMpesaIntentId && !bookingLoading && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full rounded-xl py-3.5 text-sm font-bold sm:w-auto sm:px-8"
+                  onClick={() => void handleRecheckMpesa()}
+                >
+                  Check payment status
+                </Button>
+              )}
+            </div>
             <p className="mt-3 text-xs text-brand-muted">Held until the trip ends. Free cancel within 24 hours.</p>
           </section>
         </div>

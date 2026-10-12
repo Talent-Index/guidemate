@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -28,6 +29,11 @@ import { Price } from "@/lib/fx";
 import type { ExperienceSlot } from "@/lib/slots";
 import type { PublicExperienceBundle, PublicExperienceDetail } from "@/lib/publicCatalog";
 
+const ExperienceMeetingMap = dynamic(
+  () => import("@/components/experience/ExperienceMeetingMap").then((m) => m.ExperienceMeetingMap),
+  { ssr: false, loading: () => <div className="h-56 animate-pulse rounded-2xl bg-brand-bg sm:h-72 md:h-80" /> }
+);
+
 type ExperienceDetail = PublicExperienceDetail;
 
 interface ReviewRow {
@@ -50,11 +56,6 @@ function tagline(description: string) {
   const first = description.split(/\n/)[0]?.trim() ?? "";
   if (first.length <= 120) return first;
   return `${first.slice(0, 117)}...`;
-}
-
-function osmEmbedSrc(lat: number, lng: number) {
-  const d = 0.08;
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - d}%2C${lat - d}%2C${lng + d}%2C${lat + d}&layer=mapnik&marker=${lat}%2C${lng}`;
 }
 
 function decodeIdOrSlug(value: string) {
@@ -194,13 +195,15 @@ export function ExperienceDetailClient({
   const cityLabel = experience.location?.split(",")[0]?.trim() || "Nairobi";
 
   return (
-    <div className="mx-auto max-w-[1120px] pb-28 lg:pb-16">
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)] lg:items-start">
-        <ExperiencePhotoGallery urls={photos} alt={experience.title} layout="quad" />
+    <div className="mx-auto w-full min-w-0 max-w-[1120px]">
+      <div className="grid min-w-0 gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,22rem)] lg:items-start xl:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
+        <div className="min-w-0">
+          <ExperiencePhotoGallery urls={photos} alt={experience.title} layout="quad" />
+        </div>
 
-        <div className="lg:row-span-2">
-          <div className="flex items-start justify-between gap-3">
-            <h1 className="text-[26px] font-bold leading-tight text-[var(--gm-ink)] sm:text-[32px]">
+        <div className="min-w-0 lg:row-span-2">
+          <div className="flex items-start justify-between gap-2 sm:gap-3">
+            <h1 className="min-w-0 break-words text-2xl font-bold leading-tight text-[var(--gm-ink)] sm:text-[28px] md:text-[32px]">
               {experience.title}
             </h1>
             <ShareLinkButton
@@ -245,7 +248,7 @@ export function ExperienceDetailClient({
           </div>
         </div>
 
-        <div className="flex flex-col gap-12">
+        <div className="flex min-w-0 flex-col gap-10 sm:gap-12 lg:col-start-1">
           {itinerarySteps.length > 0 && <ExperienceWhatYoullDo steps={itinerarySteps} />}
 
           {itinerarySteps.length === 0 && (
@@ -297,12 +300,11 @@ export function ExperienceDetailClient({
                 {meetingPlaceName && (
                   <p className="mt-2 font-semibold text-[var(--gm-ink)]">{meetingPlaceName}</p>
                 )}
-                <div className="mt-4 overflow-hidden rounded-2xl border border-brand-border">
-                  <iframe
-                    title="Meeting location map"
-                    className="h-80 w-full border-0"
-                    loading="lazy"
-                    src={osmEmbedSrc(experience.meeting_lat!, experience.meeting_lng!)}
+                <div className="mt-4">
+                  <ExperienceMeetingMap
+                    lat={experience.meeting_lat!}
+                    lng={experience.meeting_lng!}
+                    label={meetingPlaceName}
                   />
                 </div>
               </>
@@ -345,19 +347,21 @@ export function ExperienceDetailClient({
         />
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-brand-border bg-[var(--gm-surface)] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] lg:hidden">
-        <div className="mx-auto flex max-w-lg items-center justify-between gap-4">
-          <div>
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-brand-border bg-[var(--gm-surface)]/95 p-3 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] backdrop-blur-md sm:p-4 max-md:bottom-[calc(var(--gm-mobile-tab-height)+env(safe-area-inset-bottom))] lg:hidden"
+      >
+        <div className="mx-auto flex w-full max-w-lg items-center justify-between gap-3 sm:gap-4">
+          <div className="min-w-0">
             <Price amountUsdc={experience.price_usdc} size="md" align="start" className="font-bold" />
             <p className="text-xs text-brand-muted">/ guest</p>
           </div>
           {selectedSlot ? (
-            <Button variant="accent" className="rounded-full px-6" onClick={() => setGuestModalOpen(true)}>
+            <Button variant="accent" className="shrink-0 rounded-full px-5 sm:px-6" onClick={() => setGuestModalOpen(true)}>
               Reserve
             </Button>
           ) : (
-            <a href="#experience-times-mobile">
-              <Button variant="accent" className="rounded-full px-6">Show dates</Button>
+            <a href="#experience-times-mobile" className="shrink-0">
+              <Button variant="accent" className="rounded-full px-5 sm:px-6">Show dates</Button>
             </a>
           )}
         </div>

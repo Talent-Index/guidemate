@@ -35,7 +35,7 @@ function PillLink({
   return (
     <Link
       href={href}
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+      className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1.5 text-[11px] font-semibold transition sm:px-3 sm:text-xs ${
         active ? "bg-brand-blue text-white" : "text-brand-muted hover:text-brand-blueDark"
       }`}
     >
@@ -97,10 +97,10 @@ export function NavBar() {
           : "border-b border-[var(--gm-border)] bg-[var(--gm-nav)]/90"
       } ${hidden ? "md:-translate-y-full" : "translate-y-0"}`}
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 md:py-4">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2 px-4 py-3 sm:gap-3 md:py-4">
         <Link
           href={profile ? homeForRole(profile.role) : "/"}
-          className={`flex items-center border px-3 py-1.5 ${
+          className={`flex shrink-0 items-center border px-2.5 py-1.5 sm:px-3 ${
             onMarketingHero
               ? "border-white/25 bg-white"
               : "border-[var(--gm-border)] bg-[#ffffff] dark:bg-[#000000]"
@@ -109,9 +109,9 @@ export function NavBar() {
           <BrandLogo className="h-6 w-auto sm:h-7" priority />
         </Link>
 
-        <nav className="hidden items-center gap-3 md:flex">
+        <nav className="hidden min-w-0 flex-1 justify-end md:flex">
           {loading ? null : user && profile ? (
-            <div className="flex items-center rounded-full border border-brand-border bg-white/80 p-1 dark:bg-black/40">
+            <div className="scrollbar-none flex max-w-full items-center overflow-x-auto rounded-full border border-brand-border bg-white/80 p-1 dark:bg-black/40">
               {profile.role === "guide" && (
                 <>
                   <PillLink

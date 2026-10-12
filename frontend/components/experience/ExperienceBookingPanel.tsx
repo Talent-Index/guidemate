@@ -30,10 +30,8 @@ export function ExperienceBookingPanel({
   }, [selectedSlot]);
 
   return (
-    <div
-      className="rounded-2xl border border-brand-border bg-[var(--gm-surface)] p-5 shadow-card"
-    >
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="rounded-2xl border border-brand-border bg-[var(--gm-surface)] p-4 shadow-card sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
           <div className="flex flex-wrap items-baseline gap-1">
             <span className="text-sm text-brand-muted">From</span>
@@ -44,7 +42,7 @@ export function ExperienceBookingPanel({
         </div>
         <Button
           variant="accent"
-          className="rounded-full px-6 py-3 text-sm font-bold"
+          className="w-full rounded-full px-6 py-3 text-sm font-bold sm:w-auto"
           onClick={() => {
             if (selectedSlot) onReserve();
             else setShowDates(true);

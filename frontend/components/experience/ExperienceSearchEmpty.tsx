@@ -9,10 +9,12 @@ export function ExperienceSearchEmpty({
   query,
   recommendations,
   onClearSearch,
+  clearButtonLabel = "Clear search",
 }: {
   query: string;
   recommendations: ExperienceCardData[];
   onClearSearch: () => void;
+  clearButtonLabel?: string;
 }) {
   return (
     <div className="flex flex-col gap-8">
@@ -25,7 +27,7 @@ export function ExperienceSearchEmpty({
           week, or try a shorter search.
         </p>
         <Button type="button" variant="secondary" className="mt-5" onClick={onClearSearch}>
-          Clear search
+          {clearButtonLabel}
         </Button>
       </Card>
 

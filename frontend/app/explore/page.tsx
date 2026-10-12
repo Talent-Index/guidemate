@@ -12,6 +12,12 @@ import { createClient } from "@/lib/supabase/client";
 import { EXPERIENCE_CATEGORIES } from "@/lib/categories";
 import { listMyBookings } from "@/lib/api";
 import { filterExperiencesByQuery, recommendExperiences } from "@/lib/experienceSearch";
+import {
+  ALL_KENYA_REGIONS,
+  KENYA_EXPLORE_REGIONS,
+  experienceMatchesKenyaRegion,
+  getKenyaRegionById,
+} from "@/lib/kenyaRegions";
 
 interface ExperienceListRow extends ExperienceCardData {
   description: string;
@@ -21,6 +27,15 @@ interface ExperienceListRow extends ExperienceCardData {
 }
 
 const ALL_CATEGORIES = "All";
+const ALL_REGIONS = "all";
+
+function filterChipClass(active: boolean) {
+  return `rounded-full px-4 py-2 text-xs font-semibold transition ${
+    active
+      ? "bg-brand-blue text-white"
+      : "border border-brand-border text-brand-muted hover:border-brand-accent hover:text-brand-accent"
+  }`;
+}
 
 export default function ExplorePage() {
   const { loading: authLoading, session, profile } = useAuth();
@@ -29,13 +44,19 @@ export default function ExplorePage() {
   const [experiences, setExperiences] = useState<ExperienceListRow[]>([]);
   const [loadingExperiences, setLoadingExperiences] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string>(ALL_CATEGORIES);
+  const [activeRegion, setActiveRegion] = useState<string>(ALL_REGIONS);
 
   useEffect(() => {
-    const fromUrl = new URLSearchParams(window.location.search).get("category");
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get("category");
     if (fromUrl && (EXPERIENCE_CATEGORIES as readonly string[]).includes(fromUrl)) {
       setActiveCategory(fromUrl);
     }
-    const query = new URLSearchParams(window.location.search).get("q");
+    const region = params.get("region");
+    if (region && (region === ALL_REGIONS || getKenyaRegionById(region))) {
+      setActiveRegion(region);
+    }
+    const query = params.get("q");
     if (query) setSearchQuery(query);
   }, []);
 
@@ -71,8 +92,21 @@ export default function ExplorePage() {
       .catch(() => setBookingCount(0));
   }, [session, profile?.role]);
 
-  const categoryFiltered =
-    activeCategory === ALL_CATEGORIES ? experiences : experiences.filter((exp) => exp.category === activeCategory);
+  const regionMeta = getKenyaRegionById(activeRegion);
+  const regionLabel = regionMeta?.label ?? ALL_KENYA_REGIONS;
+
+  const regionFiltered = useMemo(
+    () => experiences.filter((exp) => experienceMatchesKenyaRegion(exp, activeRegion)),
+    [experiences, activeRegion]
+  );
+
+  const categoryFiltered = useMemo(
+    () =>
+      activeCategory === ALL_CATEGORIES
+        ? regionFiltered
+        : regionFiltered.filter((exp) => exp.category === activeCategory),
+    [regionFiltered, activeCategory]
+  );
 
   const trimmedSearch = searchQuery.trim();
   const isSearching = trimmedSearch.length > 0;
@@ -81,19 +115,24 @@ export default function ExplorePage() {
     [categoryFiltered, trimmedSearch]
   );
   const recommendations = useMemo(
-    () => recommendExperiences(experiences, trimmedSearch, 6),
-    [experiences, trimmedSearch]
+    () => recommendExperiences(regionFiltered.length > 0 ? regionFiltered : experiences, trimmedSearch, 6),
+    [regionFiltered, experiences, trimmedSearch]
   );
 
   const categorySections = useMemo(() => {
     const grouped = new Map<string, ExperienceListRow[]>();
-    for (const exp of experiences) {
+    for (const exp of regionFiltered) {
       const key = exp.category ?? "More to explore";
       if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key)!.push(exp);
     }
     return Array.from(grouped.entries());
-  }, [experiences]);
+  }, [regionFiltered]);
+
+  const popularTitle =
+    activeRegion === ALL_REGIONS
+      ? "Popular experiences in Kenya"
+      : `Popular in ${regionLabel}`;
 
   function scrollToBrowse() {
     document.getElementById("browse-experiences")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -143,9 +182,11 @@ export default function ExplorePage() {
     : [];
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex min-w-0 flex-col gap-8 sm:gap-10">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--gm-ink)] sm:text-3xl">Experiences in Nairobi</h1>
+        <h1 className="text-2xl font-bold text-[var(--gm-ink)] sm:text-3xl">
+          {activeRegion === ALL_REGIONS ? "Experiences in Kenya" : `Experiences in ${regionLabel}`}
+        </h1>
         <p className="mt-2 text-sm text-brand-muted">
           {profile?.role === "tourist"
             ? "Search or browse vetted tours below."
@@ -174,12 +215,21 @@ export default function ExplorePage() {
           />
         )}
 
-        {!loadingExperiences && !isSearching && (
+        {!loadingExperiences && !isSearching && regionFiltered.length === 0 && (
+          <ExperienceSearchEmpty
+            query={activeRegion === ALL_REGIONS ? "this area" : regionLabel}
+            recommendations={recommendExperiences(experiences, "", 6)}
+            onClearSearch={() => setActiveRegion(ALL_REGIONS)}
+            clearButtonLabel="Show all Kenya"
+          />
+        )}
+
+        {!loadingExperiences && !isSearching && regionFiltered.length > 0 && (
           <>
-            {activeCategory === ALL_CATEGORIES && experiences.length > 0 && (
+            {activeCategory === ALL_CATEGORIES && (
               <ExperienceRow
-                title="Popular experiences in Nairobi"
-                experiences={experiences.slice(0, 12)}
+                title={popularTitle}
+                experiences={regionFiltered.slice(0, 12)}
                 badgeForIndex={(i) => (i < 3 ? "Trending" : undefined)}
               />
             )}
@@ -190,9 +240,35 @@ export default function ExplorePage() {
                   key={category}
                   title={category}
                   experiences={rows}
-                  seeAllHref={`/explore?category=${encodeURIComponent(category)}`}
+                  seeAllHref={`/explore?category=${encodeURIComponent(category)}${
+                    activeRegion !== ALL_REGIONS ? `&region=${encodeURIComponent(activeRegion)}` : ""
+                  }`}
                 />
               ))}
+
+            <section>
+              <h2 className="text-xl font-bold text-[var(--gm-ink)]">Filter by region</h2>
+              <p className="mt-1 text-sm text-brand-muted">Counties and areas across Kenya.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveRegion(ALL_REGIONS)}
+                  className={filterChipClass(activeRegion === ALL_REGIONS)}
+                >
+                  {ALL_KENYA_REGIONS}
+                </button>
+                {KENYA_EXPLORE_REGIONS.map((region) => (
+                  <button
+                    key={region.id}
+                    type="button"
+                    onClick={() => setActiveRegion(region.id)}
+                    className={filterChipClass(activeRegion === region.id)}
+                  >
+                    {region.label}
+                  </button>
+                ))}
+              </div>
+            </section>
 
             <section>
               <h2 className="text-xl font-bold text-[var(--gm-ink)]">Filter by category</h2>
@@ -202,11 +278,7 @@ export default function ExplorePage() {
                     key={cat}
                     type="button"
                     onClick={() => setActiveCategory(cat)}
-                    className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
-                      activeCategory === cat
-                        ? "bg-brand-blue text-white"
-                        : "border border-brand-border text-brand-muted hover:border-brand-accent hover:text-brand-accent"
-                    }`}
+                    className={filterChipClass(activeCategory === cat)}
                   >
                     {cat}
                   </button>
@@ -215,7 +287,10 @@ export default function ExplorePage() {
 
               {activeCategory !== ALL_CATEGORIES && (
                 <div className="mt-8">
-                  <ExperienceRow title={`${activeCategory} experiences`} experiences={categoryFiltered} />
+                  <ExperienceRow
+                    title={`${activeCategory} · ${regionLabel}`}
+                    experiences={categoryFiltered}
+                  />
                 </div>
               )}
             </section>

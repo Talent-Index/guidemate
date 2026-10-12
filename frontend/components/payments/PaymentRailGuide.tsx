@@ -17,9 +17,19 @@ export function PaymentRailGuide({
   const { formatFiat } = useCurrency();
 
   if (rail === "mpesa") {
-    if (processing) return <p className="mt-3 text-sm font-semibold text-brand-accent">Enter PIN on your phone.</p>;
+    if (processing) {
+      return (
+        <p className="mt-3 text-sm leading-relaxed text-brand-muted">
+          <span className="font-semibold text-brand-accent">Keep this page open.</span> Enter your M-Pesa PIN when the
+          STK prompt appears. On busy networks it can take <strong className="font-semibold text-brand-blueDark">1–2
+          minutes</strong> to show up.
+        </p>
+      );
+    }
     return (
-      <p className="mt-3 text-sm text-brand-muted">M-Pesa prompt on this number.</p>
+      <p className="mt-3 text-sm text-brand-muted">
+        We send an STK push to this number. Use the Safaricom line that receives M-Pesa prompts.
+      </p>
     );
   }
 

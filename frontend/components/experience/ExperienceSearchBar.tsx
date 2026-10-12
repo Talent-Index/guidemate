@@ -18,7 +18,7 @@ export function ExperienceSearchBar({
         Look by name, neighborhood, or vibe — e.g. &ldquo;Westlands food&rdquo; or &ldquo;safari&rdquo;.
       </p>
       <form
-        className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center"
+        className="mt-4 flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-stretch"
         onSubmit={(e) => {
           e.preventDefault();
           onSubmit?.();

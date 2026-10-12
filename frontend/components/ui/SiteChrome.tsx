@@ -12,6 +12,8 @@ export function SiteChrome({ children }: { children: ReactNode }) {
   const isHome = pathname === "/";
   const isChatThread = pathname.startsWith("/chat/") && pathname !== "/chat";
   const isLiveRoom = /^\/live\/[^/]+$/.test(pathname);
+  const isExperienceFlow =
+    /^\/(e|experiences)\//.test(pathname) || pathname.startsWith("/book/");
   const hideTabs = isHome || pathname.startsWith("/auth/") || isChatThread || isLiveRoom;
 
   return (
@@ -20,12 +22,14 @@ export function SiteChrome({ children }: { children: ReactNode }) {
         <NavBar />
       </Suspense>
       <main
-        className={`flex-1 ${
+        className={`min-w-0 flex-1 ${
           isHome
             ? "pt-0"
             : isChatThread || isLiveRoom
-              ? "mx-auto flex w-full max-w-3xl flex-col px-4 pb-4 pt-20 md:max-w-3xl md:pb-8 md:pt-24"
-              : "mx-auto w-full px-4 pb-8 pt-24 md:max-w-6xl max-md:pb-28"
+              ? "mx-auto flex w-full max-w-3xl flex-col px-4 pb-4 pt-20 sm:px-5 md:max-w-3xl md:pb-8 md:pt-24"
+              : isExperienceFlow
+                ? "mx-auto w-full max-w-6xl px-4 pb-8 pt-20 sm:px-5 sm:pt-24 max-md:pb-[calc(var(--gm-mobile-tab-height)+6.5rem+env(safe-area-inset-bottom))] md:pb-10 lg:pb-12"
+                : "mx-auto w-full max-w-6xl px-4 pb-8 pt-20 sm:px-5 sm:pt-24 max-md:pb-[calc(var(--gm-mobile-tab-height)+1.25rem+env(safe-area-inset-bottom))] md:pb-10"
         }`}
       >
         {children}
